@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>r4box</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0B0918;color:#ACA5D6;font:16px system-ui,sans-serif}a{color:#3DD6C6}</style>
+<p>The games moved to <a id="to" href="https://games.r4box.com/">games.r4box.com</a>…</p>
+<script type="module">
+import { forward } from './door.js';
+document.getElementById('to').href = 'https://games.r4box.com' + location.pathname + location.search + location.hash;
+forward(true);
+</script>

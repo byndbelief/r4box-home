@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>r4box</title>
+  <meta name="description" content="r4box: the family game room, and the box that runs the rest.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0B0918">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Sora:wght@400;600;800&display=swap">
+  <script type="module">import { forward } from './door.js'; forward();</script>
+  <style>
+    :root {
+      --bg: #0B0918; --panel: #171331; --line: #2F2957; --ink: #F3F1FF; --muted: #ACA5D6;
+      --teal: #3DD6C6; --gold: #F5C542; --hot: #FF5A4A; --violet: #B9A6FF; --mint: #C9FFF8;
+      --display: "Unbounded", "Arial Black", Impact, sans-serif;
+      --body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); }
+    body { font-family: var(--body); line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { width: min(1100px, 100% - 32px); margin-inline: auto; }
+
+    /* top bar */
+    header.bar { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+    .r4mark { display: inline-flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -.02em; }
+    .r4mark i { width: 1.05em; height: 1.05em; border-radius: 22%; background: conic-gradient(from 210deg, var(--teal), var(--violet), var(--gold), var(--hot), var(--teal)); box-shadow: inset 0 0 0 .18em var(--bg), 0 0 18px #3DD6C666; animation: spin 18s linear infinite; }
+    .r4mark small { font-family: var(--body); font-weight: 800; font-size: .5em; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); align-self: flex-end; margin-bottom: .2em; }
+    @keyframes spin { to { filter: hue-rotate(360deg); } }
+    .xval { font: 600 12px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted); padding: 8px 12px; border: 1px solid var(--line); border-radius: 99px; background: #ffffff06; white-space: nowrap; }
+    .xval b { color: var(--teal); font-weight: 600; display: inline-block; min-width: 6.5ch; }
+
+    /* hero: the bifurcation diagram of x → r·x(1−x), r sweeping to 4 */
+    .hero { position: relative; isolation: isolate; padding: clamp(40px, 9vw, 110px) 0 clamp(56px, 10vw, 120px); }
+    .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; opacity: .9;
+      /* faded under the words on the left, full strength where chaos starts */
+      --v: linear-gradient(180deg, transparent, #000 18%, #000 70%, transparent); --hz: linear-gradient(90deg, #0000001a 0 30%, #000 72%);
+      mask-image: var(--v), var(--hz); mask-composite: intersect; -webkit-mask-image: var(--v), var(--hz); -webkit-mask-composite: source-in; }
+    @media (max-width: 700px) { .hero canvas { opacity: .55; } }
+    .eyebrow { font-weight: 800; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--teal); margin: 0 0 18px; }
+    h1 { font-family: var(--display); font-weight: 800; font-size: clamp(38px, 8.4vw, 92px); line-height: .98; letter-spacing: -.035em; margin: 0; max-width: 11ch; }
+    h1 em { font-style: normal; background: linear-gradient(100deg, var(--teal), var(--violet) 45%, var(--gold) 70%, var(--hot)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lede { color: var(--muted); font-size: clamp(16px, 2.1vw, 19px); max-width: 34ch; margin: 22px 0 34px; }
+    .cta { display: inline-flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: 700; font-size: 17px; padding: 16px 26px; border-radius: 16px;
+      background: var(--teal); color: #062A26; box-shadow: 0 10px 34px #3DD6C64d; transition: transform .15s, box-shadow .15s; }
+    .cta:hover { transform: translateY(-2px); box-shadow: 0 14px 40px #3DD6C673; }
+    .cta span { transition: transform .15s; } .cta:hover span { transform: translateX(4px); }
+
+    /* sections */
+    section { padding: 28px 0 56px; }
+    .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+    h2 { font-family: var(--display); font-weight: 700; font-size: clamp(22px, 3.4vw, 30px); letter-spacing: -.02em; margin: 0; }
+    .note { color: var(--muted); font-size: 14px; margin: 0; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; }
+
+    /* the games door */
+    .door { position: relative; display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; padding: clamp(22px, 4vw, 40px); border-radius: 28px; overflow: hidden;
+      background: linear-gradient(160deg, #1d1840, var(--panel) 55%); border: 1px solid var(--line); transition: border-color .2s, transform .2s; }
+    .door::before { content: ""; position: absolute; inset: 0; z-index: 0; background: radial-gradient(600px 300px at 0% 0%, #3DD6C622, transparent 60%), radial-gradient(500px 300px at 100% 100%, #FF5A4A1c, transparent 60%); pointer-events: none; }
+    .door > * { position: relative; }
+    .door:hover { border-color: #3DD6C680; transform: translateY(-2px); }
+    .door h3 { font-family: var(--display); font-size: clamp(26px, 4vw, 40px); letter-spacing: -.03em; margin: 0 0 10px; }
+    .door p { color: var(--muted); margin: 0 0 22px; }
+    .door .go { font-family: var(--display); font-weight: 700; color: var(--teal); }
+    .games { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-content: center; list-style: none; margin: 0; padding: 0; }
+    .games li { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #ffffff08; border: 1px solid #ffffff12; font-weight: 600; font-size: 14px; }
+    .games li .e { font-size: 20px; line-height: 1; }
+    .games li.arcade { color: var(--muted); font-weight: 400; }
+
+    /* the hub */
+    .hub { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .tile { display: flex; flex-direction: column; gap: 10px; min-height: 150px; padding: 20px; border-radius: 20px; background: var(--panel); border: 1px solid var(--line); transition: border-color .2s, background .2s; }
+    .tile:hover { border-color: var(--c, var(--violet)); background: color-mix(in srgb, var(--c, var(--violet)) 7%, var(--panel)); }
+    .tile .glyph { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+    .tile b { font-family: var(--display); font-size: 17px; letter-spacing: -.01em; }
+    .tile span { color: var(--muted); font-size: 14px; line-height: 1.45; }
+    .tile code { margin-top: auto; font: 12px ui-monospace, Menlo, monospace; color: #8a83b8; }
+
+    footer { padding: 30px 0 calc(40px + env(safe-area-inset-bottom)); color: #7a73a8; font-size: 13px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-top: 1px solid #ffffff10; }
+    footer i { font-style: normal; font-family: ui-monospace, Menlo, monospace; }
+
+    @media (max-width: 820px) {
+      .door { grid-template-columns: 1fr; }
+      .hub { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .hub { grid-template-columns: 1fr; }
+      .tile { min-height: 0; }
+      .xval { display: none; }
+      .cta { width: 100%; justify-content: center; }
+    }
+    @media (prefers-reduced-motion: reduce) { .r4mark i { animation: none; } * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="bar">
+      <a class="r4mark" href="./"><i></i>r4box<small>r = 4</small></a>
+      <div class="xval" title="the curve itself, x → 4x(1 − x), one step every half second">x = <b id="x">0.2000</b></div>
+    </header>
+
+    <div class="hero">
+      <canvas id="bif" aria-hidden="true"></canvas>
+      <p class="eyebrow">r = 4 · <span style="text-transform:none;font-family:ui-monospace,Menlo,monospace;letter-spacing:0">x → r·x(1 − x)</span></p>
+      <h1>Order, right up to <em>the edge of chaos.</em></h1>
+      <p class="lede">The family game room, and the box that runs everything else. Turn r up to 4 and see what happens.</p>
+      <a class="cta" href="https://games.r4box.com/">Play <span>→</span></a>
+    </div>
+
+    <section id="games">
+      <div class="sec-head">
+        <h2>Game room</h2>
+        <p class="note"><span class="dot" style="background:var(--teal)"></span>Open to the family, anywhere</p>
+      </div>
+      <a class="door" href="https://games.r4box.com/">
+        <div>
+          <h3>games.r4box.com</h3>
+          <p>Live turn-based games for three players and a few robots. Cheating is allowed, catching a cheater pays, and Fig is watching.</p>
+          <span class="go">Enter the room →</span>
+        </div>
+        <ul class="games">
+          <li><span class="e">⚓</span>Battleship</li>
+          <li><span class="e">⛳</span>Putt Post</li>
+          <li><span class="e">💥</span>Hilltop Duel</li>
+          <li><span class="e">🃏</span>Chaos Cards</li>
+          <li><span class="e">⚔️</span>War</li>
+          <li><span class="e">🏆</span>The Gauntlet</li>
+          <li class="arcade"><span class="e">🏁</span>Rally</li>
+          <li class="arcade"><span class="e">🕹️</span>Pinball, Squirrel, Run…</li>
+        </ul>
+      </a>
+    </section>
+
+    <section id="hub">
+      <div class="sec-head">
+        <h2>The box</h2>
+        <p class="note"><span class="dot" style="background:var(--violet)"></span>Tailnet only: these open from our own devices, nowhere else</p>
+      </div>
+      <div class="hub">
+        <a class="tile" href="https://os.r4box.com/" style="--c:var(--teal)"><div class="glyph">◎</div><b>os</b><span>Start a task, approve what Claude wants to do, see the approvals log.</span><code>os.r4box.com</code></a>
+        <a class="tile" href="https://diary.r4box.com/" style="--c:var(--gold)"><div class="glyph">✎</div><b>diary</b><span>Clearing: every session written up nightly, and the ideas they grow.</span><code>diary.r4box.com</code></a>
+        <a class="tile" href="https://term.r4box.com/" style="--c:var(--mint)"><div class="glyph">›_</div><b>term</b><span>A shell on the box, in the browser.</span><code>term.r4box.com</code></a>
+        <a class="tile" href="https://code.r4box.com/" style="--c:var(--violet)"><div class="glyph">{ }</div><b>code</b><span>The editor, with every project checked out.</span><code>code.r4box.com</code></a>
+        <a class="tile" href="https://browser.r4box.com/" style="--c:var(--hot)"><div class="glyph">◫</div><b>browser</b><span>Watch, or take over, the browser the agent drives.</span><code>browser.r4box.com</code></a>
+        <a class="tile" href="https://ntfy.r4box.com/" style="--c:var(--gold)"><div class="glyph">◉</div><b>ntfy</b><span>The notification relay that reaches the phone.</span><code>ntfy.r4box.com</code></a>
+      </div>
+    </section>
+
+    <footer>
+      <span>r4box · at r = 4 the curve never settles, and never repeats</span>
+      <i>3.5699… → chaos</i>
+    </footer>
+  </div>
+
+  <script>
+    // The live x in the top bar: the logistic map at r = 4, one step every half second.
+    (() => {
+      const out = document.getElementById('x');
+      let x = Math.random() * 0.8 + 0.1;
+      const tick = () => { x = 4 * x * (1 - x); if (x < 1e-6 || x > 1 - 1e-6) x = Math.random(); out.textContent = x.toFixed(4); };
+      tick(); setInterval(tick, 500);
+    })();
+
+    // The hero: the bifurcation diagram, drawn left to right as r climbs from 2.5 to 4.
+    // Coloured as the games colour the curve: teal calm, violet doubling, gold at the onset, hot in chaos.
+    (() => {
+      const cv = document.getElementById('bif'), ctx = cv.getContext('2d');
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const R0 = 2.5, R1 = 4, ONSET = 3.5699;
+      const colour = (r) => r < 3 ? [61, 214, 198] : r < 3.449 ? [185, 166, 255] : r < ONSET ? [245, 197, 66]
+        : (r > 3.8284 && r < 3.857) ? [201, 255, 248] : [255, 90, 74];
+      let w, h, col, raf;
+      function size() {
+        const dpr = Math.min(devicePixelRatio || 1, 2), b = cv.getBoundingClientRect();
+        w = cv.width = Math.round(b.width * dpr); h = cv.height = Math.round(b.height * dpr);
+        ctx.clearRect(0, 0, w, h); col = 0;
+      }
+      function column(i) {
+        const r = R0 + (R1 - R0) * (i / w), [cr, cg, cb] = colour(r);
+        const pts = r < ONSET ? 60 : 260, a = r < ONSET ? .5 : .14;
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},${a})`;
+        let x = 0.5;
+        for (let k = 0; k < 300; k++) x = r * x * (1 - x);
+        for (let k = 0; k < pts; k++) { x = r * x * (1 - x); ctx.fillRect(i, h * 0.08 + (1 - x) * h * 0.84, 1, 1); }
+      }
+      function frame() {
+        const step = Math.max(2, Math.round(w / 140));
+        for (let n = 0; n < step && col < w; n++) column(col++);
+        if (col < w) raf = requestAnimationFrame(frame);
+      }
+      function draw() { cancelAnimationFrame(raf); size(); if (still) { while (col < w) column(col++); } else frame(); }
+      let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(draw, 150); });
+      draw();
+    })();
+  </script>
+</body>
+</html>
