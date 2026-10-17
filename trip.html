@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0918">
+  <meta name="robots" content="noindex">
+  <title>r4box trip</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <style>
+    @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
+    @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
+    :root {
+      color-scheme: dark;
+      --bg: #0B0918; --panel: #171331; --panel-2: #1F1A3F; --line: #2F2957; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
+      --teal: #3DD6C6; --teal-ink: #062A26; --gold: #F5C542; --gold-ink: #2A2100; --hot: #FF5A4A; --hot-soft: #4A2230; --violet: #B9A6FF;
+      --display: "Unbounded", "Arial Black", Impact, sans-serif;
+      --body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, monospace;
+      --grad-mark: conic-gradient(from 210deg, var(--teal), var(--violet), var(--gold), var(--hot), var(--teal));
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); }
+    body { font: 16px/1.5 var(--body); -webkit-font-smoothing: antialiased; min-height: 100dvh;
+      background: radial-gradient(900px 420px at 15% -10%, #2A1F5E55, transparent 60%), radial-gradient(700px 380px at 100% 0%, #0E4A4655, transparent 60%), var(--bg); background-attachment: fixed; }
+    :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    button, input, select, textarea { font: inherit; }
+    .page { max-width: 860px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom)); }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .mark { display: inline-flex; align-items: center; gap: 10px; font: 800 20px/1 var(--display); letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
+    .mark i { width: 1.05em; height: 1.05em; border-radius: 22%; background: var(--grad-mark); box-shadow: inset 0 0 0 .18em var(--bg), 0 0 18px #3DD6C666; }
+    .eyebrow { font: 800 12px/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--teal); margin: 28px 0 10px; }
+    h1 { font: 800 clamp(30px, 7vw, 48px)/1.02 var(--display); letter-spacing: -.03em; margin: 0; overflow-wrap: anywhere; }
+    .meta { color: var(--muted); margin: 8px 0 0; display: flex; gap: 8px 14px; flex-wrap: wrap; align-items: center; }
+    .count { color: var(--gold); font-weight: 800; }
+    .link { all: unset; cursor: pointer; color: var(--teal); font-weight: 700; text-decoration: underline; }
+    .link.quiet { color: var(--muted); }
+    .btn { appearance: none; cursor: pointer; border: 1.5px solid #ffffff22; background: #ffffff0e; color: var(--ink); border-radius: 12px; padding: 8px 14px; font-weight: 700; }
+    .btn:hover { background: #ffffff1a; }
+    .btn.p { background: var(--teal); border-color: var(--teal); color: var(--teal-ink); }
+    .btn.bad { background: var(--hot-soft); border-color: transparent; }
+    .tabs { display: flex; gap: 6px; margin: 22px 0 6px; overflow-x: auto; position: sticky; top: 0; z-index: 2; padding: 8px 0; background: var(--bg); }
+    .tabs a { flex: none; padding: 9px 14px; border-radius: 99px; color: var(--muted); text-decoration: none; font-weight: 700; border: 1px solid var(--line); }
+    .tabs a[aria-current="true"] { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
+    .day { margin: 18px 0 0; }
+    .day h3 { font: 800 14px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .day h3 small { color: var(--faint); font-weight: 600; letter-spacing: 0; text-transform: none; }
+    .list { display: grid; gap: 8px; }
+    .item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; }
+    .item:hover { border-color: #ffffff33; }
+    .item .tm { flex: none; min-width: 52px; font: 600 13px/1.6 var(--mono); color: var(--teal); }
+    .item .tx { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .item .tx b { display: block; }
+    .item .tx small { display: block; color: var(--muted); white-space: pre-wrap; }
+    .item .tx a { color: var(--teal); font-size: 13px; }
+    .item .side { flex: none; text-align: right; font-size: 13px; color: var(--muted); }
+    .item code { font: 600 12px/1 var(--mono); color: var(--gold); background: #F5C5421a; padding: 3px 6px; border-radius: 6px; }
+    .add { all: unset; cursor: pointer; color: var(--muted); font-weight: 700; padding: 8px 2px; }
+    .add:hover { color: var(--teal); }
+    .votes { flex: none; display: flex; gap: 6px; align-items: center; }
+    .votes button { all: unset; cursor: pointer; padding: 6px 9px; border-radius: 10px; border: 1px solid var(--line); font-size: 14px; }
+    .votes button.on { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+    .votes .score { min-width: 26px; text-align: center; font-weight: 800; }
+    .total { display: flex; justify-content: space-between; align-items: baseline; padding: 14px; border-radius: 14px; background: var(--panel-2); margin: 10px 0; }
+    .total b { font: 800 22px/1 var(--display); color: var(--gold); }
+    .packs { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 14px; }
+    .pack { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+    .pack h3 { margin: 0 0 8px; font: 800 15px/1.2 var(--display); }
+    .pack label { display: flex; gap: 10px; align-items: center; padding: 5px 0; cursor: pointer; }
+    .pack label.done span { color: var(--faint); text-decoration: line-through; }
+    .pack input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--teal); flex: none; }
+    .pack form { display: flex; gap: 6px; margin-top: 8px; }
+    input, select, textarea { color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 11px; width: 100%; font-size: 16px; }
+    textarea { resize: vertical; min-height: 70px; }
+    .empty { color: var(--muted); padding: 10px 2px; }
+    dialog { width: min(480px, calc(100% - 24px)); border: 1px solid var(--line); border-radius: 20px; background: var(--panel-2); color: var(--ink); padding: 20px; }
+    dialog::backdrop { background: #0B0918bb; }
+    dialog form { display: grid; gap: 12px; }
+    dialog label { display: grid; gap: 4px; font-weight: 700; font-size: 14px; }
+    dialog .row { display: flex; gap: 10px; } dialog .row > * { flex: 1; }
+    dialog .acts { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+    dialog h2 { margin: 0; font: 800 20px/1.2 var(--display); }
+    .note { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <a class="mark" href="/"><i aria-hidden="true"></i>r4box</a>
+    <span id="trips"></span>
+  </header>
+
+  <section id="none" hidden>
+    <p class="eyebrow">Trips</p>
+    <h1>No trip yet</h1>
+    <p class="meta" id="nonetext"></p>
+    <p><button class="btn p" id="newtrip" hidden>Start a trip</button></p>
+  </section>
+
+  <section id="trip" hidden>
+    <p class="eyebrow">Trip</p>
+    <h1 id="name"></h1>
+    <p class="meta"><span id="where"></span><span id="when"></span><span class="count" id="countdown"></span><button class="link quiet" id="edittrip" hidden>Edit</button></p>
+    <nav class="tabs" aria-label="Trip sections">
+      <a href="#plan">Plan</a><a href="#ideas">Ideas</a><a href="#bookings">Bookings</a><a href="#packing">Packing</a>
+    </nav>
+    <div id="view"></div>
+  </section>
+</main>
+
+<dialog id="dlg"><form method="dialog" id="dform"></form></dialog>
+
+<script type="module">
+  import { sb, roleOf } from './auth.js';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const safeLink = (u) => /^https?:\/\//i.test(u || '') ? u : '';
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
+  const ME = { id: session?.user.id, role: roleOf(session?.user) };
+  const PARENT = ME.role === 'parent';
+
+  let trips = [], trip = null, items = [], votes = [], family = [];
+  const nameOf = (id) => family.find((f) => f.id === id)?.username || '';
+
+  // ---- dates ----
+  const D = (s) => new Date(s + 'T12:00:00');
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const nice = (s, o = { weekday: 'short', month: 'short', day: 'numeric' }) => D(s).toLocaleDateString([], o);
+  function days() {
+    const out = [];
+    if (trip.starts && trip.ends && trip.ends >= trip.starts) for (let d = D(trip.starts); iso(d) <= trip.ends && out.length < 60; d.setDate(d.getDate() + 1)) out.push(iso(d));
+    for (const i of items) if (i.day && !out.includes(i.day)) out.push(i.day);
+    return out.sort();
+  }
+  const money = (n) => new Intl.NumberFormat([], { style: 'currency', currency: trip?.currency || 'USD' }).format(n || 0);
+
+  // ---- load ----
+  async function load() {
+    const [{ data: t }, { data: f }] = await Promise.all([sb.from('trips').select('*').order('starts', { ascending: true, nullsFirst: false }), family.length ? { data: family } : sb.rpc('r4_family')]);
+    trips = t || []; family = f || [];
+    const want = new URLSearchParams(location.search).get('t');
+    const today = iso(new Date());
+    trip = trips.find((x) => x.id === want) || trips.find((x) => !x.ends || x.ends >= today) || trips[trips.length - 1] || null;
+    if (trip) {
+      const [{ data: it }, { data: v }] = await Promise.all([
+        sb.from('trip_items').select('*').eq('trip', trip.id).order('created_at'),
+        sb.from('trip_votes').select('item, voter, value'),
+      ]);
+      items = it || []; votes = v || [];
+    }
+    render();
+  }
+
+  function render() {
+    $('none').hidden = !!trip; $('trip').hidden = !trip;
+    $('trips').innerHTML = trips.length > 1 ? `<select id="pick" aria-label="Trip">${trips.map((x) => `<option value="${x.id}" ${x.id === trip?.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>` : '';
+    if ($('pick')) $('pick').onchange = () => { history.replaceState(null, '', '?t=' + $('pick').value + location.hash); load(); };
+    if (!trip) {
+      $('nonetext').textContent = PARENT ? 'Start one and the family can plan it with you.' : 'When Dad starts one, it shows up here.';
+      $('newtrip').hidden = !PARENT; return;
+    }
+    $('name').textContent = trip.name;
+    $('where').textContent = trip.place || '';
+    $('when').textContent = trip.starts ? nice(trip.starts, { month: 'short', day: 'numeric' }) + (trip.ends ? ' – ' + nice(trip.ends, { month: 'short', day: 'numeric', year: 'numeric' }) : '') : '';
+    const n = trip.starts ? Math.round((D(trip.starts) - D(iso(new Date()))) / 86400000) : null;
+    $('countdown').textContent = n == null ? '' : n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow!' : n === 0 ? 'today!' : trip.ends && trip.ends >= iso(new Date()) ? 'happening now' : '';
+    $('edittrip').hidden = !PARENT;
+    const tab = (location.hash || '#plan').slice(1);
+    document.querySelectorAll('.tabs a').forEach((a) => a.setAttribute('aria-current', String(a.hash === '#' + tab)));
+    ({ plan, ideas, bookings, packing }[tab] || plan)();
+  }
+  window.addEventListener('hashchange', render);
+
+  const itemRow = (i, { tm = i.at, side = '' } = {}) => `<div class="item" data-id="${i.id}">
+      ${tm != null ? `<span class="tm">${esc(tm || '')}</span>` : ''}
+      <span class="tx"><b>${esc(i.title)}</b>${i.notes ? `<small>${esc(i.notes)}</small>` : ''}${safeLink(i.link) ? `<a href="${esc(i.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(new URL(i.link).hostname.replace(/^www\./, ''))} ↗</a>` : ''}</span>
+      ${side ? `<span class="side">${side}</span>` : ''}</div>`;
+  const wire = () => $('view').querySelectorAll('.item[data-id]').forEach((el) => el.onclick = () => edit(items.find((i) => i.id === el.dataset.id)));
+
+  function plan() {
+    const ds = days(), list = items.filter((i) => i.kind === 'plan');
+    const sec = (d, title, sub) => {
+      const its = list.filter((i) => (i.day || null) === d).sort((a, b) => String(a.at || '99').localeCompare(String(b.at || '99')));
+      return `<div class="day"><h3>${title}<small>${sub}</small></h3><div class="list">${its.map((i) => itemRow(i, { side: i.cost ? money(i.cost) : '' })).join('')}</div>
+        <button class="add" data-day="${d || ''}">＋ Add to ${d ? nice(d, { weekday: 'long' }) : 'any day'}</button></div>`;
+    };
+    $('view').innerHTML = (ds.length ? ds.map((d, k) => sec(d, nice(d), `Day ${k + 1}`)).join('') : '<p class="empty">Set the trip dates to get a day for each day.</p>')
+      + (list.some((i) => !i.day) || !ds.length ? sec(null, 'Any day', 'not scheduled yet') : '');
+    $('view').querySelectorAll('.add').forEach((b) => b.onclick = () => edit({ kind: 'plan', day: b.dataset.day || null }));
+    wire();
+  }
+
+  function ideas() {
+    const score = (id) => votes.filter((v) => v.item === id).reduce((s, v) => s + v.value, 0);
+    const mine = (id) => votes.find((v) => v.item === id && v.voter === ME.id)?.value || 0;
+    const list = items.filter((i) => i.kind === 'idea').sort((a, b) => score(b.id) - score(a.id) || a.created_at.localeCompare(b.created_at));
+    $('view').innerHTML = `<p class="note">Places to go, food to try, things to do. Vote them up or down; the best ones go into the plan.</p>
+      <div class="list">${list.map((i) => `<div style="display:flex;gap:8px;align-items:center">${itemRow(i, { tm: null, side: esc(nameOf(i.created_by)) }).replace('class="item"', 'class="item" style="flex:1"')}
+        <div class="votes"><button data-v="1" data-i="${i.id}" class="${mine(i.id) === 1 ? 'on' : ''}" aria-label="Vote up">👍</button><span class="score">${score(i.id)}</span><button data-v="-1" data-i="${i.id}" class="${mine(i.id) === -1 ? 'on' : ''}" aria-label="Vote down">👎</button></div></div>`).join('')
+      || '<p class="empty">No ideas yet. Add the first one!</p>'}</div>
+      <button class="add" id="addidea">＋ Add an idea</button>`;
+    $('addidea').onclick = () => edit({ kind: 'idea' });
+    $('view').querySelectorAll('.votes button').forEach((b) => b.onclick = async () => {
+      const item = b.dataset.i, v = +b.dataset.v;
+      if (mine(item) === v) await sb.from('trip_votes').delete().eq('item', item).eq('voter', ME.id);
+      else await sb.from('trip_votes').upsert({ item, voter: ME.id, value: v });
+      load();
+    });
+    wire();
+  }
+
+  function bookings() {
+    const list = items.filter((i) => i.kind === 'booking').sort((a, b) => String(a.day || '9').localeCompare(String(b.day || '9')) || String(a.at || '').localeCompare(String(b.at || '')));
+    const planCost = items.filter((i) => i.kind === 'plan').reduce((s, i) => s + (+i.cost || 0), 0);
+    const bookCost = list.reduce((s, i) => s + (+i.cost || 0), 0);
+    $('view').innerHTML = `<div class="total"><span>Trip total<br><small class="note">bookings ${money(bookCost)} · planned activities ${money(planCost)}</small></span><b>${money(bookCost + planCost)}</b></div>
+      <div class="list">${list.map((i) => itemRow(i, { tm: i.day ? nice(i.day, { month: 'short', day: 'numeric' }) : '', side: `${i.cost ? money(i.cost) : ''}${i.conf ? `<br><code>${esc(i.conf)}</code>` : ''}` })).join('')
+      || '<p class="empty">No bookings yet: flights, hotels, cars, tickets.</p>'}</div>
+      ${PARENT ? '<button class="add" id="addbook">＋ Add a booking</button>' : '<p class="note">Dad adds and changes bookings.</p>'}`;
+    if ($('addbook')) $('addbook').onclick = () => edit({ kind: 'booking' });
+    if (PARENT) wire();
+  }
+
+  function packing() {
+    const lists = [...family.map((f) => ({ who: f.id, title: f.id === ME.id ? `${f.username} (you)` : f.username })), { who: null, title: 'Shared' }];
+    $('view').innerHTML = `<div class="packs">${lists.map((l) => {
+      const its = items.filter((i) => i.kind === 'pack' && (i.who || null) === l.who);
+      const done = its.filter((i) => i.done).length;
+      return `<div class="pack"><h3>${esc(l.title)} <small class="note">${its.length ? `${done}/${its.length}` : ''}</small></h3>
+        ${its.map((i) => `<label class="${i.done ? 'done' : ''}"><input type="checkbox" data-id="${i.id}" ${i.done ? 'checked' : ''}><span>${esc(i.title)}</span><button type="button" class="link quiet" data-del="${i.id}" style="margin-left:auto;text-decoration:none" aria-label="Remove">✕</button></label>`).join('')}
+        <form data-who="${l.who || ''}"><input placeholder="Add…" aria-label="Add to ${esc(l.title)}" maxlength="200"><button class="btn">＋</button></form></div>`;
+    }).join('')}</div>`;
+    $('view').querySelectorAll('.pack input[type=checkbox]').forEach((c) => c.onchange = async () => { await sb.from('trip_items').update({ done: c.checked, updated_at: new Date().toISOString() }).eq('id', c.dataset.id); load(); });
+    $('view').querySelectorAll('[data-del]').forEach((b) => b.onclick = async (e) => { e.preventDefault(); await sb.from('trip_items').delete().eq('id', b.dataset.del); load(); });
+    $('view').querySelectorAll('.pack form').forEach((f) => f.onsubmit = async (e) => {
+      e.preventDefault(); const t = f.querySelector('input').value.trim(); if (!t) return;
+      await sb.from('trip_items').insert({ trip: trip.id, kind: 'pack', title: t, who: f.dataset.who || null, created_by: ME.id });
+      load();
+    });
+  }
+
+  // ---- edit one item ----
+  const KIND = { plan: 'Plan', idea: 'Idea', booking: 'Booking', pack: 'Packing' };
+  function edit(i) {
+    const isNew = !i.id, k = i.kind;
+    const canDel = !isNew && (PARENT || i.created_by === ME.id);
+    const dayOpts = `<option value="">Any day</option>` + days().map((d) => `<option value="${d}" ${d === i.day ? 'selected' : ''}>${nice(d)}</option>`).join('');
+    $('dform').innerHTML = `<h2>${isNew ? 'New ' + KIND[k].toLowerCase() : KIND[k]}</h2>
+      <label>${k === 'booking' ? 'What (flight, hotel, car…)' : 'What'}<input name="title" required maxlength="200" value="${esc(i.title || '')}"></label>
+      ${k === 'plan' || k === 'booking' ? `<div class="row"><label>Day<select name="day">${dayOpts}</select></label><label>Time<input name="at" placeholder="9:30" maxlength="20" value="${esc(i.at || '')}"></label></div>` : ''}
+      <label>Notes<textarea name="notes" maxlength="2000">${esc(i.notes || '')}</textarea></label>
+      <label>Link<input name="link" type="url" placeholder="https://" value="${esc(i.link || '')}"></label>
+      ${k === 'plan' || k === 'booking' ? `<div class="row"><label>Cost<input name="cost" type="number" step="0.01" min="0" value="${i.cost ?? ''}"></label>${k === 'booking' ? `<label>Confirmation<input name="conf" maxlength="60" value="${esc(i.conf || '')}"></label>` : '<span></span>'}</div>` : ''}
+      <p class="note" id="derr"></p>
+      <div class="acts">
+        ${canDel ? '<button type="button" class="btn bad" id="ddel">Delete</button>' : ''}
+        ${k === 'idea' && !isNew ? '<button type="button" class="btn" id="dplan">Put in the plan</button>' : ''}
+        <button type="button" class="btn" id="dcancel">Cancel</button><button class="btn p">Save</button>
+      </div>`;
+    const f = $('dform');
+    $('dcancel').onclick = () => $('dlg').close();
+    if ($('ddel')) $('ddel').onclick = async () => { await sb.from('trip_items').delete().eq('id', i.id); $('dlg').close(); load(); };
+    if ($('dplan')) $('dplan').onclick = () => { $('dlg').close(); edit({ ...i, kind: 'plan', _from: i.id }); };
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const v = { title: f.elements.title.value.trim(), notes: f.elements.notes.value.trim() || null, link: f.elements.link.value.trim() || null, updated_at: new Date().toISOString() };
+      if (f.elements.day) { v.day = f.elements.day.value || null; v.at = f.elements.at.value.trim() || null; v.cost = f.elements.cost.value === '' ? null : +f.elements.cost.value; }
+      if (f.elements.conf) v.conf = f.elements.conf.value.trim() || null;
+      let error;
+      if (i._from) ({ error } = await sb.from('trip_items').update({ ...v, kind: 'plan' }).eq('id', i._from));
+      else if (isNew) ({ error } = await sb.from('trip_items').insert({ ...v, trip: trip.id, kind: k, created_by: ME.id }));
+      else ({ error } = await sb.from('trip_items').update(v).eq('id', i.id));
+      if (error) { $('derr').textContent = 'Could not save: ' + error.message; return; }
+      $('dlg').close(); load();
+    };
+    $('dlg').showModal();
+  }
+
+  // ---- the trip itself (a parent) ----
+  function editTrip(t = {}) {
+    $('dform').innerHTML = `<h2>${t.id ? 'Edit trip' : 'New trip'}</h2>
+      <label>Name<input name="name" required maxlength="80" value="${esc(t.name || '')}" placeholder="December trip"></label>
+      <label>Where<input name="place" maxlength="120" value="${esc(t.place || '')}"></label>
+      <div class="row"><label>From<input name="starts" type="date" value="${t.starts || ''}"></label><label>To<input name="ends" type="date" value="${t.ends || ''}"></label></div>
+      <label>Currency<input name="currency" maxlength="3" value="${esc(t.currency || 'USD')}"></label>
+      <p class="note" id="derr"></p>
+      <div class="acts"><button type="button" class="btn" id="dcancel">Cancel</button><button class="btn p">Save</button></div>`;
+    const f = $('dform');
+    $('dcancel').onclick = () => $('dlg').close();
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const v = { name: f.elements.name.value.trim(), place: f.elements.place.value.trim() || null, starts: f.elements.starts.value || null, ends: f.elements.ends.value || null, currency: (f.elements.currency.value.trim() || 'USD').toUpperCase() };
+      const { data, error } = t.id ? await sb.from('trips').update(v).eq('id', t.id).select().single() : await sb.from('trips').insert(v).select().single();
+      if (error) { $('derr').textContent = 'Could not save: ' + error.message; return; }
+      $('dlg').close(); history.replaceState(null, '', '?t=' + data.id + (location.hash || '#plan')); load();
+    };
+    $('dlg').showModal();
+  }
+  $('newtrip').onclick = () => editTrip();
+  $('edittrip').onclick = () => editTrip(trip);
+
+  // ---- live: everyone's changes show up as they happen ----
+  let tick = 0;
+  const soon = () => { clearTimeout(tick); tick = setTimeout(load, 300); };
+  sb.channel('trips').on('postgres_changes', { event: '*', schema: 'public', table: 'trip_items' }, soon)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_votes' }, soon)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, soon).subscribe();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+
+  if (session) load();
+</script>
+</body>
+</html>

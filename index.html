@@ -214,6 +214,7 @@
     const GAMES = [['⚓', 'Battleship'], ['⛳', 'Putt Post'], ['💥', 'Hilltop Duel'], ['🃏', 'Chaos Cards'], ['⚔️', 'War'], ['🏆', 'The Gauntlet'], ['🏁', 'Rally'], ['🕹️', 'Arcade']]
       .map(([g, t]) => ({ g, t, d: 'Game room', h: 'games.r4box.com', c: 'var(--teal)', emoji: true }));
     const GAMES_TILE = { g: '⚓', t: 'games', h: 'games.r4box.com', c: 'var(--teal)', emoji: true };
+    const TRIP_TILE = { g: '✈️', t: 'trip', d: 'Trip planning', h: 'r4box.com/trip', u: '/trip.html', c: 'var(--gold)', emoji: true };
 
     // The live x: the logistic map at r = 4, one step every half second.
     let x = Math.random() * .8 + .1;
@@ -304,13 +305,13 @@
       // Came from a box page that asked for a sign-in: go back there.
       const next = new URLSearchParams(location.search).get('next');
       if (next) {
-        try { const u = new URL(next); if (u.protocol === 'https:' && u.hostname.endsWith('.r4box.com')) { history.replaceState(null, '', '/'); go(u.href); return; } } catch {}
+        try { const u = new URL(next); if (u.protocol === 'https:' && (u.hostname === 'r4box.com' || u.hostname.endsWith('.r4box.com'))) { history.replaceState(null, '', '/'); go(u.href); return; } } catch {}
       }
       $('login').hidden = true; $('cockpit').hidden = false;
       $('hello').textContent = role === 'parent' ? `Welcome back, ${name}.` : `Hi, ${name}. Your own tree is growing soon.`;
-      const tiles = role === 'parent' ? [...BOX, GAMES_TILE] : [GAMES_TILE];
-      places = role === 'parent' ? [...BOX, ...GAMES] : [...GAMES];
-      $('dock').innerHTML = tiles.map((s) => `<a href="https://${s.h}/" style="--c:${s.c}"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:36px">${s.g}</span><b>${esc(s.t)}</b></a>`).join('');
+      const tiles = role === 'parent' ? [...BOX, GAMES_TILE, TRIP_TILE] : [GAMES_TILE, TRIP_TILE];
+      places = role === 'parent' ? [...BOX, ...GAMES, TRIP_TILE] : [...GAMES, TRIP_TILE];
+      $('dock').innerHTML = tiles.map((s) => `<a href="${s.u || `https://${s.h}/`}" style="--c:${s.c}"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:36px">${s.g}</span><b>${esc(s.t)}</b></a>`).join('');
       $('dock').style.gridTemplateColumns = tiles.length < 4 ? `repeat(${tiles.length}, minmax(0, 140px))` : '';
       $('dock').style.justifyContent = tiles.length < 4 ? 'center' : '';
       $('q').placeholder = role === 'parent' ? 'os, diary, battleship…' : 'Ask anything, or find a game…';
@@ -328,7 +329,7 @@
       const hits = q ? places.filter((s) => (s.t + ' ' + s.d).toLowerCase().includes(q)).slice(0, 6) : [];
       const ask = q && ME ? `<a class="ask${hits.length ? '' : ' on'}" href="#tutor" data-ask="1"><span class="glyph emoji" style="--s:32px;--c:var(--gold)">✦</span><b>${ME.role === 'parent' ? "Try the kids' tutor" : 'Ask the tutor'}</b><code>${esc($('q').value.trim().slice(0, 40))}</code></a>` : '';
       $('hits').hidden = !hits.length && !ask;
-      $('hits').innerHTML = hits.map((s, i) => `<a class="${i ? '' : 'on'}" href="https://${s.h}/"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:32px;--c:${s.c}">${s.g}</span><b>${esc(s.t)}</b><code>${s.h}</code></a>`).join('') + ask;
+      $('hits').innerHTML = hits.map((s, i) => `<a class="${i ? '' : 'on'}" href="${s.u || `https://${s.h}/`}"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:32px;--c:${s.c}">${s.g}</span><b>${esc(s.t)}</b><code>${s.h}</code></a>`).join('') + ask;
     };
     $('q').onkeydown = (e) => { if (e.key === 'Enter') { const a = $('hits').querySelector('a'); if (a?.dataset.ask) askFromBar(); else if (a) go(a.href); } };
     $('hits').addEventListener('click', (e) => { if (e.target.closest('a')?.dataset.ask) { e.preventDefault(); askFromBar(); } });
