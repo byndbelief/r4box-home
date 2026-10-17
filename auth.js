@@ -20,9 +20,10 @@ export const nameOf = (user) => FAMILY.find((f) => f.email === user?.email)?.nam
 
 // The box (os, diary...) checks who is signed in from this cookie, on every request.
 // Short-lived: it is the access token itself and expires with it.
-export function shareSession(session) {
-  const base = 'Domain=r4box.com; Path=/; Secure; SameSite=Lax';
-  document.cookie = session
-    ? `r4s=${session.access_token}; Max-Age=${Math.max(60, (session.expires_at || 0) - Math.floor(Date.now() / 1000))}; ${base}`
-    : `r4s=; Max-Age=0; ${base}`;
+// The box's door (r4door) takes the sign-in from a cookie that lives only for
+// the hop to it: set just before going to a box page that asked, cleared by the
+// door at once (and here on sign-out). Box pages never see it otherwise.
+const HOP = 'Domain=r4box.com; Path=/; Secure; SameSite=Lax';
+export function handOver(session) {
+  document.cookie = session ? `r4s=${session.access_token}; Max-Age=120; ${HOP}` : `r4s=; Max-Age=0; ${HOP}`;
 }

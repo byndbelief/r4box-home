@@ -156,7 +156,7 @@
 
   <script src="diary-tree.js"></script>
   <script type="module">
-    import { sb, FAMILY, roleOf, nameOf, shareSession } from './auth.js';
+    import { sb, FAMILY, roleOf, nameOf, handOver } from './auth.js';
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -239,13 +239,15 @@
     // out of the address at once). Only ever to games.r4box.com.
     async function go(href) {
       const u = new URL(href);
+      const { data: { session } } = await sb.auth.getSession();   // refreshed if it was stale
       if (u.protocol === 'https:' && u.hostname === 'games.r4box.com') {
-        const { data: { session } } = await sb.auth.getSession();
         if (session) {
           const t = btoa(JSON.stringify({ a: session.access_token, r: session.refresh_token })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
           const h = u.hash.replace(/^#/, '');
           u.hash = (h ? h + '&' : '') + 'r4sso=' + t;
         }
+      } else if (u.protocol === 'https:' && u.hostname.endsWith('.r4box.com') && u.pathname === '/.r4door/enter') {
+        handOver(session);   // the box's door asked for this sign-in
       }
       location.assign(u.href);
     }
@@ -318,14 +320,19 @@
     }
 
     // ---------------- session ----------------
-    // Signed out in the game room: one sign-out, so out of here too.
+    // One sign-out: the box's door too (reachable only on the tailnet; best effort).
+    const doorOut = () => { handOver(null); fetch('https://os.r4box.com/.r4door/out', { mode: 'no-cors', credentials: 'include' }).catch(() => {}); };
+    // Signed out in the game room or at the box: out of here too.
     if (new URLSearchParams(location.search).has('signout')) {
       await sb.auth.signOut();
+      doorOut();
       history.replaceState(null, '', '/');
     }
     sb.auth.onAuthStateChange((event, session) => {
-      shareSession(session);
-      if (event === 'SIGNED_OUT') showLogin();
+      if (event === 'SIGNED_OUT') {
+        doorOut();
+        showLogin();
+      }
       else if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) showCockpit(session);
       else if (!session && event === 'INITIAL_SESSION') showLogin();
     });
