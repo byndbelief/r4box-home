@@ -68,8 +68,6 @@
     .who img, .who .av { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
     .who .av { display: grid; place-items: center; font: 800 12px/1 var(--display); color: var(--teal-ink); background: linear-gradient(160deg, var(--teal), var(--violet)); }
     .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-    .games-link { margin-top: 18px; color: var(--muted); font-size: 14px; }
-    .games-link a { color: var(--teal); font-weight: 700; }
     .sheet { position: fixed; inset: 0; z-index: 5; display: grid; place-items: end center; background: #0B091899; }
     .sheet > div { width: min(390px, calc(100% - 24px)); margin: 12px; padding: 22px 20px 18px; border-radius: 24px; background: var(--panel-2); border: 1px solid var(--line); display: grid; justify-items: center; gap: 12px; text-align: center; }
     .sheet .ring { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; font-size: 30px; border: 2px solid var(--line); color: var(--muted); }
@@ -126,7 +124,6 @@
         <div class="row"><button class="btn primary" style="width:auto" type="submit">Send link</button><button class="link" type="button" data-back>Back</button></div>
       </form>
       <p class="msg" id="loginmsg" hidden></p>
-      <p class="games-link">Just here to play? <a href="https://games.r4box.com/">Game room →</a></p>
     </div>
   </main>
 
@@ -237,13 +234,33 @@
 
     // ---------------- signed in ----------------
     let places = [];
+    // One sign-in: the game room has no sign-in of its own. Going there, the session
+    // rides along in the URL fragment (never sent to a server; the game room takes it
+    // out of the address at once). Only ever to games.r4box.com.
+    async function go(href) {
+      const u = new URL(href);
+      if (u.protocol === 'https:' && u.hostname === 'games.r4box.com') {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          const t = btoa(JSON.stringify({ a: session.access_token, r: session.refresh_token })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+          const h = u.hash.replace(/^#/, '');
+          u.hash = (h ? h + '&' : '') + 'r4sso=' + t;
+        }
+      }
+      location.assign(u.href);
+    }
+    for (const id of ['dock', 'hits']) $(id).addEventListener('click', (e) => {
+      const a = e.target.closest('a');
+      if (!a || e.metaKey || e.ctrlKey || e.shiftKey || new URL(a.href).hostname !== 'games.r4box.com') return;
+      e.preventDefault(); go(a.href);
+    });
     async function showCockpit(session) {
       sheet(null);
       const user = session.user, role = roleOf(user), name = nameOf(user);
       // Came from a box page that asked for a sign-in: go back there.
       const next = new URLSearchParams(location.search).get('next');
       if (next) {
-        try { const u = new URL(next); if (u.protocol === 'https:' && u.hostname.endsWith('.r4box.com')) { location.replace(u.href); return; } } catch {}
+        try { const u = new URL(next); if (u.protocol === 'https:' && u.hostname.endsWith('.r4box.com')) { history.replaceState(null, '', '/'); go(u.href); return; } } catch {}
       }
       $('login').hidden = true; $('cockpit').hidden = false;
       $('hello').textContent = role === 'parent' ? `Welcome back, ${name}.` : `Hi, ${name}. Your own tree is growing soon.`;
@@ -265,7 +282,7 @@
       $('hits').hidden = !hits.length;
       $('hits').innerHTML = hits.map((s, i) => `<a class="${i ? '' : 'on'}" href="https://${s.h}/"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:32px;--c:${s.c}">${s.g}</span><b>${esc(s.t)}</b><code>${s.h}</code></a>`).join('');
     };
-    $('q').onkeydown = (e) => { if (e.key === 'Enter') { const a = $('hits').querySelector('a'); if (a) location.href = a.href; } };
+    $('q').onkeydown = (e) => { if (e.key === 'Enter') { const a = $('hits').querySelector('a'); if (a) go(a.href); } };
 
     // After a password sign-in, offer a passkey for this device (once per device).
     async function offerPasskey() {
@@ -301,6 +318,11 @@
     }
 
     // ---------------- session ----------------
+    // Signed out in the game room: one sign-out, so out of here too.
+    if (new URLSearchParams(location.search).has('signout')) {
+      await sb.auth.signOut();
+      history.replaceState(null, '', '/');
+    }
     sb.auth.onAuthStateChange((event, session) => {
       shareSession(session);
       if (event === 'SIGNED_OUT') showLogin();
