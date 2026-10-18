@@ -35,6 +35,7 @@
     #bifwrap { -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 40%, #0000 82%); mask-image: linear-gradient(180deg, #000 0%, #000 40%, #0000 82%); opacity: .9; }
     #bifwrap.faint { opacity: .35; }
     #treewrap { top: 70px; bottom: 210px; }
+    #ecowrap { opacity: .55; }
 
     .page { position: relative; z-index: 1; min-height: 100dvh; display: flex; flex-direction: column; padding: max(16px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom)); max-width: 1100px; margin: 0 auto; }
     @media (min-width: 760px) { .page { padding: 24px 32px 32px; } }
@@ -129,6 +130,7 @@
 <body>
   <div class="bg" id="bifwrap"><canvas id="bif" aria-hidden="true"></canvas></div>
   <div class="bg" id="treewrap" hidden><canvas id="tree" aria-hidden="true"></canvas></div>
+  <div class="bg" id="ecowrap" hidden><canvas id="eco" aria-hidden="true"></canvas></div>
 
   <!-- signed out: 3a, who's here -->
   <main class="page" id="login" hidden>
@@ -200,6 +202,7 @@
   </div></div>
 
   <script src="diary-tree.js"></script>
+  <script src="ecosystem.js"></script>
   <script type="module">
     import { sb, FAMILY, roleOf, nameOf, handOver } from './auth.js';
     const $ = (id) => document.getElementById(id);
@@ -219,6 +222,7 @@
     const GAMES_TILE = { g: '⚓', t: 'games', h: 'games.r4box.com', c: 'var(--teal)', emoji: true };
     const TRIP_TILE = { g: '✈️', t: 'trip', d: 'Trip planning', h: 'r4box.com/trip', u: '/trip.html', c: 'var(--gold)', emoji: true };
     const ADMIN_TILE = { g: '⚙', t: 'admin', d: 'Admin: box health, kids & Claude, devices, content', h: 'r4box.com/admin', u: '/admin.html', c: 'var(--muted)' };
+    const DIARY_TILE = { g: '🌱', t: 'diary', d: 'My diary and my world', h: 'r4box.com/diary', u: '/diary.html', c: 'var(--teal)', emoji: true };
     const CHAT_TILE = { g: '💬', t: 'chat', d: 'Family chat', h: 'r4box.com/chat', u: '/chat.html', c: 'var(--violet)', emoji: true };
 
     // The live x: the logistic map at r = 4, one step every half second.
@@ -228,7 +232,7 @@
     // ---------------- signed out ----------------
     let who = null;
     function showLogin(msg, bad) {
-      $('cockpit').hidden = true; $('login').hidden = false; $('treewrap').hidden = true; $('bifwrap').classList.remove('faint');
+      $('cockpit').hidden = true; $('login').hidden = false; $('treewrap').hidden = true; $('ecowrap').hidden = true; $('bifwrap').classList.remove('faint');
       $('who').innerHTML = FAMILY.map((f, i) => `<button data-i="${i}">${f.avatar ? `<img src="${f.avatar}" alt="">` : `<span class="av">${esc(f.name[0].toUpperCase())}</span>`}${esc(f.name)}</button>`).join('');
       pick(null);
       if (msg) say(msg, bad);
@@ -313,9 +317,9 @@
         try { const u = new URL(next); if (u.protocol === 'https:' && (u.hostname === 'r4box.com' || u.hostname.endsWith('.r4box.com'))) { history.replaceState(null, '', '/'); go(u.href); return; } } catch {}
       }
       $('login').hidden = true; $('cockpit').hidden = false;
-      $('hello').textContent = role === 'parent' ? `Welcome back, ${name}.` : `Hi, ${name}. Your own tree is growing soon.`;
-      const tiles = role === 'parent' ? [...BOX, GAMES_TILE, TRIP_TILE, CHAT_TILE, ADMIN_TILE] : [GAMES_TILE, TRIP_TILE, CHAT_TILE];
-      places = role === 'parent' ? [...BOX, ...GAMES, TRIP_TILE, CHAT_TILE, ADMIN_TILE] : [...GAMES, TRIP_TILE, CHAT_TILE];
+      $('hello').textContent = role === 'parent' ? `Welcome back, ${name}.` : `Hi, ${name}. Your world grows from what you ask and play.`;
+      const tiles = role === 'parent' ? [...BOX, GAMES_TILE, TRIP_TILE, CHAT_TILE, ADMIN_TILE] : [GAMES_TILE, DIARY_TILE, TRIP_TILE, CHAT_TILE];
+      places = role === 'parent' ? [...BOX, ...GAMES, TRIP_TILE, CHAT_TILE, ADMIN_TILE] : [...GAMES, DIARY_TILE, TRIP_TILE, CHAT_TILE];
       $('dock').innerHTML = tiles.map((s) => `<a href="${s.u || `https://${s.h}/`}" style="--c:${s.c}"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:36px">${s.g}</span><b>${esc(s.t)}</b></a>`).join('');
       $('dock').style.gridTemplateColumns = tiles.length < 4 ? `repeat(${tiles.length}, minmax(0, 140px))` : '';
       $('dock').style.justifyContent = tiles.length < 4 ? 'center' : '';
@@ -476,8 +480,17 @@
     // Behind the cockpit: a parent's diary tree when the diary answers (only from the
     // tailnet); otherwise, and for kids, the curve. No diary data is ever stored here.
     async function background(role) {
-      $('bifwrap').classList.add('faint'); $('treewrap').hidden = true;
-      if (role !== 'parent') return;
+      $('bifwrap').classList.add('faint'); $('treewrap').hidden = true; $('ecowrap').hidden = true;
+      if (role !== 'parent') {
+        // A kid: their own world, grown from their diary, behind the cockpit.
+        const { data: { session } } = await sb.auth.getSession();
+        const { data: w } = await sb.rpc('r4_kid_world', { p_kid: session.user.id });
+        if (!w || !w.topics?.length) return;
+        $('ecowrap').hidden = false; $('bifwrap').style.opacity = '.12';
+        if (window.__eco) window.__eco.destroy();
+        window.__eco = window.mountEcosystem($('eco'), w, { background: true });
+        return;
+      }
       try {
         const ac = new AbortController(); setTimeout(() => ac.abort(), 4000);
         const r = await fetch('https://diary.r4box.com/data.json', { cache: 'no-store', credentials: 'include', signal: ac.signal });

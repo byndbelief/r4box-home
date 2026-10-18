@@ -210,6 +210,7 @@
         <div class="row" style="margin-top:10px;align-items:baseline"><span class="big">${today}</span><span class="muted">of ${k.daily_cap} today</span></div>
         <div class="meter" title="${today} of ${k.daily_cap}"><i style="width:${w(k.tutor_today)};background:${COLORS.tutor}"></i><i style="width:${w(k.trip_today)};background:${COLORS.trip}"></i><i style="width:${w(k.chat_today)};background:${COLORS.chat}"></i></div>
         <div class="legend"><span style="--c:${COLORS.tutor}">tutor ${k.tutor_today}</span><span style="--c:${COLORS.trip}">trips ${k.trip_today}</span><span style="--c:${COLORS.chat}">chat ${k.chat_today}</span></div>
+        <p class="small" style="margin:8px 0 0"><a href="/diary.html?kid=${k.kid}">🌱 See ${esc(k.username)}'s world</a></p>
         <p class="small muted" style="margin:8px 0 0">Last 7 days: <b style="color:var(--ink)">${week}</b> (tutor ${k.tutor_week}, trips ${k.trip_week}, chat ${k.chat_week})</p>
         <form class="limits" data-kid="${k.kid}">
           <label>A day<input name="cap" type="number" min="0" max="500" value="${k.daily_cap}"></label>

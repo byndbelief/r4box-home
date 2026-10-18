@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0918">
+  <meta name="robots" content="noindex">
+  <title>r4box diary</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
+    @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
+    :root {
+      color-scheme: dark;
+      --bg: #0B0918; --panel: #171331; --panel-2: #1F1A3F; --line: #2F2957; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
+      --teal: #3DD6C6; --gold: #F5C542; --hot: #FF5A4A; --violet: #B9A6FF;
+      --display: "Unbounded", "Arial Black", Impact, sans-serif;
+      --body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --grad-mark: conic-gradient(from 210deg, var(--teal), var(--violet), var(--gold), var(--hot), var(--teal));
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); }
+    body { font: 16px/1.55 var(--body); -webkit-font-smoothing: antialiased; min-height: 100dvh; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    button, select { font: inherit; color: inherit; }
+    header { position: absolute; z-index: 2; inset: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: max(14px, env(safe-area-inset-top)) 16px 0; pointer-events: none; }
+    header > * { pointer-events: auto; }
+    .mark { display: inline-flex; align-items: center; gap: 10px; font: 800 18px/1 var(--display); letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
+    .mark i { width: 1.05em; height: 1.05em; border-radius: 22%; background: var(--grad-mark); box-shadow: inset 0 0 0 .18em var(--bg), 0 0 18px #3DD6C666; }
+    header .sep { color: var(--faint); } header h1 { font: 800 18px/1 var(--display); margin: 0; }
+    header .grow { flex: 1; }
+    header select { background: #0B0918cc; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; }
+    .world { position: relative; height: min(64dvh, 560px); min-height: 340px; border-bottom: 1px solid var(--line); }
+    .world canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
+    .legend { position: absolute; z-index: 1; left: 16px; right: 16px; bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
+    .legend span { padding: 4px 10px; border-radius: 99px; background: #0B0918b3; border: 1px solid #ffffff1a; font-size: 12px; font-weight: 700; backdrop-filter: blur(4px); }
+    .legend span b { color: var(--gold); }
+    .seed { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; text-align: center; padding: 70px 24px 60px; pointer-events: none; }
+    .seed div { max-width: 420px; background: #0B0918b3; border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; backdrop-filter: blur(4px); }
+    .seed b { display: block; font: 800 20px/1.2 var(--display); margin-bottom: 6px; }
+    .seed p { margin: 0; color: var(--muted); font-size: 14px; }
+    .page { max-width: 760px; margin: 0 auto; padding: 18px 16px max(40px, env(safe-area-inset-bottom)); }
+    .pick { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; margin-bottom: 18px; }
+    .pick h2 { font: 800 18px/1.2 var(--display); margin: 0; display: flex; gap: 8px; align-items: baseline; }
+    .pick h2 small { font: 700 12px/1 var(--body); color: var(--muted); }
+    .pick p { margin: 6px 0 0; color: var(--muted); }
+    .pick ul { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; font-size: 14px; }
+    .pick li span { color: var(--faint); font-size: 12px; margin-right: 6px; }
+    h3.k { font: 700 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin: 22px 0 10px; }
+    .entry { padding: 14px 0; border-top: 1px solid var(--line); }
+    .entry:first-of-type { border-top: 0; }
+    .entry .d { font: 800 14px/1 var(--display); color: var(--violet); margin-bottom: 8px; }
+    .entry p { margin: 0 0 8px; white-space: pre-wrap; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chips button { all: unset; cursor: pointer; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; background: #ffffff0d; border: 1px solid #ffffff14; }
+    .chips button:hover { background: #ffffff1a; }
+    .topics { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    .topics button { all: unset; cursor: pointer; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); font-weight: 700; font-size: 14px; }
+    .topics button small { display: block; color: var(--faint); font-weight: 600; font-size: 12px; }
+    .note { color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header><a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1 id="title">Diary</h1><span class="grow"></span><select id="who" hidden aria-label="Whose world"></select></header>
+  <div class="world"><canvas id="eco" aria-label="Your world, grown from your diary"></canvas>
+    <div class="seed" id="seed" hidden><div><b>Your world starts tonight 🌱</b><p>Everything you ask the tutor, the trip planner or @claude in the chat, and every game you finish, grows something here. It's built every night.</p></div></div>
+    <div class="legend" id="legend"></div></div>
+  <main class="page">
+    <div class="pick" id="pick" hidden></div>
+    <p class="note" id="private" hidden></p>
+    <div id="entries"></div>
+    <h3 class="k" id="topicsk" hidden>Everything growing</h3>
+    <div class="topics" id="topics"></div>
+  </main>
+
+<script src="ecosystem.js"></script>
+<script type="module">
+  import { sb, roleOf } from './auth.js';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const REALM = { tutor: ['🌳', 'Learning', 'a tree'], chat: ['🌸', 'Chat', 'a flower'], trip: ['⭐', 'Trips', 'a constellation'], game: ['🦊', 'Games', 'animals'] };
+  const KIND = { spark: 'sprouted', deepen: 'grew', branch: 'branched', pivot: 'turned', merge: 'joined', park: 'rested', revive: 'came back', ship: 'finished' };
+  const nice = (d, o = { weekday: 'long', month: 'short', day: 'numeric' }) => new Date(d + 'T12:00:00').toLocaleDateString([], o);
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
+  const me = session?.user, PARENT = roleOf(me) === 'parent';
+  let world = null, topics = [], events = [], entries = [], eco = null, kidName = '';
+
+  async function load() {
+    const want = new URLSearchParams(location.search).get('kid');
+    if (PARENT) {
+      // A parent sees a kid's world and its names, never the entries (r4_kid_world).
+      const { data: fam } = await sb.rpc('r4_family');
+      const kids = (fam || []).filter((f) => f.role === 'kid');
+      const kid = kids.find((k) => k.id === want) || kids[0];
+      if (!kid) { $('private').hidden = false; $('private').textContent = 'No kids yet.'; return; }
+      kidName = kid.username;
+      $('who').hidden = kids.length < 2;
+      $('who').innerHTML = kids.map((k) => `<option value="${k.id}" ${k.id === kid.id ? 'selected' : ''}>${esc(k.username)}</option>`).join('');
+      $('who').onchange = () => { history.replaceState(null, '', '?kid=' + $('who').value); load(); };
+      $('title').textContent = kid.username + "'s world";
+      const { data, error } = await sb.rpc('r4_kid_world', { p_kid: kid.id });
+      if (error) { $('private').hidden = false; $('private').textContent = error.message; return; }
+      topics = data.topics; events = data.events; entries = [];
+      $('private').hidden = false;
+      $('private').textContent = `You see what's growing in ${kid.username}'s world and what each thing is called. Their diary entries, and what they asked, stay private to them.`;
+    } else {
+      $('title').textContent = 'My diary';
+      const [{ data: t }, { data: e }, { data: en }] = await Promise.all([
+        sb.from('kid_topics').select('*').order('created'),
+        sb.from('kid_events').select('id, topic, day, kind, summary, effort, meta').order('day').order('id'),
+        sb.from('kid_entries').select('day, body').order('day', { ascending: false }).limit(60),
+      ]);
+      topics = t || []; events = e || []; entries = en || [];
+    }
+    render();
+  }
+
+  function render() {
+    world = { topics, events };
+    if (eco) eco.destroy();
+    eco = window.mountEcosystem($('eco'), world, { onPick: show });
+    $('seed').hidden = topics.length > 0;
+    if (PARENT && !topics.length) $('seed').querySelector('div').innerHTML = `<b>Nothing growing yet</b><p>${esc(kidName)}'s world is built every night from what they ask Claude and the games they finish.</p>`;
+    const n = (src) => topics.filter((t) => t.source === src).length;
+    $('legend').innerHTML = topics.length ? Object.entries(REALM).filter(([k]) => n(k)).map(([k, [e, label]]) => `<span>${e} ${label} <b>${n(k)}</b></span>`).join('') : '';
+    const byId = Object.fromEntries(topics.map((t) => [t.id, t]));
+    $('entries').innerHTML = entries.length ? `<h3 class="k">Diary</h3>` + entries.map((en) => {
+      const today = events.filter((e) => e.day === en.day).map((e) => byId[e.topic]).filter(Boolean);
+      const uniq = [...new Map(today.map((t) => [t.id, t])).values()];
+      return `<div class="entry"><div class="d">${esc(nice(en.day))}</div><p>${esc(en.body)}</p>${uniq.length ? `<div class="chips">${uniq.map((t) => `<button data-t="${t.id}">${REALM[t.source][0]} ${esc(t.title)}</button>`).join('')}</div>` : ''}</div>`;
+    }).join('') : '';
+    $('topicsk').hidden = !topics.length;
+    const last = (t) => events.filter((e) => e.topic === t.id).map((e) => e.day).pop() || t.created;
+    $('topics').innerHTML = topics.slice().sort((a, b) => String(last(b)).localeCompare(String(last(a)))).map((t) =>
+      `<button data-t="${t.id}">${REALM[t.source][0]} ${esc(t.title)}<small>${events.filter((e) => e.topic === t.id).length} events · last ${esc(nice(last(t), { month: 'short', day: 'numeric' }))}</small></button>`).join('');
+    document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { show(byId[b.dataset.t]); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+  }
+
+  // What something in the world is, and how it grew.
+  function show(t) {
+    if (!t) { $('pick').hidden = true; return; }
+    const evs = events.filter((e) => e.topic === t.id);
+    const [emoji, , what] = REALM[t.source];
+    $('pick').hidden = false;
+    $('pick').innerHTML = `<h2>${emoji} ${esc(t.title)} <small>${what}${t.stage === 'parked' ? ' · resting' : t.stage === 'shipped' ? ' · finished' : ''}</small></h2>
+      ${t.summary ? `<p>${esc(t.summary)}</p>` : ''}
+      <ul>${evs.slice(-8).reverse().map((e) => `<li><span>${esc(nice(e.day, { month: 'short', day: 'numeric' }))} · ${esc(KIND[e.kind] || e.kind)}</span>${esc(e.summary || '')}</li>`).join('')}</ul>`;
+  }
+
+  if (session) load();
+</script>
+</body>
+</html>
