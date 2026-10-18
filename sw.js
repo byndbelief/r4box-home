@@ -14,6 +14,9 @@ self.addEventListener('push', (e) => {
     body: d.body || '',
     tag: d.tag,
     renotify: true,
+    // A call rings: it stays up until answered or dismissed, and buzzes.
+    requireInteraction: !!d.ring,
+    vibrate: d.ring ? [400, 200, 400, 200, 400] : undefined,
     icon: 'icon-192.png',
     badge: 'icon-192.png',
     data: { url: d.url || './' },
