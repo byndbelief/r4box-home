@@ -47,16 +47,23 @@
     .day { margin: 18px 0 0; }
     .day h3 { font: 800 14px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
     .day h3 small { color: var(--faint); font-weight: 600; letter-spacing: 0; text-transform: none; }
-    .list { display: grid; gap: 8px; }
-    .item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; }
+    .list { display: grid; gap: 10px; }
+    /* One card per item, stacked so the words get the full width on a phone:
+       the title row (time, title, cost), the notes, then a quiet line of details. */
+    .item { display: grid; gap: 6px; padding: 14px 16px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; overflow-wrap: anywhere; }
     .item:hover { border-color: #ffffff33; }
-    .item .tm { flex: none; min-width: 52px; font: 600 13px/1.6 var(--mono); color: var(--teal); }
-    .item .tx { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-    .item .tx b { display: block; }
-    .item .tx small { display: block; color: var(--muted); white-space: pre-wrap; }
-    .item .tx a { color: var(--teal); font-size: 13px; }
-    .item .side { flex: none; text-align: right; font-size: 13px; color: var(--muted); }
-    .item code { font: 600 12px/1 var(--mono); color: var(--gold); background: #F5C5421a; padding: 3px 6px; border-radius: 6px; }
+    .item .hd { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+    .item .tm.wide { flex-basis: 100%; }   /* a date (bookings) gets its own line above the title */
+    .item .tm { flex: none; font: 600 13px/1.4 var(--mono); color: var(--teal); }
+    .item .ttl { flex: 1; min-width: 0; font-size: 16.5px; line-height: 1.35; font-weight: 800; }
+    .item .cost { flex: none; font: 700 14px/1.4 var(--body); color: var(--gold); }
+    /* long notes stay to a few lines on the list; the whole text opens on tap */
+    .item .notes { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.5; white-space: pre-wrap;
+      display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .item .meta { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 13px; color: var(--faint); }
+    .item .meta a { color: var(--teal); font-weight: 600; text-decoration: none; }
+    .item .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px; padding-top: 10px; border-top: 1px solid #ffffff10; }
+    .item code { font: 600 12px/1 var(--mono); color: var(--gold); background: #F5C5421a; padding: 4px 7px; border-radius: 6px; }
     .add { all: unset; cursor: pointer; color: var(--muted); font-weight: 700; padding: 8px 2px; }
     .add:hover { color: var(--teal); }
     .votes { flex: none; display: flex; gap: 6px; align-items: center; }
@@ -263,17 +270,23 @@
   };
   window.addEventListener('hashchange', render);
 
-  const itemRow = (i, { tm = i.at, side = '', icon = false } = {}) => `<div class="item" data-id="${i.id}">
-      ${tm != null ? `<span class="tm">${esc(tm || '')}</span>` : ''}
-      <span class="tx"><b>${icon && TOPIC[i.topic] ? `<span class="ti" title="${TOPIC[i.topic][1]}">${TOPIC[i.topic][0]}</span>` : ''}${esc(i.title)}${i.by_claude ? '<span class="claude" title="Added by Claude">✦</span>' : ''}</b>${i.notes ? `<small>${esc(i.notes)}</small>` : ''}${safeLink(i.link) ? `<a href="${esc(i.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(new URL(i.link).hostname.replace(/^www\./, ''))} ↗</a>` : ''}</span>
-      ${side ? `<span class="side">${side}</span>` : ''}</div>`;
+  // tm: time or date before the title; cost: on the title row; meta: extra details (html) for the line below; foot: a footer (votes).
+  const itemRow = (i, { tm = i.at, cost = '', icon = false, meta = [], foot = '' } = {}) => {
+    const link = safeLink(i.link) ? `<a href="${esc(i.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(new URL(i.link).hostname.replace(/^www\./, ''))} ↗</a>` : '';
+    const details = [...meta, link].filter(Boolean);
+    return `<div class="item" data-id="${i.id}">
+      <div class="hd">${tm ? `<span class="tm${String(tm).length > 6 ? ' wide' : ''}">${esc(tm)}</span>` : ''}<span class="ttl">${icon && TOPIC[i.topic] ? `<span class="ti" title="${TOPIC[i.topic][1]}">${TOPIC[i.topic][0]}</span>` : ''}${esc(i.title)}${i.by_claude ? '<span class="claude" title="Added by Claude">✦</span>' : ''}</span>${cost ? `<span class="cost">${cost}</span>` : ''}</div>
+      ${i.notes ? `<p class="notes">${esc(i.notes)}</p>` : ''}
+      ${details.length ? `<div class="meta">${details.join('<span aria-hidden="true">·</span>')}</div>` : ''}
+      ${foot ? `<div class="foot">${foot}</div>` : ''}</div>`;
+  };
   const wire = () => $('view').querySelectorAll('.item[data-id]').forEach((el) => el.onclick = () => edit(items.find((i) => i.id === el.dataset.id)));
 
   function plan() {
     const ds = days(), list = items.filter((i) => i.kind === 'plan');
     const sec = (d, title, sub) => {
       const its = list.filter((i) => (i.day || null) === d).sort((a, b) => String(a.at || '99').localeCompare(String(b.at || '99')));
-      return `<div class="day"><h3>${title}<small>${sub}</small></h3><div class="list">${its.map((i) => itemRow(i, { side: i.cost ? money(i.cost) : '', icon: true })).join('')}</div>
+      return `<div class="day"><h3>${title}<small>${sub}</small></h3><div class="list">${its.map((i) => itemRow(i, { cost: i.cost ? money(i.cost) : '', icon: true })).join('')}</div>
         <button class="add" data-day="${d || ''}">＋ Add to ${d ? nice(d, { weekday: 'long' }) : 'any day'}</button></div>`;
     };
     $('view').innerHTML = (ds.length ? ds.map((d, k) => sec(d, nice(d), `Day ${k + 1}`)).join('') : `<p class="empty">No dates yet. Ask Claude above, e.g. “when should we go?”${PARENT ? ', or set them with Edit' : ''}.</p>`)
@@ -286,8 +299,8 @@
     const score = (id) => votes.filter((v) => v.item === id).reduce((s, v) => s + v.value, 0);
     const mine = (id) => votes.find((v) => v.item === id && v.voter === ME.id)?.value || 0;
     const list = items.filter((i) => i.kind === 'idea').sort((a, b) => score(b.id) - score(a.id) || a.created_at.localeCompare(b.created_at));
-    const row = (i) => `<div style="display:flex;gap:8px;align-items:center">${itemRow(i, { tm: null, side: esc(nameOf(i.created_by)) }).replace('class="item"', 'class="item" style="flex:1"')}
-        <div class="votes"><button data-v="1" data-i="${i.id}" class="${mine(i.id) === 1 ? 'on' : ''}" aria-label="Vote up">👍</button><span class="score">${score(i.id)}</span><button data-v="-1" data-i="${i.id}" class="${mine(i.id) === -1 ? 'on' : ''}" aria-label="Vote down">👎</button></div></div>`;
+    const row = (i) => itemRow(i, { tm: null, foot: `<span class="note">added by ${esc(nameOf(i.created_by) || 'someone')}</span>
+        <span class="votes"><button data-v="1" data-i="${i.id}" class="${mine(i.id) === 1 ? 'on' : ''}" aria-label="Vote up">👍</button><span class="score">${score(i.id)}</span><button data-v="-1" data-i="${i.id}" class="${mine(i.id) === -1 ? 'on' : ''}" aria-label="Vote down">👎</button></span>` });
     // Grouped by what each idea decides, in TOPIC order; ideas with no topic come last.
     const groups = [...Object.keys(TOPIC), null].map((t) => ({ t, its: list.filter((i) => (TOPIC[i.topic] ? i.topic : null) === t) })).filter((g) => g.its.length);
     const shown = Object.keys(TOPIC).filter((t) => t !== 'other' && (decided(t) || items.some((i) => i.topic === t)));
@@ -303,7 +316,8 @@
       <button class="add" id="addidea">＋ Add an idea</button>`;
     $('addidea').onclick = () => edit({ kind: 'idea' });
     $('view').querySelectorAll('.needs a').forEach((a) => a.onclick = (e) => { e.preventDefault(); const el = $('topic-' + a.dataset.topic); if (el) el.scrollIntoView({ behavior: 'smooth' }); });
-    $('view').querySelectorAll('.votes button').forEach((b) => b.onclick = async () => {
+    $('view').querySelectorAll('.votes button').forEach((b) => b.onclick = async (e) => {
+      e.stopPropagation();   // a vote, not a tap on the card
       const item = b.dataset.i, v = +b.dataset.v;
       if (mine(item) === v) await sb.from('trip_votes').delete().eq('item', item).eq('voter', ME.id);
       else await sb.from('trip_votes').upsert({ item, voter: ME.id, value: v });
@@ -317,7 +331,7 @@
     const planCost = items.filter((i) => i.kind === 'plan').reduce((s, i) => s + (+i.cost || 0), 0);
     const bookCost = list.reduce((s, i) => s + (+i.cost || 0), 0);
     $('view').innerHTML = `<div class="total"><span>Trip total<br><small class="note">bookings ${money(bookCost)} · planned activities ${money(planCost)}</small></span><b>${money(bookCost + planCost)}</b></div>
-      <div class="list">${list.map((i) => itemRow(i, { icon: true, tm: i.day ? nice(i.day, { month: 'short', day: 'numeric' }) : '', side: `${i.cost ? money(i.cost) : ''}${i.conf ? `<br><code>${esc(i.conf)}</code>` : ''}` })).join('')
+      <div class="list">${list.map((i) => itemRow(i, { icon: true, tm: i.day ? nice(i.day, { month: 'short', day: 'numeric' }) + (i.at ? ' ' + i.at : '') : '', cost: i.cost ? money(i.cost) : '', meta: i.conf ? [`<code>${esc(i.conf)}</code>`] : [] })).join('')
       || '<p class="empty">No bookings yet: flights, hotels, cars, tickets.</p>'}</div>
       ${PARENT ? '<button class="add" id="addbook">＋ Add a booking</button>' : '<p class="note">Dad adds and changes bookings.</p>'}`;
     if ($('addbook')) $('addbook').onclick = () => edit({ kind: 'booking' });
