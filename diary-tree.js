@@ -6,7 +6,7 @@
   var SPIN = (Math.PI * 2) / 40000;
   function makeTree() {
   var PALETTE = {};
-  var FLOW = null, FLAT = false, FILL = false, NODE = 1, SEG = 1;
+  var FLOW = null, FLAT = false, FILL = false, NODE = 1, SEG = 1, SPREADX = 2.2, EXT = false;
   var state, treeState;
   function todayISO() {
     var d = new Date(), m = d.getMonth() + 1, day = d.getDate();
@@ -112,17 +112,29 @@
     });
     function rootOf(id) { var n = 0; while (parent[id] && n++ < 50) id = parent[id]; return id; }
     var trunk = segs.filter(function (g) { return g.kind === "trunk"; })[0];
-    var cx = trunk ? trunk.x1 : 0, maxR = 1;
+    var cx = trunk ? trunk.x1 : 0, maxR = 1, baseY = trunk ? trunk.y1 : 0;
+    // r4box: real 3D. Each root limb gets its own azimuth around the trunk, spaced by
+    // the golden angle (137.5deg) so no turn of the tree lines them all up edge-on.
+    var roots = [], GOLD = Math.PI * (3 - Math.sqrt(5));
+    segs.forEach(function (g) { if (g.idea) { var r = rootOf(g.idea); if (roots.indexOf(r) < 0) roots.push(r); } });
+    // Off-plane bend q: limbs leave their vertical plane and curl around the trunk,
+    // more the further out they reach. Same function at every joint, so wood stays joined.
+    function bend(a, y, seed) {
+      var d = baseY - y, s1 = rnd(seed, 33) * 6.283, k = (rnd(seed, 34) - 0.5) * 2;
+      return Math.abs(a) * (0.55 * Math.sin(s1 + d * 0.016) + 0.35 * k);
+    }
     segs.forEach(function (g) {
       g.ax1 = g.x1 - cx; g.ax2 = g.x2 - cx;
-      g.phi = g.idea ? rnd(rootOf(g.idea), 21) * Math.PI : 0;
-      maxR = Math.max(maxR, Math.abs(g.ax1), Math.abs(g.ax2));
+      var root = g.idea ? rootOf(g.idea) : null;
+      g.phi = root ? roots.indexOf(root) * GOLD : 0;
+      g.aq1 = root ? bend(g.ax1, g.y1, root) : 0; g.aq2 = root ? bend(g.ax2, g.y2, root) : 0;
+      maxR = Math.max(maxR, Math.hypot(g.ax1, g.aq1), Math.hypot(g.ax2, g.aq2));
     });
     // Turned, most limbs are seen at a slant and the crown looks thinner than
     // the flat tree did; spread it a little wider, never past the frame.
     var room = Math.min(cx, w - cx) - 20;
-    var widen = Math.max(1, Math.min(1.35, room / maxR));
-    segs.forEach(function (g) { g.ax1 *= widen; g.ax2 *= widen; });
+    var widen = Math.min(SPREADX, room / maxR);   // may shrink: the 3D bend can reach past the flat fit
+    segs.forEach(function (g) { g.ax1 *= widen; g.ax2 *= widen; g.aq1 *= widen; g.aq2 *= widen; });
     treeState.cx = cx; treeState.maxR = maxR * widen;
   }
   function projectSpin(segs) {
@@ -130,8 +142,9 @@
     segs.forEach(function (g) {
       if (g.ax1 === undefined) return;
       var c = FLAT ? 1 : Math.cos(g.phi + th), sn = FLAT ? 0 : Math.sin(g.phi + th);
-      g.x1 = cx + g.ax1 * c; g.x2 = cx + g.ax2 * c;
-      g.z = ((g.ax1 + g.ax2) / 2) * sn;
+      // rotate the point (radial a, off-plane q) by phi + theta about the vertical trunk
+      g.x1 = cx + g.ax1 * c - (FLAT ? 0 : g.aq1 * sn); g.x2 = cx + g.ax2 * c - (FLAT ? 0 : g.aq2 * sn);
+      g.z = ((g.ax1 + g.ax2) / 2) * sn + (FLAT ? 0 : ((g.aq1 + g.aq2) / 2) * c);
     });
   }
   function depthOf(g) {   // 1 in front, 0.5 at the back
@@ -312,14 +325,14 @@
     // start to look sheared rather than grown. Height is never stretched, so
     // the trunk keeps its scale and the dates stay where they are.
     var kx = k;
-    if (bw * k < (w - pad * 2) * 0.88) kx = Math.min(k * 1.45, (w - pad * 2) / bw);
+    if (bw * k < (w - pad * 2)) kx = Math.min(k * SPREADX, (w - pad * 2) / bw);
     var ky = FILL ? Math.max(k, Math.min((h - pad * 2) / bh, k * 2.2)) : k;
     var ox = (w - bw * kx) / 2 - minX * kx, oy = (h - pad) - maxY * ky;
     if (FILL) {   // r4box addition: keep the trunk on the centre line, canopy fitted to the wider side
       var tr = segs.filter(function (g) { return g.kind === "trunk"; })[0];
       if (tr) {
         var half = Math.max(1, tr.x1 - minX, maxX - tr.x1);
-        kx = Math.min(k * 1.45, (w / 2 - pad) / half);
+        kx = Math.min(k * SPREADX, (w / 2 - pad) / half);
         ox = w / 2 - tr.x1 * kx;
       }
     }
@@ -338,7 +351,7 @@
     var bark = cssVar("--bark"), park = cssVar("--c-park");
     var cGrow = cssVar("--c-growth"), cTurn = cssVar("--c-turn"),
         cClose = cssVar("--c-close"), cAcc = cssVar("--accent"), ground = cssVar("--ground");
-    ctx.clearRect(0, 0, w, h);
+    if (!EXT) ctx.clearRect(0, 0, w, h);
     projectSpin(segs);
     // Far side first, so the near side is drawn over it.
     var drawn = segs.slice().sort(function (a, b) { return (a.z || 0) - (b.z || 0); });
@@ -424,17 +437,22 @@
     PALETTE = opts.palette || {};
     FLOW = opts.flow || null;
     FLAT = opts.spin === false;
-    FILL = !!opts.fill; NODE = opts.nodeScale || 1; SEG = opts.segScale || 1;
+    FILL = !!opts.fill; NODE = opts.nodeScale || 1; SEG = opts.segScale || 1; SPREADX = opts.spreadX || 2.2; EXT = !!opts.external;
     state = { ideas: data.ideas, events: data.events, sel: null, view: "tree" };
     treeState = { raf: 0, segs: [], hover: null, t: 1, theta: 0, cx: 0, maxR: 1, drag: null, held: false };
     var alive = true;
+    // r4box addition: external mode. No canvas of its own: the caller passes a size and calls
+    // paint(ctx) inside its own camera transform (the pannable world), and nodes() to hit-test buds.
+    if (EXT) { var fake = { _w: opts.external.w, _h: opts.external.h, ctx: null, getContext: function () { return fake.ctx; } }; cv = fake; }
     function size() {
+      var w, h;
+      if (EXT) { w = cv._w; h = cv._h; } else {
       var r = cv.parentNode.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-      var w = Math.max(200, r.width), h = Math.max(200, r.height);
+      w = Math.max(200, r.width); h = Math.max(200, r.height);
       cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
       cv.style.width = w + "px"; cv.style.height = h + "px";
       cv.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
-      cv._w = w; cv._h = h;
+      cv._w = w; cv._h = h; }
       treeState.segs = buildTreeSegments(w, h);
       if (FLOW) {
         var base = null, maxD = 1;
@@ -456,6 +474,24 @@
     size(); layout();
     var total = treeState.segs.length, reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     var t0 = performance.now(), last = t0, DUR = 2200;
+    if (EXT) {
+      var ts = treeState;
+      return {
+        paint: function (ctx, now) {
+          treeState = ts; fake.ctx = ctx;
+          var p = reduce ? 1 : Math.min(1, (now - t0) / DUR);
+          ts.t = p < 1 ? 1 - Math.pow(1 - p, 3) : 1;
+          if (opts.spin !== false && !reduce) ts.theta += (now - last) * SPIN; last = now;
+          paintTree(fake, Math.round(ts.t * ts.segs.length));
+        },
+        nodes: function () {
+          treeState = ts; projectSpin(ts.segs);
+          return ts.segs.filter(function (g) { return g.event && !g.twig && g.order < Math.round(ts.t * ts.segs.length); })
+            .map(function (g) { return { id: g.event, kind: g.kind, x: g.x2, y: g.y2, z: g.z || 0 }; });
+        },
+        destroy: function () { alive = false; },
+      };
+    }
     function frame(now) {
       if (!alive) return;
       var p = Math.min(1, (now - t0) / DUR);
@@ -465,8 +501,7 @@
       treeState.raf = requestAnimationFrame(frame);
     }
     if (reduce) paintTree(cv, total); else treeState.raf = requestAnimationFrame(frame);
-    // r4box addition: resizing clears the canvas, so paint at once instead of waiting a frame
-    var ro = new ResizeObserver(function () { size(); layout(); paintTree(cv, reduce ? null : Math.round(treeState.t * treeState.segs.length)); });
+    var ro = new ResizeObserver(function () { size(); layout(); if (reduce) paintTree(cv); });
     ro.observe(cv.parentNode);
     return function () { alive = false; cancelAnimationFrame(treeState.raf); ro.disconnect(); };
   };

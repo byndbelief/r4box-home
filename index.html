@@ -6,7 +6,7 @@
   <title>r4box</title>
   <meta name="description" content="r4box: the family game room, and the box that runs the rest.">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#0B0918">
+  <meta name="theme-color" content="#06050F">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
@@ -16,7 +16,7 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
     :root {
       color-scheme: dark;
-      --bg: #0B0918; --panel: #171331; --panel-2: #1F1A3F; --line: #2F2957; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
+      --bg: #06050F; --panel: #171331; --panel-2: #1F1A3F; --line: #2F2957; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
       --teal: #3DD6C6; --teal-ink: #062A26; --gold: #F5C542; --hot: #FF5A4A; --hot-soft: #4A2230; --violet: #B9A6FF; --mint: #C9FFF8;
       --display: "Unbounded", "Arial Black", Impact, sans-serif;
       --body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -74,33 +74,9 @@
     .sheet > div { width: min(390px, calc(100% - 24px)); margin: 12px; padding: 22px 20px 18px; border-radius: 24px; background: var(--panel-2); border: 1px solid var(--line); display: grid; justify-items: center; gap: 12px; text-align: center; }
     .sheet .ring { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; font-size: 30px; border: 2px solid var(--line); color: var(--muted); }
 
-    /* cockpit (1c: command bar, pinned dock) */
-    #cockpit .body { flex: 1; display: grid; align-content: center; justify-items: center; gap: 22px; padding: 40px 0; }
-    #cockpit h1 { font-size: clamp(30px, 5vw, 52px); line-height: 1; text-align: center; }
-    .hello { color: var(--muted); margin: -10px 0 0; text-align: center; }
-    .search { width: min(560px, 100%); position: relative; }
-    .search input { padding: 16px 20px; font-size: 17px; background: var(--panel); border-radius: 14px; }
-    .hits { position: absolute; left: 0; right: 0; top: calc(100% + 8px); z-index: 3; background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 10px 24px #0003; }
-    .hits a { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px; color: inherit; text-decoration: none; }
-    .hits a:hover, .hits a.on { background: #ffffff10; }
-    .hits code { margin-left: auto; font: 500 11px/1 var(--mono); color: var(--faint); }
-    .glyph { width: var(--s, 40px); height: var(--s, 40px); flex: none; display: grid; place-items: center; border-radius: 12px; font: 600 calc(var(--s, 40px) * .4)/1 var(--mono); color: var(--c); background: color-mix(in oklab, var(--c) 14%, transparent); }
-    .glyph.emoji { font: calc(var(--s, 40px) * .5)/1 system-ui; }
-    .dock { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-    @media (min-width: 760px) { .dock { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; } }
-    .dock a { display: grid; justify-items: center; gap: 10px; padding: 12px 4px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); color: inherit; text-decoration: none; transition: border-color .2s, background .2s; }
-    .dock a:hover { border-color: var(--c); background: color-mix(in srgb, var(--c) 7%, var(--panel)); }
-    .dock b { font-size: 12px; }
-    .dock a { position: relative; }
-    .dock .badge { position: absolute; top: 6px; right: 8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; background: var(--hot); color: #fff; font: 800 11px/20px var(--body); text-align: center; }
-    @media (min-width: 760px) { .dock a { padding: 16px 8px; border-radius: 20px; } .dock b { font-size: 14px; } }
-    .who-menu { display: flex; align-items: center; gap: 10px; }
-    .offer { width: min(560px, 100%); }
     @media (prefers-reduced-motion: reduce) { .mark i { animation: none; } }
 
     /* the kids' tutor (Claude, text only) and a parent's flagged chats */
-    .hits a.ask b { color: var(--gold); }
-    .flags { width: min(560px, 100%); }
     .flags button { all: unset; cursor: pointer; display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: #ffffff0a; }
     .flags button:hover { background: #ffffff14; }
     .flags small { color: var(--muted); }
@@ -125,6 +101,109 @@
     .tsend .btn { flex: none; background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
     .tset { display: grid; gap: 10px; }
     .tset .row label { flex: 1 1 90px; }
+
+    /* ---------- home: the family world behind, then today, apps, recent (design system: r4box home) ---------- */
+    #home { position: relative; z-index: 1; max-width: 560px; margin: 0 auto; min-height: 100dvh; background: var(--bg); box-shadow: 0 0 0 1px #ffffff0c; }
+    #home > header { position: absolute; z-index: 3; inset: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: max(14px, env(safe-area-inset-top)) 16px 0; pointer-events: none; }
+    #home > header > * { pointer-events: auto; }
+    #home > header .mark { font-size: 18px; }
+    #home > header .sep { color: var(--faint); }
+    #home > header h1 { font: 800 18px/1 var(--display); margin: 0; letter-spacing: -.02em; }
+    .gear { all: unset; cursor: pointer; margin-left: auto; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; border: 1px solid var(--line); background: #06050Fcc; color: var(--muted); font-size: 18px; }
+    .gmenu { position: absolute; z-index: 15; right: 16px; top: calc(max(14px, env(safe-area-inset-top)) + 48px); width: 210px; padding: 6px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 14px 32px #000b; }
+    .gmenu button, .gmenu a { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: block; padding: 10px 12px; border-radius: 11px; font-size: 14px; font-weight: 700; }
+    .gmenu button:hover, .gmenu a:hover { background: #ffffff0c; }
+    .gmenu small { display: block; font-weight: 600; font-size: 11.5px; color: var(--faint); }
+    .world { position: relative; overflow: hidden; height: min(64dvh, 560px); min-height: 360px; border-bottom: 1px solid var(--line); }
+    .world canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
+    .legend { position: absolute; z-index: 2; left: 16px; right: 16px; bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; line-height: 1.2; padding: 4px 10px; border-radius: 99px; background: #06050Fb3; border: 1px solid #ffffff1a; font-size: 12px; font-weight: 700; backdrop-filter: blur(4px); }
+    .legend i { width: 7px; height: 7px; border-radius: 9px; flex: none; }
+    .hpage { padding: 16px 16px calc(28px + env(safe-area-inset-bottom)); }
+    .pick { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; margin-bottom: 16px; }
+    .pick h2 { font: 800 18px/1.2 var(--display); margin: 0; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+    .pick h2 small { font: 700 12px/1.3 var(--body); color: var(--muted); }
+    .pick p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+    .pick ul { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; font-size: 14px; }
+    .pick li span { color: var(--faint); font-size: 12px; margin-right: 6px; }
+    .pick .go { display: inline-flex; margin-top: 12px; min-height: 40px; align-items: center; padding: 0 14px; border-radius: 12px; background: var(--teal); color: var(--teal-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+    .hhead { display: flex; align-items: center; gap: 10px; }
+    .hhead > div:first-child { flex: 1; min-width: 0; }
+    .hhead h2 { margin: 0; font: 800 24px/1.05 var(--display); letter-spacing: -.03em; }
+    .hhead p { margin: 3px 0 0; font-size: 12.5px; color: var(--faint); }
+    .vpick { position: relative; flex: none; }
+    .vbtn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px 0 8px; border-radius: 99px; border: 1px solid var(--line); background: #ffffff0a; font: 700 13px/1 var(--body); white-space: nowrap; }
+    .vbtn span { font-size: 16px; } .vbtn i { font-style: normal; font-size: 11px; color: var(--faint); }
+    .vmenu { position: absolute; z-index: 15; right: 0; top: calc(100% + 6px); width: 230px; padding: 6px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 14px 32px #000b; }
+    .vmenu p { margin: 6px 10px; font: 700 10.5px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+    .vmenu button { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 28px 1fr; column-gap: 8px; align-items: center; padding: 9px 10px; border-radius: 11px; }
+    .vmenu button span { grid-row: span 2; font-size: 20px; text-align: center; }
+    .vmenu button b { font-size: 14px; } .vmenu button em { font-style: normal; font-size: 12px; color: var(--muted); }
+    .vmenu button.on { background: #ffffff12; } .vmenu button:hover { background: #ffffff0c; }
+    .hcmd { position: relative; margin-top: 12px; }
+    .hcmd input { min-height: 46px; padding: 0 16px; border-radius: 14px; background: var(--panel); }
+    .hres { position: absolute; z-index: 8; left: 0; right: 0; top: calc(100% + 6px); padding: 5px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 14px 30px #000b; }
+    .hres a { box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 9px 10px; border-radius: 10px; color: inherit; text-decoration: none; }
+    .hres a:hover, .hres a.on { background: #ffffff0d; }
+    .hres b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .hres small { font-size: 11px; color: var(--faint); }
+    .hres .g { text-align: center; font: 600 15px/1 var(--mono); }
+    .hres a.ask b { color: var(--gold); }
+    .htoday { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 12px -16px 0; padding: 0 16px; }
+    .htoday::-webkit-scrollbar { display: none; }
+    .htoday a { flex: none; box-sizing: border-box; width: 200px; display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: inset 3px 0 0 var(--c); color: inherit; text-decoration: none; }
+    .htoday .g { font-size: 17px; line-height: 1.1; color: var(--c); }
+    .htoday b { display: block; font-size: 13.5px; line-height: 1.25; }
+    .htoday small { display: block; margin-top: 3px; font-size: 11.5px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+    #home h3.k { font: 700 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin: 22px 0 10px; }
+    .hdock { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .hdock a { position: relative; display: grid; justify-items: center; align-content: start; gap: 5px; padding: 12px 4px 10px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); text-decoration: none; min-width: 0; text-align: center; transition: border-color .15s, background .15s; }
+    .hdock a:hover { border-color: var(--c); background: color-mix(in srgb, var(--c) 7%, var(--panel)); }
+    .hdock .g { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; font: 600 16px/1 var(--mono); color: var(--c); background: color-mix(in oklab, var(--c) 14%, transparent); }
+    .hdock .g.emoji { font: 20px/1 system-ui; }
+    .hdock b { font-size: 13px; }
+    .hdock small { font-size: 10.5px; line-height: 1.2; color: var(--faint); padding: 0 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .hdock small.hot { color: var(--gold); }
+    .hdock .badge { position: absolute; top: 6px; right: 8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; background: var(--hot); color: #fff; font: 800 11px/20px var(--body); text-align: center; }
+    .hdock.big { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .hdock.big a { min-height: 120px; align-content: center; border-width: 2px; border-radius: 24px; }
+    .hdock.big .g { width: 64px; height: 64px; font-size: 28px; border-radius: 18px; } .hdock.big .g.emoji { font-size: 32px; }
+    .hdock.big b { font: 800 17px/1 var(--display); }
+    .hrecent { display: grid; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
+    .hrecent a { box-sizing: border-box; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-top: 1px solid #ffffff0a; min-height: 42px; color: inherit; text-decoration: none; }
+    .hrecent a:first-child { border-top: 0; } .hrecent a:hover { background: #ffffff08; }
+    .hrecent .g { text-align: center; font: 600 14px/1 var(--mono); }
+    .hrecent .t { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hrecent .t small { display: block; margin-top: 2px; font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; }
+    .hrecent .a { font: 600 11px/1 var(--mono); color: var(--faint); }
+    .hempty { padding: 14px; color: var(--faint); font-size: 13px; }
+    .ctx { margin-top: 14px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
+    .ctxh { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: grid; gap: 6px; padding: 14px 16px; }
+    .ctxh .top { display: flex; align-items: baseline; gap: 8px; }
+    .ctxh .top b { font: 800 16px/1.2 var(--display); letter-spacing: -.02em; }
+    .ctxh .n { font: 800 16px/1 var(--display); color: var(--gold); }
+    .ctxh .chev { margin-left: auto; color: var(--faint); transition: transform .2s; transform: rotate(-90deg); }
+    .ctx.open > .ctxh .chev { transform: none; }
+    .ctxh .sum { font-size: 13px; color: var(--muted); line-height: 1.4; }
+    .ctxb { display: none; border-top: 1px solid var(--line); padding: 4px 12px 14px; }
+    .ctx.open > .ctxb { display: block; }
+    .ctxb .note { color: var(--muted); font-size: 13.5px; margin: 10px 0 0; }
+    .topics { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .topics button { all: unset; cursor: pointer; padding: 10px 12px; border-radius: 12px; background: #ffffff06; border: 1px solid var(--line); font-weight: 700; font-size: 14px; line-height: 1.3; }
+    .topics button small { display: block; color: var(--faint); font-weight: 600; font-size: 12px; margin-top: 3px; }
+    .people { display: grid; gap: 8px; }
+    .people a { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: #ffffff06; border: 1px solid var(--line); color: inherit; text-decoration: none; }
+    .people b { font-size: 15px; } .people small { display: block; color: var(--faint); font-size: 12px; }
+    .people .dot { width: 10px; height: 10px; border-radius: 9px; flex: none; }
+    .people .lock { margin-left: auto; font-size: 12px; color: var(--faint); }
+    #home .flags, #home .offer { width: 100%; margin-top: 12px; }
+    .dens-pilot .hhead h2 { font-size: 18px; }
+    .dens-pilot .hcmd input { min-height: 38px; font-size: 15px; border-radius: 10px; }
+    .dens-pilot .htoday { margin: 8px -16px 0; gap: 6px; } .dens-pilot .htoday a { width: 170px; padding: 8px 10px; border-radius: 10px; }
+    .dens-pilot .htoday b { font-size: 12.5px; }
+    .dens-pilot .hdock { gap: 5px; } .dens-pilot .hdock a { padding: 8px 2px 7px; border-radius: 10px; gap: 3px; }
+    .dens-pilot .hdock .g { width: 30px; height: 30px; font-size: 13px; border-radius: 8px; } .dens-pilot .hdock .g.emoji { font-size: 15px; }
+    .dens-pilot .hdock b { font-size: 11.5px; } .dens-pilot .hdock small { font-size: 9.5px; }
+    .dens-pilot .hrecent { border-radius: 10px; } .dens-pilot .hrecent a { padding: 6px 10px; min-height: 34px; } .dens-pilot .hrecent .t { font-size: 12px; }
   </style>
 </head>
 <body>
@@ -160,27 +239,24 @@
     </div>
   </main>
 
-  <!-- signed in: 1c, where to? -->
-  <main class="page" id="cockpit" hidden>
-    <header>
-      <a class="mark" href="/"><i aria-hidden="true"></i>r4box<small>r = 4</small></a>
-      <div class="who-menu"><span class="xpill">x = <b class="x">0.0000</b></span><button class="link quiet" id="signout">Sign out</button></div>
-    </header>
-    <div class="body">
-      <h1>Where to?</h1>
-      <p class="hello" id="hello"></p>
-      <div class="search">
-        <input id="q" placeholder="os, diary, battleship…" autocomplete="off" aria-label="Where to?">
-        <div class="hits" id="hits" hidden></div>
-      </div>
+  <!-- signed in: the home (design system: r4box home). The family world on top, then
+       greeting, Where to?, today, apps with live status, recent, and the family. -->
+  <div id="home" hidden>
+    <header><a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1>home</h1>
+      <button class="gear" id="gear" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">⚙</button></header>
+    <div class="gmenu" id="gmenu" role="menu" hidden></div>
+    <div class="world" id="worldBox"><canvas id="cv" aria-label="The family world: everyone's tree on one ground"></canvas><div class="legend" id="legend"></div></div>
+    <main class="hpage">
+      <div class="pick" id="pick" hidden></div>
+      <div id="htop"></div>
       <div class="card flags" id="flags" hidden></div>
       <div class="card offer" id="offer" hidden>
         <p style="margin:0"><b>Sign in faster next time.</b> Add a passkey on this device: Face ID, fingerprint or your phone's lock.</p>
         <div class="row"><button class="btn" id="addkey">Add a passkey</button><button class="link quiet" id="nokey">Not now</button></div>
       </div>
-    </div>
-    <nav class="dock" id="dock" aria-label="Places"></nav>
-  </main>
+      <div id="hrest"></div>
+    </main>
+  </div>
 
   <!-- the tutor: a kid's chats with Claude; for a parent, a flagged chat (read only) -->
   <section id="tutor" hidden aria-label="Tutor">
@@ -203,27 +279,11 @@
 
   <script src="diary-tree.js"></script>
   <script src="ecosystem.js"></script>
+  <script src="together.js"></script>
   <script type="module">
     import { sb, FAMILY, roleOf, nameOf, handOver } from './auth.js';
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-    // Places. A kid gets games (and, later, their own tree); a parent gets the whole box.
-    const BOX = [
-      { g: '◎', t: 'os', d: 'Start a task, approve what Claude wants to do.', h: 'os.r4box.com', c: 'var(--teal)' },
-      { g: '✎', t: 'diary', d: 'Clearing: every session written up nightly.', h: 'diary.r4box.com', c: 'var(--gold)' },
-      { g: '›_', t: 'term', d: 'A shell on the box.', h: 'term.r4box.com', c: 'var(--mint)' },
-      { g: '{ }', t: 'code', d: 'The editor, with every project.', h: 'code.r4box.com', c: 'var(--violet)' },
-      { g: '◫', t: 'browser', d: 'Watch the browser the agent drives.', h: 'browser.r4box.com', c: 'var(--hot)' },
-      { g: '◉', t: 'ntfy', d: 'The notification relay.', h: 'ntfy.r4box.com', c: 'var(--gold)' },
-    ];
-    const GAMES = [['⚓', 'Battleship'], ['⛳', 'Putt Post'], ['💥', 'Hilltop Duel'], ['🃏', 'Chaos Cards'], ['⚔️', 'War'], ['🏆', 'The Gauntlet'], ['🏁', 'Rally'], ['🕹️', 'Arcade']]
-      .map(([g, t]) => ({ g, t, d: 'Game room', h: 'games.r4box.com', c: 'var(--teal)', emoji: true }));
-    const GAMES_TILE = { g: '⚓', t: 'games', h: 'games.r4box.com', c: 'var(--teal)', emoji: true };
-    const TRIP_TILE = { g: '✈️', t: 'trip', d: 'Trip planning', h: 'r4box.com/trip', u: '/trip.html', c: 'var(--gold)', emoji: true };
-    const ADMIN_TILE = { g: '⚙', t: 'admin', d: 'Admin: box health, kids & Claude, devices, content', h: 'r4box.com/admin', u: '/admin.html', c: 'var(--muted)' };
-    const DIARY_TILE = { g: '🌱', t: 'diary', d: 'My diary and my world', h: 'r4box.com/diary', u: '/diary.html', c: 'var(--teal)', emoji: true };
-    const CHAT_TILE = { g: '💬', t: 'chat', d: 'Family chat', h: 'r4box.com/chat', u: '/chat.html', c: 'var(--violet)', emoji: true };
 
     // The live x: the logistic map at r = 4, one step every half second.
     let x = Math.random() * .8 + .1;
@@ -232,7 +292,7 @@
     // ---------------- signed out ----------------
     let who = null;
     function showLogin(msg, bad) {
-      $('cockpit').hidden = true; $('login').hidden = false; $('treewrap').hidden = true; $('ecowrap').hidden = true; $('bifwrap').classList.remove('faint');
+      $('home').hidden = true; $('login').hidden = false; $('bifwrap').hidden = false; $('treewrap').hidden = true; $('ecowrap').hidden = true; $('bifwrap').classList.remove('faint'); if (live) { live.destroy(); live = null; }
       $('who').innerHTML = FAMILY.map((f, i) => `<button data-i="${i}">${f.avatar ? `<img src="${f.avatar}" alt="">` : `<span class="av">${esc(f.name[0].toUpperCase())}</span>`}${esc(f.name)}</button>`).join('');
       pick(null);
       if (msg) say(msg, bad);
@@ -285,7 +345,6 @@
     }
 
     // ---------------- signed in ----------------
-    let places = [];
     // One sign-in: the game room has no sign-in of its own. Going there, the session
     // rides along in the URL fragment (never sent to a server; the game room takes it
     // out of the address at once). Only ever to games.r4box.com.
@@ -303,12 +362,36 @@
       }
       location.assign(u.href);
     }
-    for (const id of ['dock', 'hits']) $(id).addEventListener('click', (e) => {
-      const a = e.target.closest('a');
-      if (!a || e.metaKey || e.ctrlKey || e.shiftKey || new URL(a.href).hostname !== 'games.r4box.com') return;
-      e.preventDefault(); go(a.href);
-    });
-    async function showCockpit(session) {
+    // ---------------- the home ----------------
+    // The family world fills the top (together.js: everyone's tree on one ground, roots for
+    // games played together, stars for shared trips). Below: greeting and view, Where to?,
+    // today, apps with live status, recent across apps, the family. All of it is real:
+    // r4_family_world (names only for your own world, or for a parent), r4_home (your
+    // turns, games together, trips), box_status (the box apps, a parent only), the chat,
+    // the game room's news for you, the trips.
+    const DOTS = ['#F5C542', '#3DD6C6', '#FF5A4A', '#B9A6FF', '#C9FFF8'];
+    const KIND = { battleship: ['⚓', 'Battleship', ''], golf: ['⛳', 'Putt Post', 'golf.html'], duel: ['💥', 'Hilltop Duel', 'duel.html'], cards: ['🃏', 'Chaos Cards', 'cards.html'], war: ['⚔️', 'War', 'war.html'] };
+    const gameUrl = (kind, id) => `https://games.r4box.com/${KIND[kind]?.[2] || ''}${id ? '#game=' + id : ''}`;
+    const DENSITY = [
+      { id: 'play', name: 'Play', em: '🧸', blurb: 'A few big controls' },
+      { id: 'explore', name: 'Explore', em: '🧭', blurb: 'The main things, a little text' },
+      { id: 'pilot', name: 'Pilot', em: '✈️', blurb: 'Every instrument at once' },
+    ];
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const dn = (d) => Math.round(Date.parse(String(d).slice(0, 10) + 'T00:00:00Z') / 864e5);
+    function streak(days) {
+      const set = new Set(days.map(dn)); if (!set.size) return { now: 0, sinceLast: null };
+      const t = dn(iso(new Date())); let d = set.has(t) ? t : set.has(t - 1) ? t - 1 : null, now = 0;
+      if (d != null) while (set.has(d)) { now++; d--; }
+      return { now, sinceLast: t - Math.max(...set) };
+    }
+    const agoOf = (ts) => { const m = Math.max(0, (Date.now() - new Date(ts)) / 60e3); return m < 1 ? 'now' : m < 60 ? Math.round(m) + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
+    let H = null, live = null;
+    const fam = () => H?.family || [];
+    const person = (id) => fam().find((p) => p.id === id);
+    const nm = (id) => person(id)?.name || 'someone';
+
+    async function showHome(session) {
       sheet(null);
       const user = session.user, role = roleOf(user), name = nameOf(user);
       // Came from a box page that asked for a sign-in: go back there.
@@ -316,44 +399,212 @@
       if (next) {
         try { const u = new URL(next); if (u.protocol === 'https:' && (u.hostname === 'r4box.com' || u.hostname.endsWith('.r4box.com'))) { history.replaceState(null, '', '/'); go(u.href); return; } } catch {}
       }
-      $('login').hidden = true; $('cockpit').hidden = false;
-      $('hello').textContent = role === 'parent' ? `Welcome back, ${name}.` : `Hi, ${name}. Your world grows from what you ask and play.`;
-      const tiles = role === 'parent' ? [...BOX, GAMES_TILE, TRIP_TILE, CHAT_TILE, ADMIN_TILE] : [GAMES_TILE, DIARY_TILE, TRIP_TILE, CHAT_TILE];
-      places = role === 'parent' ? [...BOX, ...GAMES, TRIP_TILE, CHAT_TILE, ADMIN_TILE] : [...GAMES, DIARY_TILE, TRIP_TILE, CHAT_TILE];
-      $('dock').innerHTML = tiles.map((s) => `<a href="${s.u || `https://${s.h}/`}" style="--c:${s.c}"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:36px">${s.g}</span><b>${esc(s.t)}</b></a>`).join('');
-      $('dock').style.gridTemplateColumns = tiles.length < 4 ? `repeat(${tiles.length}, minmax(0, 140px))` : '';
-      $('dock').style.justifyContent = tiles.length < 4 ? 'center' : '';
-      $('q').placeholder = role === 'parent' ? 'os, diary, battleship…' : 'Ask anything, or find a game…';
-      ME = { role, name };
-      unread(user.id);
+      ME = { role, name, id: user.id };
+      $('login').hidden = true; $('home').hidden = false;
+      for (const id of ['bifwrap', 'treewrap', 'ecowrap']) $(id).hidden = true;
+      await loadHome();
       if (role === 'parent') showFlags();
       if (location.hash === '#tutor' && role !== 'parent') openTutor();
-      background(role);
       offerPasskey();
     }
-    $('signout').onclick = async () => { await sb.auth.signOut(); };
 
-    // The chat tile shows how many messages came in since you last read the chat.
-    async function unread(uid) {
-      const { data: r } = await sb.from('chat_reads').select('read_at').eq('user_id', uid).maybeSingle();
-      let q = sb.from('chat_messages').select('id', { count: 'exact', head: true }).or(`author.is.null,author.neq.${uid}`);
-      if (r) q = q.gt('created_at', r.read_at);
-      const { count } = await q;
-      const a = $('dock').querySelector('a[href="/chat.html"]');
-      if (a && count) a.insertAdjacentHTML('beforeend', `<span class="badge">${count > 99 ? '99+' : count}</span>`);
+    async function loadHome() {
+      const parent = ME.role === 'parent', since = new Date(Date.now() - 7 * 864e5).toISOString();
+      const [w, h, box, reads, chat, news, items, mine] = await Promise.all([
+        sb.rpc('r4_family_world'), sb.rpc('r4_home'),
+        parent ? sb.from('box_status').select('*') : { data: [] },
+        sb.from('chat_reads').select('read_at').eq('user_id', ME.id).maybeSingle(),
+        sb.from('chat_messages').select('id, author, is_claude, body, image, created_at').order('id', { ascending: false }).limit(30),
+        sb.from('chaos_events').select('icon, message, game_kind, game_id, created_at').eq('player', ME.id).order('id', { ascending: false }).limit(6),
+        sb.from('trip_items').select('id, trip, title, created_by, by_claude, created_at').gte('created_at', since).neq('created_by', ME.id).order('created_at', { ascending: false }).limit(6),
+        sb.from('kid_events').select('topic, day, kind, summary, created_at').eq('kid', ME.id).order('day', { ascending: false }).limit(8),
+      ]);
+      const family = (w.data || []).map((p, i) => ({ id: p.id, name: p.username, role: p.role, dot: DOTS[i % DOTS.length], world: { topics: p.topics, events: p.events } }));
+      const readAt = reads.data?.read_at ? new Date(reads.data.read_at) : null;
+      const msgs = chat.data || [];
+      H = { family, home: h.data || { turns: [], together: [], trips: [] }, box: Object.fromEntries((box.data || []).map((b) => [b.app, b])),
+        unread: msgs.filter((m) => m.author !== ME.id && (!readAt || new Date(m.created_at) > readAt)).length,
+        msgs, news: news.data || [], items: items.data || [], mine: mine.data || [] };
+      drawWorld(); renderHome();
     }
 
-    // Where to? Type to jump; Enter opens the first hit.
-    $('q').oninput = () => {
-      const q = $('q').value.trim().toLowerCase();
-      const hits = q ? places.filter((s) => (s.t + ' ' + s.d).toLowerCase().includes(q)).slice(0, 6) : [];
-      const ask = q && ME ? `<a class="ask${hits.length ? '' : ' on'}" href="#tutor" data-ask="1"><span class="glyph emoji" style="--s:32px;--c:var(--gold)">✦</span><b>${ME.role === 'parent' ? "Try the kids' tutor" : 'Ask the tutor'}</b><code>${esc($('q').value.trim().slice(0, 40))}</code></a>` : '';
-      $('hits').hidden = !hits.length && !ask;
-      $('hits').innerHTML = hits.map((s, i) => `<a class="${i ? '' : 'on'}" href="${s.u || `https://${s.h}/`}"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:32px;--c:${s.c}">${s.g}</span><b>${esc(s.t)}</b><code>${s.h}</code></a>`).join('') + ask;
-    };
-    $('q').onkeydown = (e) => { if (e.key === 'Enter') { const a = $('hits').querySelector('a'); if (a?.dataset.ask) askFromBar(); else if (a) go(a.href); } };
-    $('hits').addEventListener('click', (e) => { if (e.target.closest('a')?.dataset.ask) { e.preventDefault(); askFromBar(); } });
+    // The ground: each person's tree, plus what they share as roots (games) and stars (trips).
+    // Their own game and trip topics stay in their worlds; the shared ones come from the
+    // game room's results and the trips' who's going.
+    function drawWorld() {
+      const today = iso(new Date());
+      const ground = fam().map((p) => ({ ...p, world: { topics: p.world.topics.filter((t) => t.source === 'tutor'), events: p.world.events } }));
+      for (const g of H.home.together) for (const x of g.who) {
+        const p = ground.find((q) => q.id === x.id); if (!p) continue;
+        const id = 'game-' + g.kind;
+        p.world.topics.push({ id, slug: id, source: 'game', title: KIND[g.kind]?.[1] || g.kind, stage: 'explored', created: today });
+        p.world.events = [...p.world.events, { id: id + p.id, topic: id, day: today, kind: 'deepen', effort: 1, meta: { played: x.played } }];
+      }
+      for (const t of H.home.trips) for (const p of ground) {
+        if (Array.isArray(t.members) && !t.members.includes(p.id)) continue;
+        const id = 'trip-' + t.id;
+        p.world.topics.push({ id, slug: id, source: 'trip', title: t.name, stage: 'explored', created: today, trip: t.id });
+      }
+      if (live) live.destroy();
+      live = window.mountTogether($('cv'), ground, { onPick: pickWorld });
+      $('legend').innerHTML = fam().map((p) => `<span><i style="background:${p.dot}"></i>${esc(p.name)}</span>`).join('');
+    }
+    function worldLink(p) {
+      if (p.id === ME.id) return ME.role === 'parent' ? 'https://diary.r4box.com/' : '/diary.html';
+      return ME.role === 'parent' && p.role === 'kid' ? `/diary.html?kid=${encodeURIComponent(p.id)}` : null;
+    }
+    function pickWorld(hit) {
+      const box = $('pick');
+      if (!hit) { box.hidden = true; return; }
+      if (hit.person) {
+        const p = person(hit.person.id), n = p.world.topics.length, st = streak(p.world.events.map((e) => e.day)), href = worldLink(p);
+        box.innerHTML = `<h2>${p.id === ME.id ? 'My world' : esc(p.name) + '’s world'} <small>${n} thing${n === 1 ? '' : 's'} growing${st.now ? ' · ' + st.now + '-day streak' : ''}</small></h2>
+          <p>${p.id === ME.id ? (ME.role === 'parent' ? 'Your tree is your Clearing diary: every idea a limb.' : 'Your tree grows from what you ask, play and plan.')
+            : href ? 'You see the names of what grows here, never their words.' : `This one is ${esc(p.name)}’s: you see its shape here, on the family ground.`}</p>
+          ${href ? `<a class="go" href="${href}">Open ${p.id === ME.id ? 'my world' : 'it'} ›</a>` : ''}`;
+      } else {
+        const s = hit.shared;
+        box.innerHTML = `<h2>${s.source === 'game' ? KIND[s.slug.slice(5)]?.[0] || '🌀' : '✶'} ${esc(s.title)} <small>${s.source === 'game' ? 'a root between your trees' : 'a star over your trees'}</small></h2>
+          <ul>${s.who.map((x) => `<li><span>${esc(fam()[x.pi]?.name || '')}</span>${s.source === 'game' ? x.played + ' games together' : 'going'}</li>`).join('')}</ul>
+          <a class="go" href="${s.source === 'game' ? gameUrl(s.slug.slice(5)) : '/trip.html?t=' + encodeURIComponent(s.slug.slice(5))}">${s.source === 'game' ? 'Play' : 'Open the trip'} ›</a>`;
+      }
+      box.hidden = false;
+    }
+
+    function densityOf() { try { const v = localStorage.getItem('r4.density.' + ME.id); if (DENSITY.some((d) => d.id === v)) return v; } catch {} return ME.role === 'parent' ? 'pilot' : 'explore'; }
+    function renderHome() {
+      const parent = ME.role === 'parent', dens = densityOf(), play = dens === 'play', tight = dens === 'pilot';
+      $('home').classList.remove('dens-play', 'dens-explore', 'dens-pilot'); $('home').classList.add('dens-' + dens);
+      const me = person(ME.id) || { world: { topics: [], events: [] } };
+      const st = streak(me.world.events.map((e) => e.day));
+      const grew = st.now ? `${st.now}-day streak` : st.sinceLast != null ? `last grew ${st.sinceLast}d ago` : 'nothing yet';
+      const B = (k) => H.box[k], boxLine = (k) => { const b = B(k); return !b ? 'no word from the box' : Date.now() - new Date(b.at) > 15 * 60e3 ? 'box quiet ' + agoOf(b.at) : b.line; };
+      const turns = H.home.turns, next = H.home.trips.find((t) => t.ends && t.ends >= iso(new Date()));
+      const daysTo = next?.starts ? dn(next.starts) - dn(iso(new Date())) : null;
+      const tripLine = next ? (daysTo > 0 ? `${next.name} · in ${daysTo} day${daysTo === 1 ? '' : 's'}` : `${next.name} · now`) : 'plan a trip';
+      const turnLine = turns.length ? `your turn · ${KIND[turns[0].kind]?.[1] || ''}` : 'no turns waiting';
+
+      const APPS = [
+        ...(parent ? [
+          { k: 'os', g: '◎', c: '#3DD6C6', href: 'https://os.r4box.com/', s: boxLine('os'), hot: B('os')?.hot },
+          { k: 'diary', g: '✎', c: '#F5C542', href: 'https://diary.r4box.com/', s: grew },
+          { k: 'term', g: '›_', c: '#C9FFF8', href: 'https://term.r4box.com/', s: boxLine('term') },
+          { k: 'code', g: '{ }', c: '#B9A6FF', href: 'https://code.r4box.com/', s: boxLine('code') },
+          { k: 'browser', g: '◫', c: '#FF5A4A', href: 'https://browser.r4box.com/', s: boxLine('browser') },
+          { k: 'ntfy', g: '◉', c: '#F5C542', href: 'https://ntfy.r4box.com/', s: boxLine('ntfy') },
+        ] : [
+          { k: 'diary', g: '🌱', c: '#3DD6C6', href: '/diary.html', s: grew, emoji: true },
+          { k: 'tutor', g: '✦', c: '#F5C542', href: '#tutor', s: 'ask anything', ask: true },
+        ]),
+        { k: 'games', g: '⚓', c: '#3DD6C6', href: turns[0] ? gameUrl(turns[0].kind, turns[0].id) : 'https://games.r4box.com/', s: turnLine, hot: !!turns.length, emoji: true },
+        { k: 'chat', g: '💬', c: '#B9A6FF', href: '/chat.html', s: H.unread ? `${H.unread} new` : 'all read', badge: H.unread, emoji: true },
+        { k: 'trip', g: '✈️', c: '#F5C542', href: next ? '/trip.html?t=' + encodeURIComponent(next.id) : '/trip.html', s: tripLine, emoji: true },
+        ...(parent ? [{ k: 'admin', g: '⚙', c: '#ACA5D6', href: '/admin.html', s: 'box, kids, devices' }] : []),
+      ];
+      const PLAY = parent ? APPS : APPS.filter((a) => ['games', 'diary', 'chat', 'tutor'].includes(a.k));
+
+      const today = [
+        ...(parent && B('os')?.hot ? [{ g: '◎', c: '#F5C542', t: B('os').line, s: B('os').detail || 'os', href: 'https://os.r4box.com/' }] : []),
+        ...turns.slice(0, 2).map((t) => { const vs = (t.players || []).filter((p) => p !== ME.id); return { g: KIND[t.kind]?.[0] || '🎮', c: '#3DD6C6', t: 'Your turn', s: `${KIND[t.kind]?.[1] || t.kind}${vs.length ? ' vs ' + vs.map(nm).join(', ') : ' · solo'}`, href: gameUrl(t.kind, t.id) }; }),
+        ...(H.unread ? [{ g: '💬', c: '#B9A6FF', t: `${H.unread} new in chat`, s: (() => { const m = H.msgs.find((x) => x.author !== ME.id); return m ? `${m.is_claude ? 'Claude' : nm(m.author)}: ${m.body || '📷 Photo'}` : ''; })(), href: '/chat.html' }] : []),
+        ...(next ? [{ g: '✈️', c: '#F5C542', t: next.name, s: `${daysTo > 0 ? `in ${daysTo} day${daysTo === 1 ? '' : 's'}` : 'now'}${next.place ? ' · ' + next.place : ''}`, href: '/trip.html?t=' + encodeURIComponent(next.id) }] : []),
+        parent ? { g: '✎', c: '#F5C542', t: 'Clearing rollup', s: `tonight 23:30 · ${grew}`, href: 'https://diary.r4box.com/' }
+          : st.sinceLast === 0 || st.sinceLast === 1 ? { g: '🌳', c: '#B9A6FF', t: 'Your world grew', s: grew, href: '/diary.html' } : { g: '🌱', c: '#B9A6FF', t: 'Grow your world', s: 'ask, play or plan something', href: '/diary.html' },
+      ];
+
+      const titleOf = Object.fromEntries(me.world.topics.map((t) => [t.id, t.title]));
+      const recent = [
+        ...H.msgs.filter((m) => m.author !== ME.id).slice(0, 4).map((m) => ({ g: '💬', c: '#B9A6FF', t: `${m.is_claude ? 'Claude' : nm(m.author)}: ${m.body || '📷 Photo'}`, at: m.created_at, href: '/chat.html' })),
+        ...H.news.map((n) => ({ g: n.icon || KIND[n.game_kind]?.[0] || '🎮', c: '#3DD6C6', t: n.message, at: n.created_at, href: n.game_id ? gameUrl(n.game_kind, n.game_id) : 'https://games.r4box.com/' })),
+        ...H.items.map((i) => ({ g: '✈️', c: '#F5C542', t: `${i.by_claude ? '✦ Claude' : nm(i.created_by)} added ${i.title}`, sub: H.home.trips.find((t) => t.id === i.trip)?.name, at: i.created_at, href: `/trip.html?t=${encodeURIComponent(i.trip)}&i=${encodeURIComponent(i.id)}` })),
+        ...H.mine.filter((e) => e.summary).slice(0, 4).map((e) => ({ g: parent ? '✎' : '🌳', c: '#B9A6FF', t: e.summary, sub: titleOf[e.topic], at: e.day + 'T20:00:00', href: parent ? 'https://diary.r4box.com/' : '/diary.html' })),
+      ].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, tight ? 9 : 6);
+
+      const hr = new Date().getHours(), hi = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+      const cur = DENSITY.find((d) => d.id === dens);
+      const glyph = (a) => `<span class="g${a.emoji ? ' emoji' : ''}">${a.g}</span>`;
+      $('htop').innerHTML = `<div class="hhead"><div><h2>${play ? 'Hi!' : hi + ','}</h2><p>${esc(ME.name)}</p></div>
+          <div class="vpick"><button class="vbtn" id="vbtn" aria-haspopup="menu" aria-expanded="false" aria-label="View: ${cur.name}"><span>${cur.em}</span>${cur.name}<i>▾</i></button>
+          <div class="vmenu" id="vmenu" role="menu" hidden><p>View</p>${DENSITY.map((d) => `<button role="menuitemradio" aria-checked="${d.id === dens}" data-dens="${d.id}" class="${d.id === dens ? 'on' : ''}"><span>${d.em}</span><b>${d.name}</b><em>${d.blurb}</em></button>`).join('')}</div></div></div>
+        ${play ? '' : `<div class="hcmd"><input id="q" placeholder="${parent ? 'Where to? os, diary, battleship…' : 'Where to? Or ask anything…'}" autocomplete="off" aria-label="Where to?"><div class="hres" id="hits" hidden></div></div>`}
+        ${play ? '' : `<div class="htoday">${today.map((t) => `<a href="${t.href}" style="--c:${t.c}"><span class="g">${t.g}</span><span><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span></a>`).join('')}</div>`}`;
+      $('hrest').innerHTML = `<h3 class="k">Apps</h3>
+        <div class="hdock${play ? ' big' : ''}">${(play ? PLAY : APPS).map((a) => `<a href="${a.href}" style="--c:${a.c}"${a.ask ? ' data-ask="1"' : ''}>${glyph(a)}<b>${a.k}</b>${play ? '' : `<small class="${a.hot ? 'hot' : ''}">${esc(a.s)}</small>`}${a.badge ? `<span class="badge">${a.badge > 99 ? '99+' : a.badge}</span>` : ''}</a>`).join('')}</div>
+        ${play ? '' : `<h3 class="k">Recent</h3><div class="hrecent">${recent.length ? recent.map((r) => `<a href="${r.href}"><span class="g" style="color:${r.c}">${r.g}</span><span class="t">${esc(r.t)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span><span class="a">${agoOf(r.at)}</span></a>`).join('') : '<div class="hempty">Nothing new this week.</div>'}</div>`}
+        ${familyCard()}`;
+      wireHome(APPS);
+    }
+
+    function familyCard() {
+      const shared = live?.shared || [];
+      return `<section class="ctx" id="famcard"><button class="ctxh" aria-expanded="false"><span class="top"><b>Family</b><span class="n">${fam().length}</span><span class="chev">⌄</span></span><span class="sum">Worlds, growing together</span></button><div class="ctxb">
+        <p class="note">${ME.role === 'parent' ? 'Everyone’s tree, on one ground. Roots are games you played together; stars are trips you share. You see the kids’ topic names, never their words.'
+          : 'Everyone’s tree, on one ground. You see the others’ trees as shapes. What you write stays yours.'}</p>
+        ${shared.length ? `<h3 class="k">Growing together</h3><div class="topics">${shared.map((x, i) => `<button data-s="${i}">${x.source === 'game' ? KIND[x.slug.slice(5)]?.[0] || '🌀' : '✶'} ${esc(x.title)}<small>${esc(x.who.map((w) => fam()[w.pi]?.name).join(' · '))}</small></button>`).join('')}</div>` : ''}
+        <h3 class="k">Worlds</h3><div class="people">${fam().map((p) => { const n = p.world.topics.length, s = streak(p.world.events.map((e) => e.day)), href = worldLink(p);
+          return `<a ${href ? `href="${href}"` : `data-p="${p.id}" href="#"`}><i class="dot" style="background:${p.dot};box-shadow:0 0 8px ${p.dot}"></i><span><b>${p.id === ME.id ? 'My world' : esc(p.name) + '’s world'}</b><small>${n} thing${n === 1 ? '' : 's'} growing${s.now ? ' · ' + s.now + '-day streak' : ''}</small></span><span class="lock">${p.id === ME.id ? 'open ›' : href ? 'names only ›' : 'theirs'}</span></a>`; }).join('')}</div>
+      </div></section>`;
+    }
+
+    function wireHome(APPS) {
+      const vb = $('vbtn'), vm = $('vmenu');
+      vb.onclick = (e) => { e.stopPropagation(); const open = vm.hidden; vm.hidden = !open; vb.setAttribute('aria-expanded', String(open));
+        if (open) setTimeout(() => document.addEventListener('click', function off() { vm.hidden = true; vb.setAttribute('aria-expanded', 'false'); document.removeEventListener('click', off); }), 0); };
+      vm.querySelectorAll('[data-dens]').forEach((b) => (b.onclick = () => { try { localStorage.setItem('r4.density.' + ME.id, b.dataset.dens); } catch {} renderHome(); }));
+      const fc = $('famcard');
+      fc.querySelector('.ctxh').onclick = () => { const o = !fc.classList.contains('open'); fc.classList.toggle('open', o); fc.querySelector('.ctxh').setAttribute('aria-expanded', String(o)); };
+      fc.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => { pickWorld({ shared: live.shared[+b.dataset.s] }); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+      fc.querySelectorAll('[data-p]').forEach((a) => (a.onclick = (e) => { e.preventDefault(); pickWorld({ person: person(a.dataset.p) }); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+      const q = $('q'); if (!q) return;
+      // Where to? Apps, places, worlds, your own topics, the trips. Kids: anything else asks the tutor.
+      const pool = [
+        ...APPS.filter((a) => !a.ask).map((a) => ({ g: a.g, c: a.c, t: a.k, s: (a.k === 'diary' && ME.role === 'parent' ? 'Clearing · ' : '') + (a.href.startsWith('http') ? new URL(a.href).hostname : 'r4box.com' + a.href.split('?')[0].replace('.html', '')), href: a.href })),
+        ...Object.entries(KIND).map(([k, [g, t]]) => ({ g, c: '#3DD6C6', t, s: 'game room', href: gameUrl(k) })),
+        ...fam().filter((p) => worldLink(p)).map((p) => ({ g: '◍', c: p.dot, t: p.id === ME.id ? 'My world' : p.name + '’s world', s: 'family', href: worldLink(p) })),
+        ...(person(ME.id)?.world.topics || []).filter((t) => t.title && t.source === 'tutor').map((t) => ({ g: ME.role === 'parent' ? '✎' : '🌳', c: '#B9A6FF', t: t.title, s: ME.role === 'parent' ? 'diary idea' : 'in your world', href: ME.role === 'parent' ? 'https://diary.r4box.com/' : '/diary.html' })),
+        ...H.home.trips.map((t) => ({ g: '✈️', c: '#F5C542', t: t.name, s: 'trip', href: '/trip.html?t=' + encodeURIComponent(t.id) })),
+      ];
+      q.oninput = () => {
+        const v = q.value.trim().toLowerCase(), box = $('hits');
+        const hits = v ? pool.filter((h) => (h.t + ' ' + h.s).toLowerCase().includes(v)).slice(0, 7) : [];
+        const ask = v ? `<a class="ask${hits.length ? '' : ' on'}" href="#tutor" data-ask="1"><span class="g" style="color:var(--gold)">✦</span><b>${ME.role === 'parent' ? 'Try the kids’ tutor' : 'Ask the tutor'}</b><small>${esc(q.value.trim().slice(0, 40))}</small></a>` : '';
+        box.hidden = !hits.length && !ask;
+        box.innerHTML = hits.map((h, i) => `<a class="${i ? '' : 'on'}" href="${h.href}"><span class="g" style="color:${h.c}">${h.g}</span><b>${esc(h.t)}</b><small>${esc(h.s)}</small></a>`).join('') + ask;
+      };
+      q.onkeydown = (e) => {
+        if (e.key === 'Escape') { q.value = ''; q.oninput(); }
+        if (e.key !== 'Enter') return;
+        const a = $('hits').querySelector('a'); if (!a) return;
+        a.dataset.ask ? askFromBar() : go(a.href);
+      };
+    }
+    // Links: the game room gets the sign-in handed over; the tutor opens here.
+    $('home').addEventListener('click', (e) => {
+      const a = e.target.closest('a[href]');
+      if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      if (a.dataset.ask) { e.preventDefault(); if ($('q')?.value.trim()) askFromBar(); else openTutor(); return; }
+      if (a.href.startsWith('https://games.r4box.com/')) { e.preventDefault(); go(a.href); }
+    });
     function askFromBar() { const t = $('q').value.trim(); $('q').value = ''; $('hits').hidden = true; openTutor(null, t); }
+    // The menu: a passkey for this device, the admin page, sign out.
+    $('gear').onclick = (e) => {
+      e.stopPropagation();
+      const m = $('gmenu'), open = m.hidden;
+      m.innerHTML = `${window.PublicKeyCredential && sb.auth.registerPasskey ? '<button data-g="key">Add a passkey<small>Face ID or fingerprint on this device</small></button>' : ''}
+        ${ME?.role === 'parent' ? '<button data-g="limits">Tutor limits<small>Questions a day, opening hours</small></button><a href="/admin.html">Admin<small>Box health, kids & Claude, devices</small></a>' : ''}
+        <button data-g="out">Sign out</button>`;
+      m.hidden = !open; $('gear').setAttribute('aria-expanded', String(open));
+      if (open) setTimeout(() => document.addEventListener('click', function off(ev) { if (!m.contains(ev.target)) { m.hidden = true; $('gear').setAttribute('aria-expanded', 'false'); document.removeEventListener('click', off); } }), 0);
+    };
+    $('gmenu').onclick = async (e) => {
+      const b = e.target.closest('[data-g]'); if (!b) return;
+      $('gmenu').hidden = true;
+      if (b.dataset.g === 'out') await sb.auth.signOut();
+      if (b.dataset.g === 'limits') limits();
+      if (b.dataset.g === 'key') { const { error } = await sb.auth.registerPasskey(); alert(error ? 'Could not add a passkey: ' + error.message : 'Passkey added. Next time: tap your name, then Face ID.'); }
+    };
+    // Back to the page: fresh turns, unread and box lines.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('home').hidden && ME) loadHome(); });
 
     // ---------------- the tutor ----------------
     // Claude through the kid-tutor Edge Function: text only, no tools. Kids see
@@ -421,12 +672,12 @@
       const ids = [...new Set((chats || []).map((c) => c.kid))];
       const { data: profs } = ids.length ? await sb.from('profiles').select('id, username').in('id', ids) : { data: [] };
       const who = Object.fromEntries((profs || []).map((p) => [p.id, p.username]));
-      $('flags').hidden = false;
+      // Nothing flagged: no card (Tutor limits is in the ⚙ menu).
+      $('flags').hidden = !(chats || []).length;
       $('flags').innerHTML = (chats || []).length
         ? `<p class="eyebrow" style="margin:0;color:var(--gold)">Tutor · flagged for you</p>` + chats.map((c) => `<button data-id="${c.id}"><b>${esc(who[c.kid] || 'A kid')}: ${esc(c.flag_reason || 'flagged')}</b><small>${esc(c.title)} · ${new Date(c.flagged_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</small></button>`).join('') + `<button class="link quiet" id="tlimits" style="justify-self:start">Tutor limits</button>`
-        : `<div class="row" style="justify-content:space-between"><small style="color:var(--muted)">Kids' tutor: nothing flagged.</small><button class="link quiet" id="tlimits">Tutor limits</button></div>`;
+        : '';
       $('flags').querySelectorAll('button[data-id]').forEach((b) => b.onclick = () => openFlag(b.dataset.id, who));
-      $('tlimits').onclick = limits;
       if (location.hash === '#tutor' && chats?.length) openFlag(chats[0].id, who);
     }
     async function openFlag(id, who) {
@@ -477,34 +728,6 @@
     };
     $('nokey').onclick = () => { try { localStorage.setItem('r4-nokey', '1'); } catch {} $('offer').hidden = true; };
 
-    // Behind the cockpit: a parent's diary tree when the diary answers (only from the
-    // tailnet); otherwise, and for kids, the curve. No diary data is ever stored here.
-    async function background(role) {
-      $('bifwrap').classList.add('faint'); $('treewrap').hidden = true; $('ecowrap').hidden = true;
-      if (role !== 'parent') {
-        // A kid: their own world, grown from their diary, behind the cockpit.
-        const { data: { session } } = await sb.auth.getSession();
-        const { data: w } = await sb.rpc('r4_kid_world', { p_kid: session.user.id });
-        if (!w || !w.topics?.length) return;
-        $('ecowrap').hidden = false; $('bifwrap').style.opacity = '.12';
-        if (window.__eco) window.__eco.destroy();
-        window.__eco = window.mountEcosystem($('eco'), w, { background: true });
-        return;
-      }
-      try {
-        const ac = new AbortController(); setTimeout(() => ac.abort(), 4000);
-        const r = await fetch('https://diary.r4box.com/data.json', { cache: 'no-store', credentials: 'include', signal: ac.signal });
-        const d = r.ok ? await r.json() : null;
-        if (!d || !d.ideas || !d.events) return;
-        d.events.sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
-        $('treewrap').hidden = false; $('bifwrap').classList.remove('faint'); $('bifwrap').style.opacity = '.18';
-        window.mountDiaryTree($('tree'), d, {
-          palette: { '--bark': '#3A335F', '--c-park': '#4A4470', '--c-growth': '#B9A6FF', '--c-turn': '#FF5A4A', '--c-close': '#3DD6C6', '--accent': '#F5C542', '--ground': '#0B0918' },
-          flow: { colors: ['#3DD6C6', '#C9FFF8', '#B9A6FF', '#F5C542', '#FF5A4A'], wave: 120, speed: .45, tail: 2.6 },
-        });
-      } catch { /* not on the tailnet, or the diary does not allow this page yet */ }
-    }
-
     // ---------------- session ----------------
     // One sign-out: the box's door too (reachable only on the tailnet; best effort).
     const doorOut = () => { handOver(null); fetch('https://os.r4box.com/.r4door/out', { mode: 'no-cors', credentials: 'include' }).catch(() => {}); };
@@ -519,7 +742,7 @@
         doorOut();
         showLogin();
       }
-      else if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) showCockpit(session);
+      else if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) showHome(session);
       else if (!session && event === 'INITIAL_SESSION') showLogin();
     });
   </script>
