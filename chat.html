@@ -433,10 +433,17 @@
   const nameIn = (id) => member(id)?.username || 'someone';
   callCh.on('presence', { event: 'sync' }, syncCall)
     .on('broadcast', { event: 'sig' }, ({ payload }) => { if (payload.to === PEER || payload.to === '*') onSignal(payload); })
-    .subscribe((st) => {
-      if (st === 'SUBSCRIBED' && inCall) callCh.track({ user: ME.id });   // back after a reconnect
-      if (st === 'CHANNEL_ERROR') $('callbtn').hidden = true;
-    });
+    .subscribe(onCallState);
+  function onCallState(st) {
+    // The button stays: a phone waking up often drops the socket for a moment (CHANNEL_ERROR,
+    // TIMED_OUT), and the channel rejoins by itself; hiding it here left it gone until a reload.
+    if (st === 'SUBSCRIBED') { $('callbtn').hidden = false; if (inCall) callCh.track({ user: ME.id }); }   // back after a reconnect
+  }
+  // Back on the page: nudge a channel that lost its socket while the phone slept.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || callCh.state === 'joined' || callCh.state === 'joining') return;
+    sb.auth.getSession().then(({ data: { session: s } }) => { if (s) sb.realtime.setAuth(s.access_token); callCh.subscribe(onCallState); }).catch(() => {});
+  });
 
   function sig(to, kind, data) { callCh.send({ type: 'broadcast', event: 'sig', payload: { to, from: PEER, user: ME.id, kind, data } }); }
 
@@ -606,7 +613,7 @@
     if (!$('ring').open) $('ring').showModal();
     navigator.vibrate?.([400, 200, 400]);
   }
-  $('callbtn').onclick = startOrJoin;
+  $('callbtn').onclick = () => { if (callCh.state !== 'joined') { toast('Reconnecting the call line… try again in a moment.'); callCh.subscribe(onCallState); return; } startOrJoin(); };
   $('ringyes').onclick = () => joinCall();
   $('ringno').onclick = () => $('ring').close();
   $('hang').onclick = leaveCall;
