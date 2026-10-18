@@ -30,7 +30,9 @@
   const evText = (e) => e.summary || (e.meta ? e.meta.played + ' played, ' + e.meta.won + ' won' : '');
 
   function stop() { if (live) live.destroy(); live = null; $('pick').hidden = true; $('tools').hidden = true; planting(false); full(false); window.scrollTo(0, 0); }
-  const seedsOf = (p) => window.R4Store.seeds(p);
+  // SOLO.noSeeds / SOLO.noShare: a world that is written for you (Dad's Clearing diary) has no seeds to plant or entries to share.
+  const NOSEED = !!(SOLO && SOLO.noSeeds), NOSHARE = !!(SOLO && SOLO.noShare);
+  const seedsOf = (p) => (NOSEED || !window.R4Store ? [] : window.R4Store.seeds(p));
   function planting(on) { $('plantBtn').classList.toggle('on', on); $('worldBox').classList.toggle('planting', on); if (live && live.setPlant) live.setPlant(on); $('hint').textContent = on ? 'Tap the ground to plant a seed' : (live && view.kind === 'world' ? 'Drag to look around · pinch or double-tap to zoom' : ''); }
   function full(on) { document.body.classList.toggle('isfull', on); $('worldBox').classList.toggle('full', on); $('zFull').textContent = on ? '✕' : '⛶'; $('zFull').setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen'); }
   $('zFull').onclick = () => full(!document.body.classList.contains('isfull'));
@@ -104,7 +106,7 @@
     const big = st.now ? `<b>${st.now}</b><span>day${st.now === 1 ? '' : 's'} in a row<small>best ${st.best}</small></span>` : `<b class="dim">${st.last ? st.sinceLast : 0}</b><span>${st.last ? 'days since it last grew' : 'nothing yet'}<small>best run ${st.best} day${st.best === 1 ? '' : 's'}</small></span>`;
     return `<section class="prog"><div class="streak">${big}</div><div class="wk"><span class="lbl">Last 2 weeks · ${week} of the last 7 days</span>${days14(evs, opts.color)}<span class="ends"><span>2 weeks ago</span><span>today</span></span></div>${opts.counts ? `<div class="counts">${opts.counts.map(([n, l, c]) => `<span><b style="color:${c || 'var(--ink)'}">${n}</b>${l}</span>`).join('')}</div>` : ''}</section>`;
   }
-  const shareBtn = (id, on) => `<button class="share${on ? ' on' : ''}" data-share="${esc(id)}">${on ? '✓ Shared with family' : '↗ Share with family'}</button>`;
+  const shareBtn = (id, on) => NOSHARE ? '' : `<button class="share${on ? ' on' : ''}" data-share="${esc(id)}">${on ? '✓ Shared with family' : '↗ Share with family'}</button>`;
   function wireShare(root, metaOf) {
     root.querySelectorAll('[data-share]').forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); const id = b.dataset.share, on = !K.isShared(id); K.setShared(id, on, metaOf(id)); b.classList.toggle('on', on); b.textContent = on ? '✓ Shared with family' : '↗ Share with family'; }));
   }
@@ -176,7 +178,7 @@
     const st = K.streak(p.world.events.map((e) => e.day));
     return `<section class="play"><div class="pstreak"><b>${st.now || 0}</b><span>${st.now ? 'days in a row!' : 'Grow something today'}</span></div>
       <div class="pbig">${growing.slice(0, 4).map(({ t }) => `<button data-t="${t.id}"><span>${REALM[t.source][0]}</span><b>${esc(t.title)}</b></button>`).join('')}</div>
-      <div class="prow"><span class="ptro">🏆 <b>${done.length}</b> finished</span>${access(p) === 'own' ? `<button id="playSeed">🌱 Plant${seeds.length ? ' · ' + seeds.length : ''}</button>` : ''}</div></section>`;
+      <div class="prow"><span class="ptro">🏆 <b>${done.length}</b> finished</span>${access(p) === 'own' && !NOSEED ? `<button id="playSeed">🌱 Plant${seeds.length ? ' · ' + seeds.length : ''}</button>` : ''}</div></section>`;
   }
   function playEntry(p) {
     const en = (p.entries || []).filter((x) => access(p) === 'own' || K.isShared(entryId(p, x)))[0];
@@ -278,7 +280,7 @@
     applyDensity(p);
     $('title').textContent = SOLO ? SOLO.title : a === 'own' ? 'My diary' : p.name + '’s world'; $('back').hidden = !!SOLO; $('markA').hidden = !SOLO; $('worldBox').classList.add('solo');
     live = window.mountWorld($('cv'), { topics, events }, { seeds: a === 'own' ? seedsOf(p) : [], onPick: (h) => pickWorld(p, h), onPlant: (at) => plantForm(p, at) });
-    $('tools').hidden = false; $('plantBtn').hidden = a !== 'own';
+    $('tools').hidden = false; $('plantBtn').hidden = a !== 'own' || NOSEED;
     $('zIn').onclick = () => live.zoomBy(1.8); $('zOut').onclick = () => live.zoomBy(1 / 1.8); $('zHome').onclick = () => live.reset();
     $('plantBtn').onclick = () => planting(!$('plantBtn').classList.contains('on'));
     planting(false);
@@ -300,10 +302,10 @@
     const byLast = (x, y) => x.s.quiet - y.s.quiet;
     $('body').innerHTML = `<div class="who"><div class="whoh"><h2>${a === 'own' ? 'Your world' : esc(p.name) + '’s world'}</h2>${densityPicker(p)}</div><p>${topics.length} things growing in it${a === 'names' ? '. You see the names; what they wrote stays theirs unless they share it.' : '.'}</p></div>`
       + (dens === 'play' ? playHome(p, growing.sort(byLast), done, seeds) : '')
-      + (dens === 'play' ? '' : progress(events, { counts: [[growing.length, 'growing', '#B9A6FF'], [done.length, 'finished', '#3DD6C6'], [resting.length, 'resting', '#7A73A8'], ...(a === 'own' ? [[seeds.length, 'seeds', '#F5C542']] : [])] }))
+      + (dens === 'play' ? '' : progress(events, { counts: [[growing.length, 'growing', '#B9A6FF'], [done.length, 'finished', '#3DD6C6'], [resting.length, 'resting', '#7A73A8'], ...(a === 'own' && !NOSEED ? [[seeds.length, 'seeds', '#F5C542']] : [])] }))
       + (dens === 'pilot' ? gauges(p, sts, events) : '')
       + (dens === 'dev' ? `<section class="ctx devcard"><button class="ctxh" data-ctxt aria-expanded="false"><span class="top"><b>⌘ Developer</b><span class="n" style="color:#3DD6C6">${events.length}</span><span class="chev">⌄</span></span><span class="sum">Instruments, event log, export · ${topics.length} topics</span></button><div class="ctxb">${gauges(p, sts, events)}${devPanel(p)}</div></section>` : '')
-      + (a === 'own' && dens !== 'play' ? `<h3 class="k">Seeds</h3><div class="seeds">${seeds.map((s) => `<button data-seed="${s.id}">🌱 ${esc(s.title)}<small>planted ${esc(short(s.day))}</small></button>`).join('')}<button class="add" id="addSeed">＋ Plant a seed</button></div>${seeds.length ? '' : '<p class="note">Something you want to grow next. It sprouts on the ground and waits for you.</p>'}` : '')
+      + (a === 'own' && dens !== 'play' && !NOSEED ? `<h3 class="k">Seeds</h3><div class="seeds">${seeds.map((s) => `<button data-seed="${s.id}">🌱 ${esc(s.title)}<small>planted ${esc(short(s.day))}</small></button>`).join('')}<button class="add" id="addSeed">＋ Plant a seed</button></div>${seeds.length ? '' : '<p class="note">Something you want to grow next. It sprouts on the ground and waits for you.</p>'}` : '')
       + (dens === 'play' ? '' : `<section class="ctx devcard grp"><button class="ctxh" data-ctxt aria-expanded="false"><span class="top"><b>Everything growing</b><span class="n" style="color:#B9A6FF">${topics.length}</span><span class="chev">⌄</span></span><span class="sum">${growing.length} growing · ${done.length} finished · ${resting.length} resting</span></button><div class="ctxb"><div class="ctxs">`
       + ctxCard(p, 'growing', 'Growing now', growing.sort(byLast), '#B9A6FF', (() => { const n14 = growing.filter((x) => x.s.quiet <= 14).length, top = growing[0]; return top ? `${n14} grew in the last 2 weeks · latest: ${esc(top.t.title)}, ${top.s.quiet === 0 ? 'today' : short(lastOf(p, top.t))}` : ''; })(), dens === 'explore')
       + ctxCard(p, 'done', 'Finished', done.sort(byLast), '#3DD6C6', done[0] ? `Most recent: ${esc(done[0].t.title)}, ${short(lastOf(p, done[0].t))}` : '', false)
