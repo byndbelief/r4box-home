@@ -105,6 +105,25 @@
     .opt .more { all: unset; cursor: pointer; flex: none; color: var(--faint); font-size: 13px; font-weight: 700; padding: 2px 4px; }
     .opt .more:hover { color: var(--teal); }
     .opt.ro { cursor: default; }
+    /* food and things to do: a gallery of picture tiles */
+    .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+    @media (min-width: 700px) { .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .tile { position: relative; aspect-ratio: 4 / 5; border-radius: 18px; overflow: hidden; cursor: pointer; background: var(--panel-2); border: 1px solid var(--line); isolation: isolate; }
+    .tile > img, .tile > svg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; transition: transform .4s; }
+    .tile:hover > img { transform: scale(1.04); }
+    .tile::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, #0B091800 35%, #0B0918d9 78%, #0B0918f2); }
+    .tile .tt { position: absolute; left: 12px; right: 12px; bottom: 12px; }
+    .tile .tt b { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; line-height: 1.25; font-weight: 800; text-shadow: 0 1px 8px #000a; }
+    .tile .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .tile .tags span { padding: 2px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 800; background: #0B0918b3; border: 1px solid #ffffff26; backdrop-filter: blur(4px); }
+    .tile .tags .price { color: var(--gold); }
+    .tile .play { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #FF5A4Ae6; color: #fff; font-size: 13px; box-shadow: 0 4px 14px #0008; }
+    @media (prefers-reduced-motion: reduce) { .tile > img { transition: none; } }
+    /* the item page's video: a thumbnail until tapped, then YouTube's privacy-enhanced player */
+    #sheet .vid { position: relative; margin: 14px 16px 0; aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: #000; cursor: pointer; }
+    #sheet .vid img, #sheet .vid iframe { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
+    #sheet .vid .pl { position: absolute; inset: 0; display: grid; place-items: center; }
+    #sheet .vid .pl span { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #FF5A4Ae6; color: #fff; font-size: 24px; box-shadow: 0 6px 24px #000a; }
     /* small picture and comment count on cards */
     .item .hd .thumb, .opt .thumb { flex: none; width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: var(--panel-2); }
     .opt .thumb { width: 44px; height: 44px; }
@@ -382,8 +401,43 @@
       ${foot ? `<div class="foot">${foot}</div>` : ''}</div>`;
   };
   const wire = () => $('view').querySelectorAll('.item[data-id]').forEach((el) => el.onclick = () => view(items.find((i) => i.id === el.dataset.id)));
-  // An item's picture: one the family added first, else its link's preview image.
-  const picOf = (i) => (i.photos || []).map((p) => photoUrls.get(p)).find(Boolean) || (i.preview?.image && /^https:\/\//.test(i.preview.image) ? i.preview.image : '');
+  // A YouTube link's video id (watch?v=, youtu.be/, shorts/, embed/), or ''.
+  const ytId = (u) => (String(u || '').match(/^https:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/) || [])[1] || '';
+  // An item's picture: one the family added first, else its link's preview image, else its video's thumbnail.
+  const picOf = (i) => (i.photos || []).map((p) => photoUrls.get(p)).find(Boolean) || (i.preview?.image && /^https:\/\//.test(i.preview.image) ? i.preview.image : '')
+    || (ytId(i.video) ? `https://i.ytimg.com/vi/${ytId(i.video)}/hqdefault.jpg` : '');
+  // No picture: a Seed-of-Life rosette in r4box's colours, different for every title.
+  function geoArt(seed) {
+    let h = 2166136261; for (const c of String(seed)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    const cols = ['#3DD6C6', '#B9A6FF', '#F5C542', '#FF5A4A', '#C9FFF8'], a = cols[h % 5], b = cols[(h >> 3) % 5], n = 6 + (h % 4) * 2, r = 22 + (h >> 7) % 10;
+    const circles = Array.from({ length: n }, (_, k) => { const t = (k / n) * Math.PI * 2; return `<circle cx="${(50 + Math.cos(t) * r * 0.55).toFixed(1)}" cy="${(52 + Math.sin(t) * r * 0.55).toFixed(1)}" r="${r}" />`; }).join('');
+    return `<svg viewBox="0 0 100 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="100" height="125" fill="#171331"/><g fill="none" stroke="${a}" stroke-width=".6" opacity=".7">${circles}</g><circle cx="50" cy="52" r="${r * 1.55}" fill="none" stroke="${b}" stroke-width=".5" opacity=".6"/><circle cx="50" cy="52" r="2" fill="${b}"/></svg>`;
+  }
+  const priceOf = (i) => i.cost ? money(i.cost) : ((i.notes || '').match(/(?:about|around|roughly|~)\s*\$[\d,]+(?:\s*[–-]\s*\$?[\d,]+)?/i) || [])[0]?.replace(/^(about|around|roughly|~)\s*/i, '') || '';
+  const tile = (i) => {
+    const pic = picOf(i), tags = [priceOf(i) && `<span class="price">${esc(priceOf(i))}</span>`, cc(i.id) && `<span>💬 ${cc(i.id)}</span>`].filter(Boolean);
+    return `<div class="tile" data-id="${i.id}" role="button" tabindex="0" aria-label="${esc(i.title)}">
+      ${pic ? `<img src="${esc(pic)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=window.__geo(this.closest('.tile').dataset.id)">` : geoArt(i.id)}
+      ${ytId(i.video) ? '<span class="play" aria-label="Has a video">▶</span>' : ''}
+      <div class="tt"><b>${esc(i.title)}</b>${tags.length ? `<div class="tags">${tags.join('')}</div>` : ''}</div></div>`;
+  };
+  window.__geo = geoArt;   // a picture that fails to load becomes the rosette
+  // Food and things to do: fetch missing pictures in the background, two at a time; the server keeps them.
+  const warmed = new Set();
+  async function warmPictures() {
+    const want = items.filter((i) => ['food', 'activities'].includes(i.topic) && !picOf(i) && !warmed.has(i.id));
+    want.forEach((i) => warmed.add(i.id));
+    const { data: { session: s } } = await sb.auth.getSession();
+    let changed = false;
+    const one = async (i) => {
+      try {
+        const r = await (await fetch(PREVIEW, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ item: i.id }) })).json();
+        if (r.preview?.image) { i.preview = r.preview; changed = true; }
+      } catch {}
+    };
+    for (let k = 0; k < want.length; k += 2) await Promise.all(want.slice(k, k + 2).map(one));
+    if (changed && (location.hash || '#plan') === '#ideas') render();
+  }
 
   function plan() {
     const ds = days(), list = items.filter((i) => i.kind === 'plan');
@@ -408,7 +462,7 @@
       foldsFor = trip.id; folds = {};
       try { folds = JSON.parse(localStorage.getItem('trip-folds-' + trip.id) || '{}') || {}; } catch {}
       const next = CHOICES.find((t) => list.some((i) => i.topic === t) && !decided(t));
-      if (next && folds[next] === undefined && !Object.keys(folds).length) folds[next] = true;
+      if (!Object.keys(folds).length) { if (next) folds[next] = true; folds['g:food'] = true; folds['g:activities'] = true; }
     }
     const mayChoose = canChoose();
     const parts = CHOICES.filter((t) => list.some((i) => i.topic === t) || bookedFor(t));
@@ -436,9 +490,15 @@
     const groups = [...Object.keys(TOPIC).filter((t) => !CHOICES.includes(t)), null].map((t) => ({ t, its: rest.filter((i) => (TOPIC[i.topic] ? i.topic : null) === t) })).filter((g) => g.its.length);
     $('view').innerHTML = card
       + (groups.length ? groups.map((g) => { const k = 'g:' + (g.t || 'none'); return `<details class="topic fold" id="topic-${g.t || 'none'}" data-fold="${k}"${isOpen(k) ? ' open' : ''}><summary><span class="grow"><h3>${g.t ? TOPIC[g.t].join(' ') : 'More ideas'}</h3><span class="sum">${g.its.length} idea${g.its.length === 1 ? '' : 's'}: ${esc(g.its.slice(0, 3).map((i) => i.title).join(', '))}</span></span><span class="chev" aria-hidden="true">⌄</span></summary>
-          <div class="list">${g.its.map((i) => itemRow(i, { tm: null, meta: [`added by ${esc(nameOf(i.created_by) || 'someone')}`] })).join('')}</div></details>`; }).join('')
+          ${['food', 'activities'].includes(g.t) ? `<div class="gallery">${g.its.map(tile).join('')}</div>`
+            : `<div class="list">${g.its.map((i) => itemRow(i, { tm: null, meta: [`added by ${esc(nameOf(i.created_by) || 'someone')}`] })).join('')}</div>`}</details>`; }).join('')
         : parts.length ? '' : `<p class="empty">No ideas yet. Add one, or ask Claude to “break the trip down”: dates, flights, tickets and where to stay come back as choices to make.</p>`)
       + `<button class="add" id="addidea">＋ Add an idea</button>`;
+    $('view').querySelectorAll('.tile[data-id]').forEach((el) => {
+      const go = () => view(items.find((i) => i.id === el.dataset.id));
+      el.onclick = go; el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } };
+    });
+    warmPictures();
     $('view').querySelectorAll('details.fold').forEach((d) => d.addEventListener('toggle', () => {
       folds[d.dataset.fold] = d.open;
       try { localStorage.setItem('trip-folds-' + trip.id, JSON.stringify(folds)); } catch {}
@@ -542,6 +602,7 @@
         ${pics.length ? `<div class="pics">${pics.map((p) => `<figure><img src="${esc(p.src)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()">
           <figcaption>${p.path ? 'added by ' + esc(who(p.by)) : p.href ? `<a href="${esc(p.href)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${esc(p.site)}</a>` : esc(p.site || 'from the link')}</figcaption>
           ${p.path && (p.by === ME.id || PARENT) ? `<button class="x" data-unphoto="${esc(p.path)}" aria-label="Remove photo">✕</button>` : ''}</figure>`).join('')}</div>` : ''}
+        ${ytId(i.video) ? `<div class="vid" id="shvid" role="button" aria-label="Play the video"><img src="https://i.ytimg.com/vi/${ytId(i.video)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer"><span class="pl"><span>▶</span></span></div>` : ''}
         <div class="sec">
           <h2 class="t">${esc(i.title)}</h2>
           <div class="chips">
@@ -559,6 +620,7 @@
             ${i.kind === 'idea' ? '<button class="btn" id="shplan">Put in the plan</button>' : ''}
             ${maps ? `<a class="btn" href="${esc(maps)}" target="_blank" rel="noopener noreferrer">📍 Open in Maps</a>` : ''}
             ${canEdit ? '<button class="btn" id="shphoto">📷 Add photo</button>' : ''}
+            ${!ytId(i.video) && i.kind !== 'booking' && canEdit ? '<button class="btn" id="shfindvid">✦ Find a video</button>' : ''}
           </div>
           <h3 class="k">Discussion${talk.length ? ` · ${talk.length}` : ''}</h3>
           <div class="talk">${talk.map((c) => `<div class="cm${c.author === ME.id ? ' me' : ''}"><span class="av">${esc(who(c.author)[0].toUpperCase())}</span>
@@ -575,6 +637,21 @@
     if (S('shbook')) S('shbook').onclick = () => { $('sheet').close(); edit({ ...i, kind: 'booking', _from: i.id }); };
     if (S('shplan')) S('shplan').onclick = () => { $('sheet').close(); edit({ ...i, kind: 'plan', _from: i.id }); };
     if (S('shphoto')) S('shphoto').onclick = () => $('photofile').click();
+    if (S('shvid')) S('shvid').onclick = () => {
+      S('shvid').innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${ytId(i.video)}?autoplay=1&rel=0&playsinline=1" title="${esc(i.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+      S('shvid').onclick = null;
+    };
+    if (S('shfindvid')) S('shfindvid').onclick = async () => {
+      const b = S('shfindvid'); b.disabled = true; b.textContent = '✦ Looking…';
+      try {
+        const { data: { session: s } } = await sb.auth.getSession();
+        const r = await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trip: trip.id, text: `Find one good short YouTube video of "${i.title}"${trip.place ? ' in ' + trip.place : ''} and put its link in the video of item [${i.id.slice(0, 8)}]. Change nothing else.` }) })).json();
+        if (r.error) throw new Error(r.error);
+        await load();
+        if (!ytId(items.find((x) => x.id === i.id)?.video)) alert(r.reply || 'No video found for this one.');
+      } catch (e) { alert("Couldn't look just now: " + e.message); b.disabled = false; b.textContent = '✦ Find a video'; }
+    };
     $('sheet').querySelectorAll('[data-unphoto]').forEach((b) => b.onclick = async () => {
       if (!confirm('Remove this photo?')) return;
       const path = b.dataset.unphoto;
@@ -633,6 +710,7 @@
       ${k !== 'pack' ? `<label>Part of the trip<select name="topic"><option value="">—</option>${Object.entries(TOPIC).map(([t, [e, n]]) => `<option value="${t}" ${t === i.topic ? 'selected' : ''}>${e} ${n}</option>`).join('')}</select></label>` : ''}
       <label>Notes<textarea name="notes" maxlength="2000">${esc(i.notes || '')}</textarea></label>
       <label>Link<input name="link" type="url" placeholder="https://" value="${esc(i.link || '')}"></label>
+      ${k !== 'pack' && k !== 'booking' ? `<label>Video (a YouTube link)<input name="video" type="url" placeholder="https://youtube.com/watch?v=…" value="${esc(i.video || '')}"></label>` : ''}
       ${k === 'plan' || k === 'booking' ? `<div class="row"><label>Cost<input name="cost" type="number" step="0.01" min="0" value="${i.cost ?? ''}"></label>${k === 'booking' ? `<label>Confirmation<input name="conf" maxlength="60" value="${esc(i.conf || '')}"></label>` : '<span></span>'}</div>` : ''}
       <p class="note" id="derr"></p>
       <div class="acts">
@@ -650,6 +728,11 @@
       if (f.elements.day) { v.day = f.elements.day.value || null; v.at = f.elements.at.value.trim() || null; v.cost = f.elements.cost.value === '' ? null : +f.elements.cost.value; }
       if (f.elements.conf) v.conf = f.elements.conf.value.trim() || null;
       if (f.elements.topic) v.topic = f.elements.topic.value || null;
+      if (f.elements.video) {
+        const vv = f.elements.video.value.trim();
+        if (vv && !ytId(vv)) { $('derr').textContent = 'The video needs to be a YouTube link.'; return; }
+        v.video = vv || null;
+      }
       let error;
       if (i._from) ({ error } = await sb.from('trip_items').update({ ...v, kind: k }).eq('id', i._from));   // an idea becoming a plan or a booking
       else if (isNew) ({ error } = await sb.from('trip_items').insert({ ...v, trip: trip.id, kind: k, created_by: ME.id }));
