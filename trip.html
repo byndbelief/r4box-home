@@ -192,7 +192,8 @@
     #fly .rng { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     #fly .rng label { font-size: 12.5px; color: var(--muted); font-weight: 700; display: grid; gap: 2px; }
     #fly .rng label b { color: var(--ink); }
-    #fly .list { flex: 1; overflow-y: auto; padding: 12px 16px 24px; display: grid; gap: 12px; align-content: start; }
+    #fly .list { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 16px 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }
+    #fly .list > * { min-width: 0; }   /* the sideways row of combinations scrolls inside, it never widens the page */
     .fcard { padding: 14px; border-radius: 18px; background: var(--panel); border: 1.5px solid var(--line); display: grid; gap: 10px; }
     .fcard.on { border-color: var(--teal); background: color-mix(in srgb, var(--teal) 8%, var(--panel)); }
     .fcard .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
@@ -216,6 +217,23 @@
     .fcard .acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; }
     .fcard .acts a { text-decoration: none; }
     #fly .need { padding: 12px 14px; border-radius: 14px; border: 1px dashed #B9A6FF66; color: var(--muted); font-size: 14px; display: grid; gap: 8px; }
+    /* the flight builder */
+    .legrow { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+    .legrow .n { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--body); background: #ffffff10; color: var(--muted); }
+    .legrow.ok .n { background: var(--teal); color: var(--teal-ink); }
+    .legrow b { font-size: 14.5px; } .legrow small { color: var(--muted); font-size: 13px; }
+    .combos { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 82%); gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+    .combo { scroll-snap-align: start; padding: 12px; border-radius: 16px; background: var(--panel); border: 1.5px solid var(--line); display: grid; gap: 8px; align-content: start; }
+    .combo.on { border-color: var(--teal); }
+    .combo h4 { margin: 0; display: flex; justify-content: space-between; align-items: baseline; font: 800 14px/1.2 var(--body); }
+    .combo h4 small { color: var(--gold); font: 800 17px/1 var(--display); }
+    .combo ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); }
+    .combo ul b { color: var(--ink); font-family: var(--mono); font-weight: 600; }
+    .combo .meta { font-size: 12.5px; color: var(--faint); }
+    #fly .legsec h3 { margin: 18px 0 8px; font: 800 13px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--violet); display: flex; justify-content: space-between; gap: 8px; }
+    #fly .legsec h3 small { color: var(--muted); letter-spacing: 0; text-transform: none; }
+    #fly .totals { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--panel-2); }
+    #fly .totals b { display: block; font: 800 18px/1.1 var(--display); color: var(--gold); } #fly .totals small { color: var(--muted); font-size: 12.5px; }
     /* polls */
     .poll { flex: 1; min-width: 0; padding: 12px; border-radius: 14px; background: var(--panel); border: 1.5px solid #B9A6FF55; }
     .poll .pq { margin: 0 0 8px; font-weight: 800; font-size: 15.5px; line-height: 1.35; overflow-wrap: anywhere; }
@@ -392,7 +410,7 @@
       const b2 = $('sheet').querySelector('.body'); if (b2) b2.scrollTop = atEnd ? b2.scrollHeight : top;
     }
     if (focusKey) (inSheet ? $('sheet') : $('view')).querySelector(`[data-f="${focusKey}"]`)?.focus();
-    if ($('fly').open && document.activeElement?.type !== 'range') renderFlights();   // not mid-drag
+    if ($('fly').open && document.activeElement?.type !== 'range') (planOf() ? renderBuilder() : renderFlights());   // not mid-drag
   }
 
   function render() {
@@ -431,7 +449,11 @@
   const showOthers = new Set();   // decided parts whose other options are shown again
   const bookedFor = (t) => items.find((i) => i.kind === 'booking' && i.topic === t);
   const chosenFor = (t) => items.find((i) => i.kind === 'idea' && i.topic === t && i.chosen);
-  const decided = (t) => (t === 'dates' && !!trip.starts) || !!bookedFor(t) || !!chosenFor(t);
+  const planOf = () => (Array.isArray(trip?.flight_plan) && trip.flight_plan.length ? trip.flight_plan : null);
+  const legOpts = (n) => items.filter((i) => i.kind === 'idea' && i.topic === 'flights' && i.flight?.kind === 'leg' && i.flight.leg === n);
+  const pickOf = (n) => { const id = planOf()?.[n]?.pick; return id ? items.find((i) => i.id === id && i.flight?.leg === n) : null; };
+  const planDone = () => { const p = planOf(); return !!p && p.every((_, n) => pickOf(n)); };
+  const decided = (t) => (t === 'dates' && !!trip.starts) || !!bookedFor(t) || !!chosenFor(t) || (t === 'flights' && planDone());
   const canChoose = () => PARENT || trip.created_by === ME.id;
   $('askq').oninput = () => {
     const q = $('askq').value.trim().toLowerCase();
@@ -550,7 +572,8 @@
       if (!Object.keys(folds).length) { if (next) folds[next] = true; folds['g:food'] = true; folds['g:activities'] = true; }
     }
     const mayChoose = canChoose();
-    const parts = CHOICES.filter((t) => list.some((i) => i.topic === t) || bookedFor(t));
+    // Flights show once there are options, a booking or a flight plan, or as soon as the trip knows when and from where.
+    const parts = CHOICES.filter((t) => list.some((i) => i.topic === t) || bookedFor(t) || (t === 'flights' && (planOf() || (trip.origin && trip.starts))));
     const done = parts.filter(decided).length;
     const opt = (i) => {
       const on = !!i.chosen, other = !on && !!chosenFor(i.topic);
@@ -565,6 +588,7 @@
       ${parts.map((t) => {
         const bk = bookedFor(t), opts = list.filter((i) => i.topic === t);
         const status = bk ? '<small>✓ booked</small>' : chosenFor(t) ? '<small>✓ chosen</small>' : t === 'dates' && trip.starts ? '<small>✓ set</small>' : '';
+        if (t === 'flights' && !bk && (planOf() || !opts.length)) return flightPart(status);
         const ch = chosenFor(t);
         const sum = bk ? `<span class="sum ok">✓ booked: ${esc(bk.title)}</span>` : ch ? `<span class="sum ok">✓ ${esc(ch.title)}</span>`
           : `<span class="sum">${opts.length} option${opts.length === 1 ? '' : 's'} to choose from</span>`;
@@ -594,6 +618,7 @@
     $('addidea').onclick = () => edit({ kind: 'idea' });
     $('view').querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); view(items.find((i) => i.id === b.dataset.more)); });
     $('view').querySelectorAll('[data-compare]').forEach((b) => b.onclick = () => openFlights());
+    $('view').querySelectorAll('[data-setupflights]').forEach((b) => b.onclick = () => askFlights(`Set up the flights for this trip: set the flight plan from the chosen dates and places${trip.origin ? ' (the family travels from ' + trip.origin + ')' : ''}, every flight the trip takes in order, then find 3 to 5 options for each leg as flight ideas with flight kind 'leg'. Leave everything else as it is.`));
     $('view').querySelectorAll('[data-others]').forEach((b) => b.onclick = () => { const t = b.dataset.others; showOthers.has(t) ? showOthers.delete(t) : showOthers.add(t); render(); });
     $('view').querySelectorAll('[data-choose]').forEach((el) => {
       const pick = async () => {
@@ -904,6 +929,102 @@
     $('ansx').onclick = () => { $('answer').innerHTML = ''; };
   }
 
+  // ---- the flight builder: the trip's legs, a pick per leg, suggested combinations ----
+  const legLabel = (l) => `${l.from} → ${l.to}`;
+  const legLine = (i) => { const l = i?.flight?.legs?.[0] || {}; return i ? `${(i.flight.airlines || []).join(' + ') || i.title} · ${l.depart || '?'}–${l.arrive || '?'}${l.arrive_plus ? '+' + l.arrive_plus : ''} · ${l.stops ? l.stops + ' stop' + (l.stops > 1 ? 's' : '') : 'nonstop'}` : ''; };
+  const ppOf = (i) => i?.flight?.price_pp ?? (i?.flight?.price_total ? i.flight.price_total / (family.length || 1) : null);
+  const minOf = (i) => i?.flight?.legs?.[0]?.minutes ?? null;
+  function flightPart(status) {
+    const plan = planOf(), k = 'flights';
+    if (!plan) return `<details class="choice fold" id="topic-flights" data-fold="flights"${isOpen(k) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC.flights[0]} ${TOPIC.flights[1]} ${status}</h3><span class="sum">Not set up yet</span></span><span class="chev" aria-hidden="true">⌄</span></summary>
+      <div class="opts"><p class="note" style="margin:0">Claude works out the flights this trip takes${trip.origin ? ' from ' + esc(trip.origin) : ''} and finds options for each, then you build the itinerary leg by leg.</p>
+      ${canChoose() ? `<button type="button" class="btn p" data-setupflights="1" style="justify-self:start" ${flyBusy ? 'disabled' : ''}>${flyBusy ? '✦ Setting up flights… (about a minute)' : '✦ Set up flights'}</button>` : ''}</div></details>`;
+    const picked = plan.filter((_, n) => pickOf(n)).length, pp = plan.reduce((s2, _, n) => s2 + (ppOf(pickOf(n)) || 0), 0);
+    const sum = picked === plan.length ? `<span class="sum ok">✓ ${plan.length} flights · ${money(pp * (family.length || 1))} for the family</span>` : `<span class="sum">${picked} of ${plan.length} flights picked</span>`;
+    return `<details class="choice fold" id="topic-flights" data-fold="flights"${isOpen(k) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC.flights[0]} ${TOPIC.flights[1]} ${picked === plan.length ? '<small>✓ picked</small>' : ''}</h3>${sum}</span><span class="chev" aria-hidden="true">⌄</span></summary>
+      <div class="opts"><button type="button" class="btn p" data-compare="1" style="justify-self:start">✈️ Open the flight builder</button>
+      ${plan.map((l, n) => { const p2 = pickOf(n); return `<div class="legrow${p2 ? ' ok' : ''}"><span class="n">${p2 ? '✓' : n + 1}</span><b>${esc(legLabel(l))} · ${esc(nice(l.date))}</b>
+        <small>${p2 ? esc(legLine(p2)) + (ppOf(p2) != null ? ' · ' + money(ppOf(p2)) + ' pp' : '') : `${legOpts(n).length} option${legOpts(n).length === 1 ? '' : 's'} to pick from`}</small></div>`; }).join('')}</div></details>`;
+  }
+  async function savePlan(plan, wasDone) {
+    const { error } = await sb.from('trips').update({ flight_plan: plan }).eq('id', trip.id);
+    if (error) { alert('Could not save: ' + error.message); return false; }
+    trip.flight_plan = plan;
+    if (!wasDone && planDone()) { if ($('fly').open) $('fly').close(); reworkBelow({ id: plan[0].pick, title: 'these flights', topic: 'flights' }); }
+    return true;
+  }
+  async function askFlights(text) {
+    flyBusy = true; render(); if ($('fly').open) renderBuilder();
+    try {
+      const { data: { session: s } } = await sb.auth.getSession();
+      const r = await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ trip: trip.id, text }) })).json();
+      if (r.error) alert(r.error);
+    } catch { alert("Couldn't reach Claude just now."); }
+    flyBusy = false; await load(); if ($('fly').open) renderBuilder();
+  }
+  function renderBuilder() {
+    const plan = planOf(); if (!plan) { $('fly').close(); return; }
+    const n0 = family.length || 1, mayChoose = canChoose();
+    const okStops = (i) => fs.stops === 'any' || (i.flight?.legs?.[0]?.stops ?? 9) <= +fs.stops;
+    const sortBy = (a, b) => fs.sort === 'fast' ? (minOf(a) ?? 1e9) - (minOf(b) ?? 1e9) : fs.sort === 'early' ? (toMin(a.flight?.legs?.[0]?.depart) ?? 1e9) - (toMin(b.flight?.legs?.[0]?.depart) ?? 1e9) : (ppOf(a) ?? 1e9) - (ppOf(b) ?? 1e9);
+    // Suggested combinations: one option per leg, every combination scored (a few legs of a few options each).
+    const per = plan.map((_, n) => legOpts(n).filter(okStops));
+    let combos = [];
+    if (per.every((o) => o.length)) {
+      const walk = (n, acc) => { if (n === per.length) { combos.push(acc); return; } if (combos.length > 4000) return; for (const o of per[n]) walk(n + 1, [...acc, o]); };
+      walk(0, []);
+    }
+    const score = (c) => ({ c, pp: c.reduce((s2, i) => s2 + (ppOf(i) ?? 1e4), 0), min: c.reduce((s2, i) => s2 + (minOf(i) ?? 1e4), 0), stops: c.reduce((s2, i) => s2 + (i.flight?.legs?.[0]?.stops ?? 3), 0) });
+    const sc = combos.map(score);
+    const pick = (label, f) => { const best = sc.slice().sort(f)[0]; return best ? { label, ...best } : null; };
+    const minPP = Math.min(...sc.map((x) => x.pp)), maxPP = Math.max(...sc.map((x) => x.pp)), minM = Math.min(...sc.map((x) => x.min)), maxM = Math.max(...sc.map((x) => x.min));
+    const norm = (x) => (maxPP > minPP ? (x.pp - minPP) / (maxPP - minPP) : 0) + (maxM > minM ? (x.min - minM) / (maxM - minM) : 0);
+    const sugg = [pick('Cheapest', (a, b) => a.pp - b.pp || a.min - b.min), pick('Fastest', (a, b) => a.min - b.min || a.pp - b.pp),
+      pick('Fewest stops', (a, b) => a.stops - b.stops || a.pp - b.pp), pick('Best balance', (a, b) => norm(a) - norm(b))].filter(Boolean);
+    const seen = new Set(), uniq = sugg.filter((x) => { const key = x.c.map((i) => i.id).join(); if (seen.has(key)) { const prev = sugg.find((y) => y.c.map((i) => i.id).join() === key); prev.label += ' · ' + x.label; return false; } seen.add(key); return true; });
+    const current = plan.map((l) => l.pick).join();
+    const wasDone = planDone();
+    const legCard = (i, n) => { const x = flightInfo(i), on = plan[n].pick === i.id;
+      return `<div class="fcard${on ? ' on' : ''}"><div class="top"><div class="pr"><b>${x.pp != null ? money(x.pp) : '?'}</b><small>per person${x.pp != null ? ` · ${money(x.pp * n0)} for ${n0}` : ''}</small></div>
+        <div class="badges">${on ? '<span class="badge fast">✓ Picked</span>' : ''}</div></div>
+        <div class="al">${esc(x.airlines.join(' + ') || i.title)}<small>${esc(i.title)}</small></div>${x.legs.map((l) => legHTML(l)).join('')}
+        <div class="acts">${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-legpick="${n}:${i.id}">${on ? 'Unpick' : '✓ Pick for this leg'}</button>` : ''}<button class="btn" data-fmore="${i.id}">Details</button>${safeLink(i.link) ? `<a class="btn" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">Live prices ↗</a>` : ''}</div></div>`; };
+    const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}>${label}</button>`;
+    const tp = plan.reduce((s2, _, n) => s2 + (ppOf(pickOf(n)) || 0), 0), tm = plan.reduce((s2, _, n) => s2 + (minOf(pickOf(n)) || 0), 0), np = plan.filter((_, n) => pickOf(n)).length;
+    $('fly').innerHTML = `<div class="wrap">
+      <header class="sh"><b>✈️ ${esc([plan[0].from, ...plan.map((l) => l.to)].join(' → '))}</b><button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
+      <div class="filters"><div class="frow"><small>Stops</small>${chip(fs.stops === 'any', 'data-fstops="any"', 'Any')}${chip(fs.stops === '0', 'data-fstops="0"', 'Nonstop')}${chip(fs.stops === '1', 'data-fstops="1"', '1 stop or fewer')}</div>
+        <div class="frow"><small>Sort each leg</small>${chip(fs.sort === 'price', 'data-fsort="price"', 'Cheapest')}${chip(fs.sort === 'fast', 'data-fsort="fast"', 'Fastest')}${chip(fs.sort === 'early', 'data-fsort="early"', 'Earliest')}</div></div>
+      <div class="list">
+        ${uniq.length ? `<div><h3 class="k" style="margin:0 0 8px">Suggested combinations</h3><div class="combos">${uniq.map((x) => { const on = x.c.map((i) => i.id).join() === current;
+          return `<div class="combo${on ? ' on' : ''}"><h4>${esc(x.label)}<small>${money(x.pp * n0)}</small></h4>
+            <ul>${x.c.map((i, n) => { const l = i.flight.legs[0] || {}; return `<li><b>${esc(legLabel(plan[n]))}</b> ${esc((i.flight.airlines || [])[0] || '')} ${esc(l.depart || '')}–${esc(l.arrive || '')}${l.arrive_plus ? '+1' : ''} · ${l.stops ? l.stops + ' stop' : 'nonstop'}</li>`; }).join('')}</ul>
+            <span class="meta">${money(x.pp)} per person · ${hm(x.min)} in the air${x.stops ? ` · ${x.stops} stop${x.stops > 1 ? 's' : ''}` : ' · all nonstop'}</span>
+            ${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-usecombo="${x.c.map((i) => i.id).join(',')}" ${on ? 'disabled' : ''}>${on ? '✓ Your flights' : 'Use these flights'}</button>` : ''}</div>`; }).join('')}</div></div>` : ''}
+        ${plan.map((l, n) => { const opts = legOpts(n).filter(okStops).sort(sortBy), all = legOpts(n).length;
+          return `<div class="legsec"><h3><span>Leg ${n + 1} · ${esc(legLabel(l))}</span><small>${esc(nice(l.date))}</small></h3>
+            ${opts.map((i) => legCard(i, n)).join('') || `<p class="note">${all ? 'No option matches the stops filter.' : 'No options for this leg yet.'}</p>`}
+            ${mayChoose ? `<button class="btn" data-legmore="${n}" ${flyBusy ? 'disabled' : ''} style="margin-top:8px">${flyBusy ? '✦ Looking…' : `✦ Find ${all ? 'more' : ''} flights for this leg`}</button>` : ''}</div>`; }).join('')}
+      </div>
+      <div class="totals"><div><b>${np ? money(tp * n0) : '–'}</b><small>${np} of ${plan.length} legs · ${np ? `${money(tp)} per person · ${hm(tm)} in the air` : 'pick a flight for each leg'}</small></div><button class="btn p" id="flydone">Done</button></div></div>`;
+    const F = (id) => $('fly').querySelector('#' + id);
+    F('flyx').onclick = F('flydone').onclick = () => $('fly').close();
+    $('fly').querySelectorAll('[data-fstops]').forEach((b) => b.onclick = () => { fs.stops = b.dataset.fstops; renderBuilder(); });
+    $('fly').querySelectorAll('[data-fsort]').forEach((b) => b.onclick = () => { fs.sort = b.dataset.fsort; renderBuilder(); });
+    $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => { $('fly').close(); view(items.find((i) => i.id === b.dataset.fmore)); });
+    $('fly').querySelectorAll('[data-legpick]').forEach((b) => b.onclick = async () => {
+      const [n, id] = b.dataset.legpick.split(':'), p2 = plan.map((l) => ({ ...l }));
+      p2[+n].pick = p2[+n].pick === id ? null : id;
+      if (await savePlan(p2, wasDone)) { render(); if ($('fly').open) renderBuilder(); }
+    });
+    $('fly').querySelectorAll('[data-usecombo]').forEach((b) => b.onclick = async () => {
+      const ids = b.dataset.usecombo.split(','), p2 = plan.map((l, n) => ({ ...l, pick: ids[n] }));
+      if (await savePlan(p2, wasDone)) { render(); if ($('fly').open) renderBuilder(); }
+    });
+    $('fly').querySelectorAll('[data-legmore]').forEach((b) => b.onclick = () => { const l = plan[+b.dataset.legmore];
+      askFlights(`Find 2 or 3 more flight options for leg ${b.dataset.legmore} of the flight plan (${l.from}→${l.to} on ${l.date}), different from the ones already there, each as a flight idea with flight kind 'leg' and leg ${b.dataset.legmore}. Change nothing else.`); });
+  }
+
   // ---- flights, side by side: filter by price, stops, flight time, airline and date; choose from here ----
   const fs = { max: null, stops: 'any', hours: null, airlines: new Set(), date: '', sort: 'price' };
   let flyBusy = false;
@@ -919,7 +1040,19 @@
     const out = legs.find((l) => l.dir !== 'back');
     return { i, f, legs, pp, total, minutes, stops, date: out?.date || '', departMin: toMin(out?.depart), airlines: f.airlines || [], ok: legs.length > 0 };
   }
-  function openFlights() { renderFlights(); if (!$('fly').open) $('fly').showModal(); }
+  function legHTML(l) {
+    // The bar is the leg on a 24-hour day; one that runs past midnight wraps round to the morning.
+    const d = toMin(l.depart), w = Math.min(1440, l.minutes || (toMin(l.arrive) != null && d != null ? (toMin(l.arrive) + (l.arrive_plus || 0) * 1440 - d) : 0));
+    const at = (min) => (((d + min) % 1440) / 1440) * 100;
+    const bars = d == null ? '' : d + w <= 1440 ? `<i style="left:${at(0)}%;width:${Math.max(2, (w / 1440) * 100)}%"></i>`
+      : `<i style="left:${at(0)}%;width:${100 - at(0)}%"></i><i style="left:0;width:${Math.max(1, ((d + w - 1440) / 1440) * 100)}%"></i>`;
+    const dots = d == null ? '' : Array.from({ length: l.stops || 0 }, (_, k) => `<em style="left:${at((w * (k + 1)) / ((l.stops || 0) + 1))}%" title="Change planes${l.via?.[k] ? ' in ' + esc(l.via[k]) : ''}"></em>`).join('');
+    return `<div class="leg"><div class="lh"><span>${l.dir === 'back' ? 'Return' : 'Outbound'}${l.date ? ' · ' + esc(nice(l.date)) : ''}</span><span>${(l.flights || []).map(esc).join(' · ')}</span></div>
+      <div class="lt"><b>${esc(l.depart || '–')}<small>${esc(l.from || '')}</small></b><div class="tl" aria-hidden="true">${bars}${dots}</div>
+        <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div>
+      <div class="lm"><b>${hm(l.minutes)}</b> · ${l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}${l.via?.length ? ' via ' + l.via.map(esc).join(', ') : ''}` : 'Nonstop'}</div></div>`;
+  }
+  function openFlights() { planOf() ? renderBuilder() : renderFlights(); if (!$('fly').open) $('fly').showModal(); }
   function renderFlights() {
     const all = items.filter((i) => i.kind === 'idea' && i.topic === 'flights').map(flightInfo);
     const good = all.filter((x) => x.ok), need = all.filter((x) => !x.ok);
@@ -935,18 +1068,7 @@
     const cheapest = Math.min(...good.map((x) => x.pp ?? 1e9)), fastest = Math.min(...good.map((x) => x.minutes ?? 1e9));
     const mayChoose = canChoose(), n = family.length || 1;
     const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}>${label}</button>`;
-    const leg = (l) => {
-      // The bar is the leg on a 24-hour day; one that runs past midnight wraps round to the morning.
-      const d = toMin(l.depart), w = Math.min(1440, l.minutes || (toMin(l.arrive) != null && d != null ? (toMin(l.arrive) + (l.arrive_plus || 0) * 1440 - d) : 0));
-      const at = (min) => (((d + min) % 1440) / 1440) * 100;
-      const bars = d == null ? '' : d + w <= 1440 ? `<i style="left:${at(0)}%;width:${Math.max(2, (w / 1440) * 100)}%"></i>`
-        : `<i style="left:${at(0)}%;width:${100 - at(0)}%"></i><i style="left:0;width:${Math.max(1, ((d + w - 1440) / 1440) * 100)}%"></i>`;
-      const dots = d == null ? '' : Array.from({ length: l.stops || 0 }, (_, k) => `<em style="left:${at((w * (k + 1)) / ((l.stops || 0) + 1))}%" title="Change planes${l.via?.[k] ? ' in ' + esc(l.via[k]) : ''}"></em>`).join('');
-      return `<div class="leg"><div class="lh"><span>${l.dir === 'back' ? 'Return' : 'Outbound'}${l.date ? ' · ' + esc(nice(l.date)) : ''}</span><span>${(l.flights || []).map(esc).join(' · ')}</span></div>
-        <div class="lt"><b>${esc(l.depart || '–')}<small>${esc(l.from || '')}</small></b><div class="tl" aria-hidden="true">${bars}${dots}</div>
-          <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div>
-        <div class="lm"><b>${hm(l.minutes)}</b> · ${l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}${l.via?.length ? ' via ' + l.via.map(esc).join(', ') : ''}` : 'Nonstop'}</div></div>`;
-    };
+    const leg = legHTML;
     const card = (x) => `<div class="fcard${x.i.chosen ? ' on' : ''}">
         <div class="top"><div class="pr"><b>${x.pp != null ? money(x.pp) : '?'}</b><small>per person${x.total != null ? ` · ${money(x.total)} for ${n}` : ''}${x.f.kind === 'oneway' ? ' · one way' : ' · round trip'}</small></div>
           <div class="badges">${x.i.chosen ? '<span class="badge fast">✓ Chosen</span>' : ''}${x.pp === cheapest && good.length > 1 ? '<span class="badge cheap">Cheapest</span>' : ''}${x.minutes === fastest && good.length > 1 ? '<span class="badge fast">Fastest</span>' : ''}</div></div>
