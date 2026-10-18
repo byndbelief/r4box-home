@@ -405,10 +405,22 @@
   // ---- video calls ----
   // Browsers connect straight to each other (WebRTC), each to each (fine up to about 4).
   // Who is in the call, and the short handshake that sets up each connection, go over
-  // the private Realtime channel 'family-call' (family only, 105). Video never touches
-  // a server; the STUN servers only tell each browser its public address.
+  // the private Realtime channel 'family-call' (family only, 105). Video goes browser to
+  // browser, or through our own relay on r4box when a network forces it (encrypted either way).
   const MAX = 4;   // people in one call: each sends video to every other, which phones manage up to about 4
-  const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+  // STUN tells each browser its public address; when a network won't let two browsers reach
+  // each other, the TURN relay on r4box carries the (still encrypted) media. call-ice gives a
+  // signed-in family member the servers and a relay login for the day.
+  let ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }], iceAt = 0;
+  async function loadIce() {
+    if (Date.now() - iceAt < 6 * 3600e3) return;
+    try {
+      const { data: { session: s } } = await sb.auth.getSession();
+      const r = await fetch(FN.replace('family-chat', 'call-ice'), { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: '{}' });
+      const j = await r.json();
+      if (r.ok && Array.isArray(j.iceServers)) { ICE = j.iceServers; iceAt = Date.now(); }
+    } catch {}
+  }
   const PEER = crypto.randomUUID();   // this tab in the call (one person may join from two devices)
   const peers = new Map();            // peer -> { pc, user, ice: [], out: [], timer, cam, mic }
   let calling = null;   // who this call rang (null: everyone)
@@ -550,6 +562,7 @@
       toast(e.name === 'NotAllowedError' ? 'The call needs your camera and microphone: allow them for r4box.com and try again.' : "Couldn't start the camera.", true);
       return;
     }
+    await loadIce();
     facing = 'user'; inCall = true; aloneSince = 0; calling = typeof to === 'string' ? to : null;
     $('call').hidden = false; $('stage').innerHTML = '';
     const nobody = !callLive().length;
