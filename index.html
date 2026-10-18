@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#0B0918">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <script type="module">import { forward } from './door.js'; forward();</script>
   <style>
     @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
@@ -89,6 +90,8 @@
     .dock a { display: grid; justify-items: center; gap: 10px; padding: 12px 4px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); color: inherit; text-decoration: none; transition: border-color .2s, background .2s; }
     .dock a:hover { border-color: var(--c); background: color-mix(in srgb, var(--c) 7%, var(--panel)); }
     .dock b { font-size: 12px; }
+    .dock a { position: relative; }
+    .dock .badge { position: absolute; top: 6px; right: 8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; background: var(--hot); color: #fff; font: 800 11px/20px var(--body); text-align: center; }
     @media (min-width: 760px) { .dock a { padding: 16px 8px; border-radius: 20px; } .dock b { font-size: 14px; } }
     .who-menu { display: flex; align-items: center; gap: 10px; }
     .offer { width: min(560px, 100%); }
@@ -215,6 +218,7 @@
       .map(([g, t]) => ({ g, t, d: 'Game room', h: 'games.r4box.com', c: 'var(--teal)', emoji: true }));
     const GAMES_TILE = { g: '⚓', t: 'games', h: 'games.r4box.com', c: 'var(--teal)', emoji: true };
     const TRIP_TILE = { g: '✈️', t: 'trip', d: 'Trip planning', h: 'r4box.com/trip', u: '/trip.html', c: 'var(--gold)', emoji: true };
+    const CHAT_TILE = { g: '💬', t: 'chat', d: 'Family chat', h: 'r4box.com/chat', u: '/chat.html', c: 'var(--violet)', emoji: true };
 
     // The live x: the logistic map at r = 4, one step every half second.
     let x = Math.random() * .8 + .1;
@@ -309,19 +313,30 @@
       }
       $('login').hidden = true; $('cockpit').hidden = false;
       $('hello').textContent = role === 'parent' ? `Welcome back, ${name}.` : `Hi, ${name}. Your own tree is growing soon.`;
-      const tiles = role === 'parent' ? [...BOX, GAMES_TILE, TRIP_TILE] : [GAMES_TILE, TRIP_TILE];
-      places = role === 'parent' ? [...BOX, ...GAMES, TRIP_TILE] : [...GAMES, TRIP_TILE];
+      const tiles = role === 'parent' ? [...BOX, GAMES_TILE, TRIP_TILE, CHAT_TILE] : [GAMES_TILE, TRIP_TILE, CHAT_TILE];
+      places = role === 'parent' ? [...BOX, ...GAMES, TRIP_TILE, CHAT_TILE] : [...GAMES, TRIP_TILE, CHAT_TILE];
       $('dock').innerHTML = tiles.map((s) => `<a href="${s.u || `https://${s.h}/`}" style="--c:${s.c}"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:36px">${s.g}</span><b>${esc(s.t)}</b></a>`).join('');
       $('dock').style.gridTemplateColumns = tiles.length < 4 ? `repeat(${tiles.length}, minmax(0, 140px))` : '';
       $('dock').style.justifyContent = tiles.length < 4 ? 'center' : '';
       $('q').placeholder = role === 'parent' ? 'os, diary, battleship…' : 'Ask anything, or find a game…';
       ME = { role, name };
+      unread(user.id);
       if (role === 'parent') showFlags();
       if (location.hash === '#tutor' && role !== 'parent') openTutor();
       background(role);
       offerPasskey();
     }
     $('signout').onclick = async () => { await sb.auth.signOut(); };
+
+    // The chat tile shows how many messages came in since you last read the chat.
+    async function unread(uid) {
+      const { data: r } = await sb.from('chat_reads').select('read_at').eq('user_id', uid).maybeSingle();
+      let q = sb.from('chat_messages').select('id', { count: 'exact', head: true }).or(`author.is.null,author.neq.${uid}`);
+      if (r) q = q.gt('created_at', r.read_at);
+      const { count } = await q;
+      const a = $('dock').querySelector('a[href="/chat.html"]');
+      if (a && count) a.insertAdjacentHTML('beforeend', `<span class="badge">${count > 99 ? '99+' : count}</span>`);
+    }
 
     // Where to? Type to jump; Enter opens the first hit.
     $('q').oninput = () => {

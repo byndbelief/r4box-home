@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#0B0918">
+  <meta name="robots" content="noindex">
+  <title>r4box chat</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
+    @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
+    :root {
+      color-scheme: dark;
+      --bg: #0B0918; --panel: #171331; --panel-2: #1F1A3F; --line: #2F2957; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
+      --teal: #3DD6C6; --teal-ink: #062A26; --gold: #F5C542; --gold-ink: #2A2100; --hot: #FF5A4A; --hot-soft: #4A2230; --violet: #B9A6FF;
+      --display: "Unbounded", "Arial Black", Impact, sans-serif;
+      --body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, monospace;
+      --grad-mark: conic-gradient(from 210deg, var(--teal), var(--violet), var(--gold), var(--hot), var(--teal));
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); }
+    body { font: 16px/1.45 var(--body); -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; height: 100dvh;
+      background: radial-gradient(900px 420px at 15% -10%, #2A1F5E55, transparent 60%), radial-gradient(700px 380px at 100% 0%, #0E4A4655, transparent 60%), var(--bg); }
+    :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    button, input, textarea { font: inherit; color: inherit; }
+    .wrap { width: 100%; max-width: 760px; margin: 0 auto; padding-inline: 16px; }
+    header { flex: none; border-bottom: 1px solid var(--line); background: #0B0918d9; backdrop-filter: blur(8px); }
+    header .wrap { display: flex; align-items: center; gap: 12px; padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: 12px; }
+    .mark { display: inline-flex; align-items: center; gap: 10px; font: 800 18px/1 var(--display); letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
+    .mark i { width: 1.05em; height: 1.05em; border-radius: 22%; background: var(--grad-mark); box-shadow: inset 0 0 0 .18em var(--bg), 0 0 18px #3DD6C666; }
+    header h1 { font: 800 18px/1 var(--display); margin: 0; letter-spacing: -.02em; }
+    header .sep { color: var(--faint); }
+    header .grow { flex: 1; }
+    .pill { appearance: none; cursor: pointer; border: 1px solid var(--line); background: #ffffff0a; border-radius: 99px; padding: 7px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+    .pill:hover { background: #ffffff16; }
+    .pill.on { color: var(--teal); border-color: #3DD6C655; cursor: default; }
+
+    #log { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+    #log .wrap { display: flex; flex-direction: column; gap: 2px; padding-top: 14px; padding-bottom: 14px; }
+    .day { align-self: center; margin: 14px 0 8px; font: 700 11px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+    .msg { display: flex; gap: 8px; align-items: flex-end; max-width: 86%; margin-top: 2px; }
+    .msg.first { margin-top: 10px; }
+    .msg.me { align-self: flex-end; flex-direction: row-reverse; }
+    .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 800 13px/1 var(--display); background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; }
+    .av img { width: 100%; height: 100%; object-fit: cover; }
+    .av.claude { background: #F5C5421f; border-color: #F5C54266; color: var(--gold); font-size: 15px; }
+    .msg:not(.last) .av { visibility: hidden; }
+    .msg.me .av { display: none; }
+    .bub { min-width: 0; padding: 8px 12px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); overflow-wrap: anywhere; cursor: default; }
+    .msg.me .bub { background: color-mix(in srgb, var(--teal) 16%, var(--panel)); border-color: #3DD6C640; }
+    .msg.claude .bub { background: color-mix(in srgb, var(--gold) 8%, var(--panel)); border-color: #F5C54240; }
+    .msg.mine .bub { cursor: pointer; }
+    .bub .who { display: block; font-size: 12px; font-weight: 800; color: var(--violet); margin-bottom: 2px; }
+    .msg.claude .who { color: var(--gold); }
+    .bub .tx { white-space: pre-wrap; }
+    .bub .tx a { color: var(--teal); }
+    .bub .tx .at { color: var(--gold); font-weight: 700; }
+    .bub img.ph { display: block; max-width: min(280px, 100%); max-height: 340px; border-radius: 12px; margin: 2px 0 4px; cursor: zoom-in; background: var(--panel-2); }
+    .bub .tm { display: block; text-align: right; font-size: 11px; color: var(--faint); margin-top: 2px; }
+    .think { align-self: flex-start; color: var(--gold); font-size: 14px; margin: 10px 0 0 38px; animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .45; } }
+    @media (prefers-reduced-motion: reduce) { .think { animation: none; } }
+    .empty { margin: auto; text-align: center; color: var(--muted); padding: 40px 0; }
+    .empty b { display: block; font: 800 22px/1.2 var(--display); color: var(--ink); margin-bottom: 6px; }
+
+    footer { flex: none; border-top: 1px solid var(--line); background: #0B0918e6; }
+    footer .wrap { padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+    .tools { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
+    .chip { appearance: none; cursor: pointer; border: 1px solid #F5C54255; background: #F5C54214; color: var(--gold); border-radius: 99px; padding: 5px 11px; font-size: 13px; font-weight: 700; }
+    .note { color: var(--muted); font-size: 12px; margin-left: auto; }
+    .preview { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .preview img { height: 56px; border-radius: 10px; border: 1px solid var(--line); }
+    form { display: flex; gap: 8px; align-items: flex-end; }
+    textarea { flex: 1; resize: none; max-height: 140px; min-height: 44px; padding: 11px 14px; border-radius: 22px; border: 1.5px solid var(--line); background: var(--panel); font-size: 16px; line-height: 1.35; }
+    .icon { appearance: none; cursor: pointer; flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--line); background: #ffffff0a; font-size: 19px; display: grid; place-items: center; }
+    .icon.send { background: var(--teal); border-color: var(--teal); color: var(--teal-ink); font-weight: 800; }
+    .icon:disabled { opacity: .5; cursor: default; }
+    #toast { position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5; max-width: calc(100% - 32px); padding: 10px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); box-shadow: 0 10px 24px #0008; font-size: 14px; }
+    #toast.bad { border-color: #FF5A4A88; }
+    dialog { border: 1px solid var(--line); border-radius: 20px; background: var(--panel-2); color: var(--ink); padding: 18px; width: min(360px, calc(100% - 32px)); }
+    dialog::backdrop { background: #0B0918cc; }
+    dialog .acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+    .btn { appearance: none; cursor: pointer; border: 1.5px solid #ffffff22; background: #ffffff0e; border-radius: 12px; padding: 8px 14px; font-weight: 700; }
+    .btn.bad { background: var(--hot-soft); border-color: transparent; }
+    #viewer { position: fixed; inset: 0; z-index: 6; background: #000e; display: grid; place-items: center; padding: 16px; cursor: zoom-out; }
+    #viewer img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <header><div class="wrap">
+    <a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1>Family</h1>
+    <span class="grow"></span>
+    <button class="pill" id="alerts" hidden>🔔 Turn on alerts</button>
+  </div></header>
+
+  <main id="log" aria-live="polite"><div class="wrap" id="msgs"><p class="empty">Loading…</p></div></main>
+
+  <footer><div class="wrap">
+    <div class="preview" id="preview" hidden><img id="previewimg" alt="Photo to send"><button class="btn" id="unphoto">Remove</button></div>
+    <div class="tools"><button class="chip" id="atclaude" type="button">✦ @claude</button><span class="note" id="hint">Write @claude to ask Claude</span></div>
+    <form id="send">
+      <button class="icon" type="button" id="photo" aria-label="Add a photo">📷</button>
+      <input type="file" id="file" accept="image/*" hidden>
+      <textarea id="text" rows="1" placeholder="Message the family…" maxlength="4000" aria-label="Message"></textarea>
+      <button class="icon send" id="go" aria-label="Send">↑</button>
+    </form>
+  </div></footer>
+
+  <div id="toast" hidden></div>
+  <div id="viewer" hidden><img id="viewimg" alt=""></div>
+  <dialog id="del"><b>Delete this message?</b><div class="note" style="margin:6px 0 0">It goes for everyone.</div>
+    <div class="acts"><button class="btn" id="delno">Cancel</button><button class="btn bad" id="delyes">Delete</button></div></dialog>
+
+<script type="module">
+  import { sb, FAMILY, roleOf } from './auth.js';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/family-chat';
+  const VAPID = 'BAOMU69cDpXXI0RZl3fTA4hkgIZgztF6BXOoWHXo4A48LT7nubbHVOqq6UfkOzLm28ViX16ZQI6osf_FhVGCjwQ';
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
+  const ME = { id: session?.user.id, role: roleOf(session?.user) };
+
+  let family = [], msgs = [], thinking = 0;
+  const urls = new Map();   // image path -> signed URL
+  const member = (id) => family.find((f) => f.id === id);
+  const avatar = (name) => FAMILY.find((f) => f.name === name)?.avatar;
+
+  function toast(text, bad) {
+    const t = $('toast'); t.textContent = text; t.className = bad ? 'bad' : ''; t.hidden = false;
+    clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 4000);
+  }
+
+  // ---- reading ----
+  async function sign(paths) {
+    const need = [...new Set(paths)].filter((p) => p && !urls.has(p));
+    if (!need.length) return;
+    const { data } = await sb.storage.from('family-chat').createSignedUrls(need, 3600);
+    for (const d of data || []) if (d.signedUrl) urls.set(d.path, d.signedUrl);
+  }
+  async function load() {
+    const [{ data: f }, { data: m }] = await Promise.all([
+      family.length ? { data: family } : sb.rpc('r4_family'),
+      sb.from('chat_messages').select('*').order('id', { ascending: false }).limit(200),
+    ]);
+    family = f || []; msgs = (m || []).reverse();
+    await sign(msgs.map((x) => x.image));
+    render(true); seen(true);
+  }
+
+  const day = (d) => d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+  const time = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  // Links and @claude, in text that has already been escaped.
+  const rich = (t) => esc(t).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`)
+    .replace(/(^|[^\w@])(@claude)\b/gi, '$1<span class="at">$2</span>');
+
+  function render(toBottom) {
+    const log = $('log'), atEnd = toBottom || log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+    if (!msgs.length) {
+      $('msgs').innerHTML = `<div class="empty"><b>Say hi 👋</b>Everyone in the family sees this chat.<br>Write @claude to bring Claude in.</div>`;
+    } else {
+      let out = '', lastDay = '';
+      msgs.forEach((m, i) => {
+        const d = new Date(m.created_at), dk = d.toDateString();
+        if (dk !== lastDay) { out += `<div class="day">${dk === new Date().toDateString() ? 'Today' : day(d)}</div>`; lastDay = dk; }
+        const key = (x) => (x.is_claude ? 'claude' : x.author);
+        const prev = msgs[i - 1], next = msgs[i + 1];
+        const near = (a, b) => a && b && key(a) === key(b) && Math.abs(new Date(a.created_at) - new Date(b.created_at)) < 5 * 60e3 && new Date(a.created_at).toDateString() === new Date(b.created_at).toDateString();
+        const first = !near(prev, m), last = !near(m, next);
+        const mine = m.author === ME.id && !m.is_claude, who = m.is_claude ? 'Claude' : member(m.author)?.username || 'someone';
+        const canDel = !m.is_claude && (mine || ME.role === 'parent');
+        const av = m.is_claude ? '<span class="av claude">✦</span>' : avatar(who) ? `<span class="av"><img src="${avatar(who)}" alt=""></span>` : `<span class="av">${esc(who[0].toUpperCase())}</span>`;
+        out += `<div class="msg${mine ? ' me' : ''}${m.is_claude ? ' claude' : ''}${canDel ? ' mine' : ''}${first ? ' first' : ''}${last ? ' last' : ''}" data-id="${m.id}">${av}
+          <div class="bub">${first && !mine ? `<span class="who">${esc(who)}</span>` : ''}${m.image ? `<img class="ph" src="${esc(urls.get(m.image) || '')}" alt="Photo from ${esc(who)}" loading="lazy">` : ''}${m.body ? `<span class="tx">${rich(m.body)}</span>` : ''}${last ? `<span class="tm">${time(d)}</span>` : ''}</div></div>`;
+      });
+      if (thinking) out += '<div class="think">✦ Claude is thinking…</div>';
+      $('msgs').innerHTML = out;
+    }
+    if (atEnd) log.scrollTop = log.scrollHeight;
+  }
+  // Pictures load after the layout: keep the view pinned to the bottom when they do.
+  $('msgs').addEventListener('load', (e) => { if (e.target.tagName === 'IMG') { const log = $('log'); if (log.scrollHeight - log.scrollTop - log.clientHeight < 400) log.scrollTop = log.scrollHeight; } }, true);
+
+  // ---- live ----
+  sb.channel('family-chat')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, async ({ new: m }) => {
+      if (msgs.some((x) => x.id === m.id)) return;
+      await sign([m.image]);
+      msgs.push(m); msgs.sort((a, b) => a.id - b.id);
+      if (m.is_claude && thinking) { thinking = 0; clearTimeout(thinkTimer); }
+      render(m.author === ME.id); seen(true);
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, ({ old }) => {
+      msgs = msgs.filter((x) => x.id !== old.id); render(false);
+    })
+    .subscribe((st) => { if (st === 'SUBSCRIBED' && family.length) load(); });   // caught up after a reconnect
+
+  // Read marker and "looking at it now" (so nobody is pushed for a chat they are reading).
+  async function seen(read) {
+    if (document.hidden || !ME.id) return;
+    const now = new Date().toISOString();
+    await sb.from('chat_reads').upsert(read ? { user_id: ME.id, read_at: now, seen_at: now } : { user_id: ME.id, seen_at: now });
+  }
+  setInterval(() => seen(false), 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+
+  // ---- writing ----
+  const text = $('text');
+  const grow = () => { text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight, 140) + 'px'; };
+  text.addEventListener('input', grow);
+  text.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(pointer: fine)').matches) { e.preventDefault(); $('send').requestSubmit(); } });
+  $('atclaude').onclick = () => { if (!/@claude\b/i.test(text.value)) text.value = '@claude ' + text.value.trimStart(); text.focus(); grow(); };
+
+  let photo = null;   // { blob, url }
+  $('photo').onclick = () => $('file').click();
+  $('file').onchange = async () => {
+    const f = $('file').files[0]; $('file').value = '';
+    if (!f) return;
+    try {
+      // Shrink on the phone: the longest side to 1600 px, as JPEG.
+      const img = await createImageBitmap(f, { imageOrientation: 'from-image' });
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const c = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * k), height: Math.round(img.height * k) });
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
+      if (photo) URL.revokeObjectURL(photo.url);
+      photo = { blob, url: URL.createObjectURL(blob) };
+      $('previewimg').src = photo.url; $('preview').hidden = false;
+    } catch { toast("That photo couldn't be opened.", true); }
+  };
+  $('unphoto').onclick = () => { if (photo) URL.revokeObjectURL(photo.url); photo = null; $('preview').hidden = true; };
+
+  let thinkTimer = 0, sending = false;
+  $('send').onsubmit = async (e) => {
+    e.preventDefault();
+    const body = text.value.trim();
+    if ((!body && !photo) || sending) return;
+    sending = true; $('go').disabled = true;
+    try {
+      let image = null;
+      if (photo) {
+        image = `${ME.id}/${crypto.randomUUID()}.jpg`;
+        const { error } = await sb.storage.from('family-chat').upload(image, photo.blob, { contentType: 'image/jpeg' });
+        if (error) throw new Error("The photo didn't upload. Try again.");
+      }
+      const { data: { session: s } } = await sb.auth.getSession();
+      const r = await fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ text: body, image }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "Couldn't send. Try again.");
+      text.value = ''; grow(); $('unphoto').click();
+      if (j.claude === 'asked') {
+        thinking = j.id; render(true);
+        clearTimeout(thinkTimer); thinkTimer = setTimeout(() => { thinking = 0; render(false); }, 90000);
+        if (j.left != null && j.left < 10) toast(`${j.left} Claude questions left today`);
+      } else if (j.claude === 'closed') toast("Claude isn't open right now: your message went to the family.");
+      else if (j.claude === 'limit') toast("That's all the Claude questions for today: your message went to the family.");
+      // Live updates normally bring it in; if they are slow, fetch it.
+      setTimeout(() => { if (!msgs.some((x) => x.id === j.id)) load(); }, 2500);
+    } catch (err) { toast(err.message, true); }
+    sending = false; $('go').disabled = false; text.focus();
+  };
+
+  // ---- photos full size, deleting ----
+  let delId = null;
+  $('msgs').addEventListener('click', (e) => {
+    const ph = e.target.closest('img.ph');
+    if (ph) { $('viewimg').src = ph.src; $('viewer').hidden = false; return; }
+    const m = e.target.closest('.msg.mine');
+    if (m && !e.target.closest('a')) { delId = +m.dataset.id; $('del').showModal(); }
+  });
+  $('viewer').onclick = () => { $('viewer').hidden = true; };
+  $('delno').onclick = () => $('del').close();
+  $('delyes').onclick = async () => {
+    $('del').close();
+    const m = msgs.find((x) => x.id === delId);
+    const { error } = await sb.from('chat_messages').delete().eq('id', delId);
+    if (error) { toast("Couldn't delete it.", true); return; }
+    if (m?.image && m.author === ME.id) sb.storage.from('family-chat').remove([m.image]);
+    msgs = msgs.filter((x) => x.id !== delId); render(false);
+  };
+
+  // ---- alerts: a push for new messages when the chat isn't open ----
+  const b64 = (s) => Uint8Array.from(atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+  async function alertsState() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      // iPhone: push only reaches a web app added to the Home Screen.
+      if (/iPhone|iPad/.test(navigator.userAgent) && !navigator.standalone) { $('alerts').hidden = false; $('alerts').dataset.ios = '1'; }
+      return;
+    }
+    const reg = await navigator.serviceWorker.getRegistration('/');
+    const sub = reg && Notification.permission === 'granted' ? await reg.pushManager.getSubscription() : null;
+    $('alerts').hidden = false;
+    $('alerts').classList.toggle('on', !!sub);
+    $('alerts').textContent = sub ? '🔔 Alerts on' : '🔔 Turn on alerts';
+  }
+  $('alerts').onclick = async () => {
+    if ($('alerts').dataset.ios) { toast('On iPhone: Share → Add to Home Screen, open r4box from there, then turn on alerts.'); return; }
+    if ($('alerts').classList.contains('on')) return;
+    try {
+      if (await Notification.requestPermission() !== 'granted') { toast('Alerts are blocked for r4box in this browser’s settings.', true); return; }
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
+      const j = sub.toJSON();
+      const { error } = await sb.from('push_subscriptions').upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
+      if (error) throw error;
+      toast('Alerts on: you’ll get a notification for new messages.');
+    } catch (err) { toast("Couldn't turn on alerts: " + (err.message || err), true); }
+    alertsState();
+  };
+
+  if (session) { load(); alertsState(); text.focus({ preventScroll: true }); }
+</script>
+</body>
+</html>

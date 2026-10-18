@@ -1,8 +1,9 @@
-// The push bridge. Phones that turned on turn alerts while the games lived at r4box.com have a
-// service worker and a push subscription on this origin, and the notify function still sends to
-// them. The browser picks up this file in place of the games' old one: it keeps showing those
-// alerts and opens them on games.r4box.com. It does not touch page loads. Retire it once everyone
-// has turned alerts back on at games.r4box.com.
+// r4box.com's service worker: alerts only, it does not touch page loads.
+// - The family chat registers it when someone turns on alerts there; chat alerts
+//   carry an absolute r4box.com URL.
+// - It also stands in for the games' old service worker on phones that turned on
+//   turn alerts while the games lived at r4box.com: their alerts carry a URL
+//   relative to the game room, opened on games.r4box.com.
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
@@ -21,5 +22,12 @@ self.addEventListener('push', (e) => {
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  e.waitUntil(self.clients.openWindow(new URL(e.notification.data?.url || './', 'https://games.r4box.com/').href));
+  const url = new URL(e.notification.data?.url || './', 'https://games.r4box.com/').href;
+  e.waitUntil((async () => {
+    // The page is open already (the chat in another tab): bring it forward.
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const same = wins.find((w) => w.url.split('#')[0] === url.split('#')[0]);
+    if (same) return same.focus();
+    return self.clients.openWindow(url);
+  })());
 });
