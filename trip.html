@@ -162,20 +162,44 @@
     #sheet .linkcard span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 13px; margin-top: 2px; }
     #sheet .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; justify-content: flex-start; }
     #sheet .acts a.btn { text-decoration: none; }
-    #sheet h3.k { margin: 22px 0 10px; font: 700 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
-    #sheet .talk { display: grid; gap: 10px; }
-    #sheet .cm { display: flex; gap: 10px; align-items: flex-start; }
-    #sheet .cm .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--display); background: var(--panel-2); border: 1px solid var(--line); }
-    #sheet .cm .bx { flex: 1; min-width: 0; padding: 8px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); overflow-wrap: anywhere; }
-    #sheet .cm.me .bx { background: color-mix(in srgb, var(--teal) 12%, var(--panel)); border-color: #3DD6C640; }
-    #sheet .cm .bx small { display: flex; justify-content: space-between; gap: 8px; color: var(--faint); font-size: 12px; }
-    #sheet .cm .bx small b { color: var(--violet); }
-    #sheet .cm .bx p { margin: 2px 0 0; white-space: pre-wrap; font-size: 15px; }
-    #sheet .cm .bx p a { color: var(--teal); }
-    #sheet .cm .del { all: unset; cursor: pointer; color: var(--faint); }
-    #sheet form.say { flex: none; display: flex; gap: 8px; align-items: flex-end; padding: 10px 16px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
-    #sheet form.say textarea { flex: 1; min-height: 44px; max-height: 120px; resize: none; padding: 11px 14px; border-radius: 22px; background: var(--panel); }
-    #sheet form.say button { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--teal); color: var(--teal-ink); font-weight: 900; font-size: 18px; cursor: pointer; }
+    :is(#sheet, .tripchat) h3.k { margin: 22px 0 10px; font: 700 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+    :is(#sheet, .tripchat) .talk { display: grid; gap: 10px; }
+    :is(#sheet, .tripchat) .cm { display: flex; gap: 10px; align-items: flex-start; }
+    :is(#sheet, .tripchat) .cm .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--display); background: var(--panel-2); border: 1px solid var(--line); }
+    :is(#sheet, .tripchat) .cm .bx { flex: 1; min-width: 0; padding: 8px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); overflow-wrap: anywhere; }
+    :is(#sheet, .tripchat) .cm.me .bx { background: color-mix(in srgb, var(--teal) 12%, var(--panel)); border-color: #3DD6C640; }
+    :is(#sheet, .tripchat) .cm .bx small { display: flex; justify-content: space-between; gap: 8px; color: var(--faint); font-size: 12px; }
+    :is(#sheet, .tripchat) .cm .bx small b { color: var(--violet); }
+    :is(#sheet, .tripchat) .cm .bx p { margin: 2px 0 0; white-space: pre-wrap; font-size: 15px; }
+    :is(#sheet, .tripchat) .cm .bx p a { color: var(--teal); }
+    :is(#sheet, .tripchat) .cm .del { all: unset; cursor: pointer; color: var(--faint); }
+    :is(#sheet, .tripchat) form.say { flex: none; display: flex; gap: 8px; align-items: flex-end; padding: 10px 16px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
+    :is(#sheet, .tripchat) form.say textarea { flex: 1; min-height: 44px; max-height: 120px; resize: none; padding: 11px 14px; border-radius: 22px; background: var(--panel); }
+    :is(#sheet, .tripchat) form.say button { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--teal); color: var(--teal-ink); font-weight: 900; font-size: 18px; cursor: pointer; }
+    /* polls */
+    .poll { flex: 1; min-width: 0; padding: 12px; border-radius: 14px; background: var(--panel); border: 1.5px solid #B9A6FF55; }
+    .poll .pq { margin: 0 0 8px; font-weight: 800; font-size: 15.5px; line-height: 1.35; overflow-wrap: anywhere; }
+    .poll .pq small { display: block; font-weight: 700; font-size: 12px; color: var(--violet); margin-bottom: 2px; }
+    .po { position: relative; display: flex; justify-content: space-between; gap: 10px; width: 100%; margin-top: 6px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: #ffffff06; color: var(--ink); font: inherit; text-align: left; cursor: pointer; overflow: hidden; isolation: isolate; }
+    .po i { position: absolute; inset: 0 auto 0 0; z-index: -1; background: #B9A6FF2e; transition: width .3s; }
+    .po.mine { border-color: var(--teal); } .po.mine i { background: #3DD6C640; }
+    .po .pl { font-weight: 700; overflow-wrap: anywhere; } .po .pn { flex: none; color: var(--muted); font-size: 13px; font-weight: 700; }
+    .po:disabled { cursor: default; }
+    .poll .pf { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; margin-top: 8px; font-size: 12.5px; color: var(--faint); }
+    .poll .pf button { all: unset; cursor: pointer; color: var(--muted); font-weight: 700; }
+    .poll .pf button:hover { color: var(--teal); }
+    /* the poll being made, above the message box */
+    .pb { flex: none; display: grid; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel-2); }
+    .pb b { font-size: 14px; }
+    .pb input { padding: 10px 12px; }
+    .pb .pps { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pb .pps button, .pb .padd { all: unset; cursor: pointer; padding: 5px 11px; border-radius: 99px; font-size: 13px; font-weight: 700; background: #ffffff0e; border: 1px solid #ffffff1c; }
+    .pb .row2 { display: flex; gap: 8px; align-items: center; } .pb .row2 .grow { flex: 1; }
+    :is(#sheet, .tripchat) form.say .pollbtn { background: #ffffff10; color: var(--ink); border: 1.5px solid var(--line); font-size: 17px; }
+    /* the trip's chat (Chat tab): the message box stays at the bottom of the screen */
+    .tripchat .talk { margin-top: 12px; }
+    .tripchat form.say, .tripchat .pb { position: sticky; bottom: 0; margin: 14px -16px 0; z-index: 2; }
+    .tripchat .pb + form.say { margin-top: 0; }
     .booked { display: flex; gap: 10px; align-items: center; padding: 12px; border-radius: 14px; background: #3DD6C614; border: 1px solid #3DD6C655; font-weight: 700; cursor: pointer; }
     .total { display: flex; justify-content: space-between; align-items: baseline; padding: 14px; border-radius: 14px; background: var(--panel-2); margin: 10px 0; }
     .total b { font: 800 22px/1 var(--display); color: var(--gold); }
@@ -248,7 +272,7 @@
     <div id="answer"></div>
     <details class="asks" id="asks" hidden><summary>Recent asks</summary><div id="asklist"></div></details>
     <nav class="tabs" aria-label="Trip sections">
-      <a href="#plan">Plan</a><a href="#ideas">Ideas</a><a href="#bookings">Bookings</a><a href="#packing">Packing</a>
+      <a href="#plan">Plan</a><a href="#ideas">Ideas</a><a href="#bookings">Bookings</a><a href="#packing">Packing</a><a href="#chat">💬 Chat</a>
     </nav>
     <div id="view"></div>
   </section>
@@ -271,7 +295,8 @@
 
   let trips = [], trip = null, items = [], family = [], asks = [], comments = [];
   const photoUrls = new Map();   // trip-photos path -> signed URL
-  const cc = (id) => comments.filter((c) => c.item === id).length;
+  let polls = [], pollVotes = [];
+  const cc = (id) => comments.filter((c) => c.item === id).length + polls.filter((q) => q.item === id).length;
   const nameOf = (id) => family.find((f) => f.id === id)?.username || '';
 
   // ---- dates ----
@@ -298,20 +323,27 @@
       items = it || [];
       const { data: cm } = await sb.from('trip_comments').select('id, item, author, body, created_at').eq('trip', trip.id).order('id');
       comments = cm || [];
+      const [{ data: pl }, { data: pv }] = await Promise.all([
+        sb.from('trip_polls').select('*').eq('trip', trip.id).order('id'),
+        sb.from('trip_poll_votes').select('poll, voter, choice'),
+      ]);
+      polls = pl || []; pollVotes = (pv || []).filter((v) => polls.some((q) => q.id === v.poll));
       const need = [...new Set(items.flatMap((i) => i.photos || []))].filter((p) => !photoUrls.has(p));
       if (need.length) { const { data: su } = await sb.storage.from('trip-photos').createSignedUrls(need, 3600); for (const x of su || []) if (x.signedUrl) photoUrls.set(x.path, x.signedUrl); }
       const { data: a } = await sb.from('trip_asks').select('asker, text, reply, added, created_at').eq('trip', trip.id).order('created_at', { ascending: false }).limit(8);
       asks = a || [];
     }
+    // Drafts and the poll being made live in drafts/builder; only focus and scroll need carrying over.
+    const focusKey = document.activeElement?.dataset?.f, inSheet = !!document.activeElement?.closest?.('#sheet');
+    const nearEnd = window.innerHeight + window.scrollY > document.body.scrollHeight - 120;
     render();
+    if ((location.hash || '#plan') === '#chat' && nearEnd) window.scrollTo({ top: document.body.scrollHeight });
     if (open && $('sheet').open) {
-      // keep a half-typed comment across a live refresh
-      const t = $('sheet').querySelector('#shtext'), draft = t ? t.value : '', focused = document.activeElement === t;
       const b = $('sheet').querySelector('.body'), atEnd = b && b.scrollHeight - b.scrollTop - b.clientHeight < 60, top = b ? b.scrollTop : 0;
       renderSheet();
-      const t2 = $('sheet').querySelector('#shtext'); if (t2) { t2.value = draft; if (focused) t2.focus(); }
       const b2 = $('sheet').querySelector('.body'); if (b2) b2.scrollTop = atEnd ? b2.scrollHeight : top;
     }
+    if (focusKey) (inSheet ? $('sheet') : $('view')).querySelector(`[data-f="${focusKey}"]`)?.focus();
   }
 
   function render() {
@@ -332,7 +364,7 @@
     $('goal').hidden = !trip.goal; $('goal').textContent = trip.goal ? '🎯 ' + trip.goal : '';
     const tab = (location.hash || '#plan').slice(1);
     document.querySelectorAll('.tabs a').forEach((a) => a.setAttribute('aria-current', String(a.hash === '#' + tab)));
-    ({ plan, ideas, bookings, packing }[tab] || plan)();
+    ({ plan, ideas, bookings, packing, chat }[tab] || plan)();
     $('asks').hidden = !asks.length;
     $('asklist').innerHTML = asks.map((a) => `<p><b>${esc(nameOf(a.asker))}:</b> ${esc(a.text)}<br>✦ ${esc(a.reply || '')}</p>`).join('');
   }
@@ -560,6 +592,104 @@
     });
   }
 
+  // ---- talk: comments and polls, in an item's discussion or the trip's own chat (item null) ----
+  const drafts = {};      // half-typed messages, per talk, kept across live refreshes
+  let builder = null;     // the poll being made: { key, q, opts }
+  const tkey = (item) => item || 'trip';
+  const streamOf = (item) => [...comments.filter((c) => (c.item || null) === (item || null)).map((c) => ({ ...c, t: 'c' })),
+    ...polls.filter((q) => (q.item || null) === (item || null)).map((q) => ({ ...q, t: 'p' }))].sort((x, y) => x.created_at.localeCompare(y.created_at));
+  const initial = (id) => (nameOf(id) || '?')[0].toUpperCase();
+  function pollHTML(q) {
+    const vs = pollVotes.filter((v) => v.poll === q.id), mine = vs.find((v) => v.voter === ME.id)?.choice;
+    const top = Math.max(0, ...q.options.map((_, k) => vs.filter((v) => v.choice === k).length));
+    return `<div class="poll"><p class="pq"><small>📊 Poll${q.closed ? ' · closed' : ''}</small>${esc(q.question)}</p>
+      ${q.options.map((o, k) => {
+        const who = vs.filter((v) => v.choice === k), pct = vs.length ? Math.round((who.length / vs.length) * 100) : 0;
+        return `<button class="po${mine === k ? ' mine' : ''}" data-vote="${q.id}:${k}" ${q.closed ? 'disabled' : ''} aria-pressed="${mine === k}">
+          <i style="width:${pct}%"></i><span class="pl">${mine === k ? '✓ ' : ''}${q.closed && who.length && who.length === top ? '🏆 ' : ''}${esc(o)}</span>
+          <span class="pn">${who.length ? `${who.length} · ${who.map((v) => initial(v.voter)).join(' ')}` : '0'}</span></button>`;
+      }).join('')}
+      <div class="pf"><span>${vs.length} of ${family.length || '?'} voted${q.closed ? '' : ' · tap to vote, tap again to take it back'}</span>
+        <span>${q.author === ME.id || PARENT ? `${q.closed ? '' : `<button data-closepoll="${q.id}">Close poll</button> · `}<button data-unpoll="${q.id}">Delete</button>` : ''}</span></div></div>`;
+  }
+  function talkHTML(item, empty) {
+    const st = streamOf(item);
+    return `<div class="talk">${st.map((m) => `<div class="cm${m.author === ME.id ? ' me' : ''}"><span class="av">${esc(initial(m.author))}</span>
+      ${m.t === 'p' ? pollHTML(m) : `<div class="bx"><small><b>${esc(nameOf(m.author) || 'someone')}</b><span>${esc(when(m.created_at))}${m.author === ME.id || PARENT ? ` <button class="del" data-uncomment="${m.id}" aria-label="Delete">✕</button>` : ''}</span></small><p>${linkify(m.body)}</p></div>`}</div>`).join('')
+      || `<p class="note" style="margin:0">${empty}</p>`}</div>`;
+  }
+  function composerHTML(item, placeholder) {
+    const k = tkey(item), pb = builder && builder.key === k ? builder : null;
+    return `${pb ? `<div class="pb" data-pb="${k}"><b>📊 Take a poll</b>
+        <input data-f="pq" class="pq-in" maxlength="200" placeholder="Ask the family…" value="${esc(pb.q)}">
+        <div class="pps"><button type="button" data-preset="Yes|No|Maybe">Yes / No / Maybe</button><button type="button" data-preset="👍|👎">👍 / 👎</button><button type="button" data-preset="Love it|Fine|Skip it">Love it / Fine / Skip it</button></div>
+        ${pb.opts.map((o, n) => `<input data-f="po${n}" class="po-in" data-n="${n}" maxlength="80" placeholder="Option ${n + 1}" value="${esc(o)}">`).join('')}
+        <div class="row2">${pb.opts.length < 6 ? '<button type="button" class="padd" data-addopt="1">＋ Option</button>' : ''}<span class="grow"></span>
+          <button type="button" class="btn" data-pbcancel="1">Cancel</button><button type="button" class="btn p" data-pbgo="1">Post poll</button></div></div>` : ''}
+      <form class="say" data-say="${k}"><button type="button" class="pollbtn" data-pollnew="1" aria-label="Take a poll">📊</button><textarea data-f="say" rows="1" maxlength="2000" placeholder="${esc(placeholder)}" aria-label="Message">${esc(drafts[k] || '')}</textarea><button aria-label="Send">↑</button></form>`;
+  }
+  const rerender = (item) => (item ? renderSheet() : render());
+  function wireTalk(root, item) {
+    const k = tkey(item), q = (sel) => root.querySelector(sel);
+    root.querySelectorAll('[data-uncomment]').forEach((b) => b.onclick = async () => {
+      if (!confirm('Delete this comment?')) return;
+      await sb.from('trip_comments').delete().eq('id', +b.dataset.uncomment); load();
+    });
+    root.querySelectorAll('[data-vote]').forEach((b) => b.onclick = async () => {
+      const [pid, n] = b.dataset.vote.split(':').map(Number);
+      const mine = pollVotes.find((v) => v.poll === pid && v.voter === ME.id);
+      const { error } = mine && mine.choice === n ? await sb.from('trip_poll_votes').delete().eq('poll', pid).eq('voter', ME.id)
+        : await sb.from('trip_poll_votes').upsert({ poll: pid, voter: ME.id, choice: n });
+      if (error) alert('Could not vote: ' + error.message); else load();
+    });
+    root.querySelectorAll('[data-closepoll]').forEach((b) => b.onclick = async () => { await sb.from('trip_polls').update({ closed: true }).eq('id', +b.dataset.closepoll); load(); });
+    root.querySelectorAll('[data-unpoll]').forEach((b) => b.onclick = async () => { if (confirm('Delete this poll and its votes?')) { await sb.from('trip_polls').delete().eq('id', +b.dataset.unpoll); load(); } });
+    const t = q(`form[data-say="${k}"] textarea`);
+    const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; };
+    t.oninput = () => { drafts[k] = t.value; grow(); }; grow();
+    q('[data-pollnew]').onclick = () => {
+      builder = builder && builder.key === k ? null : { key: k, q: t.value.trim(), opts: ['Yes', 'No'] };
+      if (builder) { drafts[k] = ''; }
+      rerender(item); root.querySelector('.pq-in')?.focus();
+    };
+    const pb = q(`[data-pb="${k}"]`);
+    if (pb) {
+      pb.querySelector('.pq-in').oninput = (e) => { builder.q = e.target.value; };
+      pb.querySelectorAll('.po-in').forEach((x) => x.oninput = () => { builder.opts[+x.dataset.n] = x.value; });
+      pb.querySelectorAll('[data-preset]').forEach((x) => x.onclick = () => { builder.opts = x.dataset.preset.split('|'); rerender(item); });
+      if (pb.querySelector('[data-addopt]')) pb.querySelector('[data-addopt]').onclick = () => { builder.opts.push(''); rerender(item); root.querySelector(`[data-n="${builder.opts.length - 1}"]`)?.focus(); };
+      pb.querySelector('[data-pbcancel]').onclick = () => { builder = null; rerender(item); };
+      pb.querySelector('[data-pbgo]').onclick = async () => {
+        const question = builder.q.trim(), options = [...new Set(builder.opts.map((o) => o.trim()).filter(Boolean))];
+        if (!question) { alert('Type the question first.'); return; }
+        if (options.length < 2) { alert('A poll needs at least two different options.'); return; }
+        const { error } = await sb.from('trip_polls').insert({ trip: trip.id, item: item || null, question, options });
+        if (error) { alert('Could not post the poll: ' + error.message); return; }
+        builder = null; await load(); toBottom(item);
+      };
+    }
+    q(`form[data-say="${k}"]`).onsubmit = async (e) => {
+      e.preventDefault();
+      const body = t.value.trim(); if (!body) return;
+      t.disabled = true;
+      const { error } = await sb.from('trip_comments').insert({ trip: trip.id, item: item || null, body });
+      t.disabled = false;
+      if (error) { alert('Could not send: ' + error.message); return; }
+      drafts[k] = ''; await load(); toBottom(item);
+      root.querySelector(`form[data-say="${k}"] textarea`)?.focus();
+    };
+  }
+  function toBottom(item) {
+    if (item) { const b = $('sheet').querySelector('.body'); if (b) b.scrollTop = b.scrollHeight; }
+    else window.scrollTo({ top: document.body.scrollHeight });
+  }
+  // The trip's own chat: everything that isn't about one item.
+  function chat() {
+    $('view').innerHTML = `<div class="tripchat"><p class="note">The whole trip, all together. Each idea and booking also has its own discussion on its page.</p>
+      ${talkHTML(null, 'No messages yet. Say hi, or take a poll: 📊 next to the message box.')}${composerHTML(null, 'Message the family…')}</div>`;
+    wireTalk($('view'), null);
+  }
+
   // ---- one item, in full: pictures, notes, link, actions and the family's discussion ----
   const PREVIEW = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/link-preview';
   const linkify = (t) => esc(t).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48)}${u.length > 60 ? '…' : ''}</a>`);
@@ -594,7 +724,7 @@
     const place = ['stay', 'food', 'activities', 'tickets', 'transport'].includes(i.topic) || i.kind === 'plan';
     const maps = place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(i.title.replace(/^[A-Za-z ]+:\s*/, '') + (trip.place ? ', ' + trip.place : ''))}` : '';
     const facts = [i.day && ['Day', nice(i.day)], i.at && ['Time', i.at], i.cost != null && ['Cost', money(i.cost)], i.conf && ['Confirmation', i.conf]].filter(Boolean);
-    const talk = comments.filter((c) => c.item === i.id);
+    const talk = streamOf(i.id);
     const who = (id) => nameOf(id) || 'someone';
     $('sheet').innerHTML = `<div class="wrap">
       <header class="sh"><b>${TOPIC[i.topic] ? TOPIC[i.topic].join(' ') : KIND[i.kind]}</b>${canEdit ? '<button class="btn" id="shedit">Edit</button>' : ''}<button class="btn" id="shx" aria-label="Close" autofocus>✕</button></header>
@@ -623,12 +753,10 @@
             ${!ytId(i.video) && i.kind !== 'booking' && canEdit ? '<button class="btn" id="shfindvid">✦ Find a video</button>' : ''}
           </div>
           <h3 class="k">Discussion${talk.length ? ` · ${talk.length}` : ''}</h3>
-          <div class="talk">${talk.map((c) => `<div class="cm${c.author === ME.id ? ' me' : ''}"><span class="av">${esc(who(c.author)[0].toUpperCase())}</span>
-            <div class="bx"><small><b>${esc(who(c.author))}</b><span>${esc(when(c.created_at))}${c.author === ME.id || PARENT ? ` <button class="del" data-uncomment="${c.id}" aria-label="Delete">✕</button>` : ''}</span></small><p>${linkify(c.body)}</p></div></div>`).join('')
-            || '<p class="note" style="margin:0">No comments yet. What does everyone think?</p>'}</div>
+          ${talkHTML(i.id, 'No comments yet. What does everyone think? Or take a poll.')}
         </div>
       </div>
-      <form class="say" id="shsay"><textarea id="shtext" rows="1" maxlength="2000" placeholder="Say something about this…" aria-label="Comment"></textarea><button aria-label="Send">↑</button></form>
+      ${composerHTML(i.id, 'Say something about this…')}
     </div>`;
     const S = (id) => $('sheet').querySelector('#' + id);
     S('shx').onclick = () => { open = null; $('sheet').close(); };
@@ -659,23 +787,7 @@
       if (error) { alert(error.message); return; }
       sb.storage.from('trip-photos').remove([path]); load();
     });
-    $('sheet').querySelectorAll('[data-uncomment]').forEach((b) => b.onclick = async () => {
-      if (!confirm('Delete this comment?')) return;
-      await sb.from('trip_comments').delete().eq('id', +b.dataset.uncomment); load();
-    });
-    const t = S('shtext');
-    t.oninput = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; };
-    S('shsay').onsubmit = async (e) => {
-      e.preventDefault();
-      const body = t.value.trim(); if (!body) return;
-      t.disabled = true;
-      const { error } = await sb.from('trip_comments').insert({ trip: trip.id, item: i.id, body });
-      t.disabled = false;
-      if (error) { alert('Could not send: ' + error.message); return; }
-      t.value = ''; await load();
-      const b = $('sheet').querySelector('.body'); if (b) b.scrollTop = b.scrollHeight;
-      $('sheet').querySelector('#shtext')?.focus();
-    };
+    wireTalk($('sheet'), i.id);
   }
   $('sheet').addEventListener('close', () => { open = null; });
   // A photo from the phone, shrunk to 1600 px before it goes up.
@@ -778,7 +890,9 @@
   sb.channel('trips').on('postgres_changes', { event: '*', schema: 'public', table: 'trip_items' }, soon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, soon)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trip_asks' }, soon)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_comments' }, soon).subscribe();
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_comments' }, soon)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_polls' }, soon)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_poll_votes' }, soon).subscribe();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 
   if (session) load();
