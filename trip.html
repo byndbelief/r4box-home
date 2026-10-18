@@ -198,15 +198,16 @@
     $('trips').innerHTML = trips.length > 1 ? `<select id="pick" aria-label="Trip">${trips.map((x) => `<option value="${x.id}" ${x.id === trip?.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>` : '';
     if ($('pick')) $('pick').onchange = () => { history.replaceState(null, '', '?t=' + $('pick').value + location.hash); load(); };
     if (!trip) {
-      $('nonetext').textContent = PARENT ? 'Start one and the family can plan it with you.' : 'When Dad starts one, it shows up here.';
-      $('newtrip').hidden = !PARENT; return;
+      $('nonetext').textContent = 'Start one and the family can plan it with you.';
+      $('newtrip').hidden = false; return;
     }
     $('name').textContent = trip.name;
     $('where').textContent = (trip.origin && trip.place ? trip.origin + ' → ' : '') + (trip.place || '');
     $('when').textContent = trip.starts ? nice(trip.starts, { month: 'short', day: 'numeric' }) + (trip.ends ? ' – ' + nice(trip.ends, { month: 'short', day: 'numeric', year: 'numeric' }) : '') : '';
     const n = trip.starts ? Math.round((D(trip.starts) - D(iso(new Date()))) / 86400000) : null;
     $('countdown').textContent = n == null ? '' : n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow!' : n === 0 ? 'today!' : trip.ends && trip.ends >= iso(new Date()) ? 'happening now' : '';
-    $('edittrip').hidden = !PARENT; $('newtrip2').hidden = !PARENT;
+    // Anyone starts a trip; its starter or a parent edits it (092).
+    $('edittrip').hidden = !(PARENT || trip.created_by === ME.id); $('newtrip2').hidden = false;
     $('goal').hidden = !trip.goal; $('goal').textContent = trip.goal ? '🎯 ' + trip.goal : '';
     const tab = (location.hash || '#plan').slice(1);
     document.querySelectorAll('.tabs a').forEach((a) => a.setAttribute('aria-current', String(a.hash === '#' + tab)));
