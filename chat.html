@@ -60,6 +60,22 @@
     .bub .tx { white-space: pre-wrap; }
     .bub .tx a { color: var(--teal); }
     .bub .tx .at { color: var(--gold); font-weight: 700; }
+    /* things from the trip planner, as cards in the chat */
+    .rcard { display: flex; gap: 10px; align-items: center; margin: 4px 0 2px; padding: 8px; border-radius: 12px; background: #0B091866; border: 1px solid #ffffff1c; color: inherit; text-decoration: none; min-width: min(250px, 62vw); }
+    .rcard img { flex: none; width: 56px; height: 56px; border-radius: 9px; object-fit: cover; background: #1F1A3F; }
+    .rcard .ri { flex: none; width: 56px; height: 56px; border-radius: 9px; display: grid; place-items: center; background: #1F1A3F; font-size: 24px; }
+    .rcard small { display: block; color: var(--teal); font-weight: 700; font-size: 11.5px; }
+    .rcard b { display: block; font-size: 14.5px; line-height: 1.3; overflow-wrap: anywhere; }
+    .rcard ul { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--muted); }
+    .rpoll { margin: 4px 0 2px; min-width: min(260px, 64vw); }
+    .rpoll .q { font-weight: 800; margin-bottom: 4px; } .rpoll .q small { display: block; color: var(--teal); font-size: 11.5px; font-weight: 700; }
+    .rpoll .po { position: relative; display: flex; justify-content: space-between; gap: 8px; width: 100%; margin-top: 6px; padding: 9px 11px; border-radius: 11px; border: 1.5px solid #ffffff22; background: #0B091855; color: var(--ink); font: inherit; text-align: left; cursor: pointer; overflow: hidden; isolation: isolate; }
+    .rpoll .po i { position: absolute; inset: 0 auto 0 0; z-index: -1; background: #B9A6FF33; transition: width .3s; }
+    .rpoll .po.mine { border-color: var(--teal); } .rpoll .po.mine i { background: #3DD6C644; }
+    .rpoll .po .pn { flex: none; color: var(--muted); font-size: 12.5px; font-weight: 700; }
+    .rpoll .po:disabled { cursor: default; }
+    .rpoll .pf { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12px; color: var(--faint); }
+    .rpoll .pf a { color: var(--teal); text-decoration: none; font-weight: 700; }
     .bub img.ph { display: block; max-width: min(280px, 100%); max-height: 340px; border-radius: 12px; margin: 2px 0 4px; cursor: zoom-in; background: var(--panel-2); }
     .bub .tm { display: block; text-align: right; font-size: 11px; color: var(--faint); margin-top: 2px; }
     .think { align-self: flex-start; color: var(--gold); font-size: 14px; margin: 10px 0 0 38px; animation: pulse 1.4s ease-in-out infinite; }
@@ -150,10 +166,34 @@
       sb.from('chat_messages').select('*').order('id', { ascending: false }).limit(200),
     ]);
     family = f || []; msgs = (m || []).reverse();
-    await sign(msgs.map((x) => x.image));
+    await Promise.all([sign(msgs.map((x) => x.image)), loadPolls()]);
     render(true); seen(true);
   }
 
+  // Trip polls shared into the chat, voted on right here (the same votes the trip page shows).
+  let polls = [], votes = [];
+  async function loadPolls() {
+    const ids = [...new Set(msgs.filter((x) => x.ref?.type === 'poll').map((x) => x.ref.id))];
+    if (!ids.length) { polls = []; votes = []; return; }
+    const [{ data: p }, { data: v }] = await Promise.all([sb.from('trip_polls').select('*').in('id', ids), sb.from('trip_poll_votes').select('poll, voter, choice').in('poll', ids)]);
+    polls = p || []; votes = v || [];
+  }
+  const tripUrl = (r) => `/trip.html?t=${encodeURIComponent(r.trip)}${r.id && r.type === 'item' ? '&i=' + encodeURIComponent(r.id) : r.type === 'poll' && r.item ? '&i=' + encodeURIComponent(r.item) : '#chat'}`;
+  const initial = (id) => (member(id)?.username || '?')[0].toUpperCase();
+  function refHTML(r) {
+    if (r.type === 'item') return `<a class="rcard" href="${esc(tripUrl(r))}">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="ri">📍</span>'}<span><small>${esc(r.trip_name)} ↗</small><b>${esc(r.title)}</b></span></a>`;
+    if (r.type === 'added') return `<a class="rcard" href="${esc(tripUrl(r))}"><span class="ri">✦</span><span><small>Added to ${esc(r.trip_name)} ↗</small><ul>${(r.titles || []).map((t) => `<li>${esc(t)}</li>`).join('')}</ul></span></a>`;
+    if (r.type === 'poll') {
+      const q = polls.find((x) => x.id === r.id);
+      if (!q) return `<a class="rcard" href="${esc(tripUrl(r))}"><span class="ri">📊</span><span><small>${esc(r.trip_name)} ↗</small><b>${esc(r.question)}</b></span></a>`;
+      const vs = votes.filter((v) => v.poll === q.id), mine = vs.find((v) => v.voter === ME.id)?.choice;
+      return `<div class="rpoll"><div class="q"><small>📊 Poll · ${esc(r.trip_name)}${q.closed ? ' · closed' : ''}</small>${esc(q.question)}</div>
+        ${q.options.map((o, k) => { const w = vs.filter((v) => v.choice === k), pct = vs.length ? Math.round((w.length / vs.length) * 100) : 0;
+          return `<button class="po${mine === k ? ' mine' : ''}" data-vote="${q.id}:${k}" ${q.closed ? 'disabled' : ''} aria-pressed="${mine === k}"><i style="width:${pct}%"></i><span>${mine === k ? '✓ ' : ''}${esc(o)}</span><span class="pn">${w.length ? `${w.length} · ${w.map((v) => initial(v.voter)).join(' ')}` : '0'}</span></button>`; }).join('')}
+        <div class="pf"><span>${vs.length} voted</span><a href="${esc(tripUrl(r))}">Open in the trip ↗</a></div></div>`;
+    }
+    return '';
+  }
   const day = (d) => d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
   const time = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   // Links and @claude, in text that has already been escaped.
@@ -177,7 +217,7 @@
         const canDel = !m.is_claude && (mine || ME.role === 'parent');
         const av = m.is_claude ? '<span class="av claude">✦</span>' : avatar(who) ? `<span class="av"><img src="${avatar(who)}" alt=""></span>` : `<span class="av">${esc(who[0].toUpperCase())}</span>`;
         out += `<div class="msg${mine ? ' me' : ''}${m.is_claude ? ' claude' : ''}${canDel ? ' mine' : ''}${first ? ' first' : ''}${last ? ' last' : ''}" data-id="${m.id}">${av}
-          <div class="bub">${first && !mine ? `<span class="who">${esc(who)}</span>` : ''}${m.image ? `<img class="ph" src="${esc(urls.get(m.image) || '')}" alt="Photo from ${esc(who)}" loading="lazy">` : ''}${m.body ? `<span class="tx">${rich(m.body)}</span>` : ''}${last ? `<span class="tm">${time(d)}</span>` : ''}</div></div>`;
+          <div class="bub">${first && !mine ? `<span class="who">${esc(who)}</span>` : ''}${m.image ? `<img class="ph" src="${esc(urls.get(m.image) || '')}" alt="Photo from ${esc(who)}" loading="lazy">` : ''}${m.body && !(m.ref && ['item', 'poll'].includes(m.ref.type) && /^(📍|📊) /.test(m.body)) ? `<span class="tx">${rich(m.body)}</span>` : ''}${m.ref ? refHTML(m.ref) : ''}${last ? `<span class="tm">${time(d)}</span>` : ''}</div></div>`;
       });
       if (thinking) out += '<div class="think">✦ Claude is thinking…</div>';
       $('msgs').innerHTML = out;
@@ -193,12 +233,15 @@
       if (msgs.some((x) => x.id === m.id)) return;
       await sign([m.image]);
       msgs.push(m); msgs.sort((a, b) => a.id - b.id);
+      if (m.ref?.type === 'poll') await loadPolls();
       if (m.is_claude && thinking) { thinking = 0; clearTimeout(thinkTimer); }
       render(m.author === ME.id); seen(true);
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, ({ old }) => {
       msgs = msgs.filter((x) => x.id !== old.id); render(false);
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_poll_votes' }, () => { if (polls.length) loadPolls().then(() => render(false)); })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trip_polls' }, () => { if (polls.length) loadPolls().then(() => render(false)); })
     .subscribe((st) => { if (st === 'SUBSCRIBED' && family.length) load(); });   // caught up after a reconnect
 
   // Read marker and "looking at it now" (so nobody is pushed for a chat they are reading).
@@ -268,7 +311,16 @@
 
   // ---- photos full size, deleting ----
   let delId = null;
-  $('msgs').addEventListener('click', (e) => {
+  $('msgs').addEventListener('click', async (e) => {
+    const vb = e.target.closest('[data-vote]');
+    if (vb) {
+      const [pid, n] = vb.dataset.vote.split(':').map(Number), mine = votes.find((v) => v.poll === pid && v.voter === ME.id);
+      const { error } = mine && mine.choice === n ? await sb.from('trip_poll_votes').delete().eq('poll', pid).eq('voter', ME.id)
+        : await sb.from('trip_poll_votes').upsert({ poll: pid, voter: ME.id, choice: n });
+      if (error) toast('Could not vote: ' + error.message, true); else { await loadPolls(); render(false); }
+      return;
+    }
+    if (e.target.closest('.rcard, .rpoll')) return;
     const ph = e.target.closest('img.ph');
     if (ph) { $('viewimg').src = ph.src; $('viewer').hidden = false; return; }
     const m = e.target.closest('.msg.mine');

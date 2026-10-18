@@ -295,7 +295,7 @@
 
   let trips = [], trip = null, items = [], family = [], asks = [], comments = [];
   const photoUrls = new Map();   // trip-photos path -> signed URL
-  let polls = [], pollVotes = [];
+  let polls = [], pollVotes = [], deepDone = false;
   const cc = (id) => comments.filter((c) => c.item === id).length + polls.filter((q) => q.item === id).length;
   const nameOf = (id) => family.find((f) => f.id === id)?.username || '';
 
@@ -338,6 +338,13 @@
     const nearEnd = window.innerHeight + window.scrollY > document.body.scrollHeight - 120;
     render();
     if ((location.hash || '#plan') === '#chat' && nearEnd) window.scrollTo({ top: document.body.scrollHeight });
+    // A link to one item (from the family chat) opens it, once.
+    const deep = new URLSearchParams(location.search).get('i');
+    if (deep && !deepDone) {
+      deepDone = true;
+      const it = items.find((x) => x.id === deep);
+      if (it) { history.replaceState(null, '', '?t=' + trip.id + '#' + TAB[it.kind]); render(); view(it); }
+    }
     if (open && $('sheet').open) {
       const b = $('sheet').querySelector('.body'), atEnd = b && b.scrollHeight - b.scrollTop - b.clientHeight < 60, top = b ? b.scrollTop : 0;
       renderSheet();
@@ -594,6 +601,13 @@
 
   // ---- talk: comments and polls, in an item's discussion or the trip's own chat (item null) ----
   const drafts = {};      // half-typed messages, per talk, kept across live refreshes
+  // Into the family chat: a trip item or poll, as a card (the server reads its title and picture itself).
+  const FAMILY_CHAT = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/family-chat';
+  async function shareToChat(ref) {
+    const { data: { session: s } } = await sb.auth.getSession();
+    const r = await fetch(FAMILY_CHAT, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ref }) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+  }
   let builder = null;     // the poll being made: { key, q, opts }
   const tkey = (item) => item || 'trip';
   const streamOf = (item) => [...comments.filter((c) => (c.item || null) === (item || null)).map((c) => ({ ...c, t: 'c' })),
@@ -663,8 +677,9 @@
         const question = builder.q.trim(), options = [...new Set(builder.opts.map((o) => o.trim()).filter(Boolean))];
         if (!question) { alert('Type the question first.'); return; }
         if (options.length < 2) { alert('A poll needs at least two different options.'); return; }
-        const { error } = await sb.from('trip_polls').insert({ trip: trip.id, item: item || null, question, options });
+        const { data: np, error } = await sb.from('trip_polls').insert({ trip: trip.id, item: item || null, question, options }).select('id').single();
         if (error) { alert('Could not post the poll: ' + error.message); return; }
+        shareToChat({ type: 'poll', id: np.id }).catch(() => {});   // everyone sees it, and votes, in the family chat too
         builder = null; await load(); toBottom(item);
       };
     }
@@ -750,6 +765,7 @@
             ${i.kind === 'idea' ? '<button class="btn" id="shplan">Put in the plan</button>' : ''}
             ${maps ? `<a class="btn" href="${esc(maps)}" target="_blank" rel="noopener noreferrer">📍 Open in Maps</a>` : ''}
             ${canEdit ? '<button class="btn" id="shphoto">📷 Add photo</button>' : ''}
+            <button class="btn" id="shshare">💬 Share to family chat</button>
             ${!ytId(i.video) && i.kind !== 'booking' && canEdit ? '<button class="btn" id="shfindvid">✦ Find a video</button>' : ''}
           </div>
           <h3 class="k">Discussion${talk.length ? ` · ${talk.length}` : ''}</h3>
@@ -765,6 +781,11 @@
     if (S('shbook')) S('shbook').onclick = () => { $('sheet').close(); edit({ ...i, kind: 'booking', _from: i.id }); };
     if (S('shplan')) S('shplan').onclick = () => { $('sheet').close(); edit({ ...i, kind: 'plan', _from: i.id }); };
     if (S('shphoto')) S('shphoto').onclick = () => $('photofile').click();
+    S('shshare').onclick = async () => {
+      const b = S('shshare'); b.disabled = true;
+      try { await shareToChat({ type: 'item', id: i.id }); b.textContent = '✓ Shared to the family chat'; }
+      catch (e) { alert("Couldn't share: " + e.message); b.disabled = false; }
+    };
     if (S('shvid')) S('shvid').onclick = () => {
       S('shvid').innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${ytId(i.video)}?autoplay=1&rel=0&playsinline=1" title="${esc(i.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
       S('shvid').onclick = null;
