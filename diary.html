@@ -66,7 +66,7 @@
 <body>
   <header><a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1 id="title">Diary</h1><span class="grow"></span><select id="who" hidden aria-label="Whose world"></select></header>
   <div class="world"><canvas id="eco" aria-label="Your world, grown from your diary"></canvas>
-    <div class="seed" id="seed" hidden><div><b>Your world starts tonight 🌱</b><p>Everything you ask the tutor, the trip planner or @claude in the chat, and every game you finish, grows something here. It's built every night.</p></div></div>
+    <div class="seed" id="seed" hidden><div><b>Your world starts tonight 🌱</b><p>What you learn with the tutor grows your tree. Trips become stars, chat questions become mandalas, and every game you finish feeds a strange attractor. It's built every night.</p></div></div>
     <div class="legend" id="legend"></div></div>
   <main class="page">
     <div class="pick" id="pick" hidden></div>
@@ -76,12 +76,13 @@
     <div class="topics" id="topics"></div>
   </main>
 
+<script src="diary-tree.js"></script>
 <script src="ecosystem.js"></script>
 <script type="module">
   import { sb, roleOf } from './auth.js';
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const REALM = { tutor: ['🌳', 'Learning', 'a tree'], chat: ['🌸', 'Chat', 'a flower'], trip: ['⭐', 'Trips', 'a constellation'], game: ['🦊', 'Games', 'animals'] };
+  const REALM = { tutor: ['🌳', 'Learning', 'a limb on your tree'], chat: ['✿', 'Chat', 'a mandala'], trip: ['✶', 'Trips', 'a star in the sky'], game: ['🌀', 'Games', 'a strange attractor'] };
   const KIND = { spark: 'sprouted', deepen: 'grew', branch: 'branched', pivot: 'turned', merge: 'joined', park: 'rested', revive: 'came back', ship: 'finished' };
   const nice = (d, o = { weekday: 'long', month: 'short', day: 'numeric' }) => new Date(d + 'T12:00:00').toLocaleDateString([], o);
 
@@ -144,6 +145,14 @@
   // What something in the world is, and how it grew.
   function show(t) {
     if (!t) { $('pick').hidden = true; return; }
+    if (t.group === 'tutor') {   // the tree: every learning topic is a limb
+      const limbs = topics.filter((x) => x.source === 'tutor');
+      $('pick').hidden = false;
+      $('pick').innerHTML = `<h2>🌳 Your tree <small>${limbs.length} limb${limbs.length === 1 ? '' : 's'}, one for each thing you're learning</small></h2>
+        <div class="chips" style="margin-top:10px">${limbs.map((x) => `<button data-t="${x.id}">${esc(x.title)}</button>`).join('')}</div>`;
+      $('pick').querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => show(topics.find((x) => x.id === b.dataset.t))));
+      return;
+    }
     const evs = events.filter((e) => e.topic === t.id);
     const [emoji, , what] = REALM[t.source];
     $('pick').hidden = false;

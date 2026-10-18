@@ -465,7 +465,8 @@
       treeState.raf = requestAnimationFrame(frame);
     }
     if (reduce) paintTree(cv, total); else treeState.raf = requestAnimationFrame(frame);
-    var ro = new ResizeObserver(function () { size(); layout(); if (reduce) paintTree(cv); });
+    // r4box addition: resizing clears the canvas, so paint at once instead of waiting a frame
+    var ro = new ResizeObserver(function () { size(); layout(); paintTree(cv, reduce ? null : Math.round(treeState.t * treeState.segs.length)); });
     ro.observe(cv.parentNode);
     return function () { alive = false; cancelAnimationFrame(treeState.raf); ro.disconnect(); };
   };

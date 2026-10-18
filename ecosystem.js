@@ -1,203 +1,231 @@
-/* A kid's world, grown from their diary (public.kid_topics / kid_events).
-   A topic's source decides what it becomes: tutor = a tree, chat = a flower,
-   trip = a constellation, game = animals. Its events decide how much it has grown:
-   size from summed effort, branches and petals from the number of events, stars
-   from each event, animals from games won. Parked topics stand bare, finished ones
-   bear fruit, quiet ones fade. Nothing here is stored: the world is drawn fresh
-   from the events every time, so it can be redrawn differently later.
+/* A kid's world, grown from their diary (public.kid_topics / kid_events), in
+   r4box's language: the beauty in chaos. Symmetry, fractals, sacred geometry.
 
-   mountEcosystem(canvas, { topics, events }, { background, onPick }) -> { destroy } */
+   - Learning (tutor topics) is the Clearing tree itself (diary-tree.js): one
+     trunk carrying time, a coiling limb per topic, buds per event.
+   - Trips are star polygons {n/k} in the sky, inscribed in their circle: one
+     point per event.
+   - Chat curiosities are rose-curve mandalas round a Seed of Life: petals from
+     events, size from effort.
+   - Games are strange attractors (Clifford maps), one per game: denser with
+     every game played, gold sparks for wins. Chaos, drawn as order.
+   Placed in mirror symmetry about the tree, over a faint Flower-of-Life ground.
+   Nothing here is stored: the world is drawn fresh from the events.
+
+   mountEcosystem(canvas, { topics, events }, { background, onPick }) -> { destroy }
+   onPick gets a topic, { group: 'tutor' } for the tree, or null. */
 (function () {
   const QUIET_DAYS = 14;
-  const PAL = { sky0: '#0B0918', sky1: '#1A1540', hill0: '#171331', hill1: '#1F1A3F', ground0: '#141130', ground1: '#0E0C22',
-    leaf: ['#3DD6C6', '#5FE3B5', '#9BE37A', '#7FD8F0'], quietLeaf: '#4E4878', bark: '#5A4B7A', fruit: '#F5C542',
-    petal: ['#B9A6FF', '#FF5A4A', '#F5C542', '#C9FFF8', '#FF8FCB'], star: '#F5F1FF', line: '#B9A6FF' };
-  const SPECIES = {
-    golf: { body: '#E8E4FF', ears: 'long', tail: 'puff', legs: 4 },          // rabbit
-    duel: { body: '#FF8A4A', ears: 'point', tail: 'bush', legs: 4 },          // fox
-    battleship: { body: '#3DD6C6', ears: 'none', tail: 'none', shell: true, legs: 4 },   // turtle
-    cards: { body: '#B9A6FF', ears: 'tuft', tail: 'none', bird: true, legs: 2 },        // owl
-    war: { body: '#A68A6A', ears: 'round', tail: 'none', legs: 4 },           // bear
-    gauntlet: { body: '#D9A55A', ears: 'point', tail: 'puff', antlers: true, legs: 4 },  // deer
+  const FLOW = ['#3DD6C6', '#C9FFF8', '#B9A6FF', '#F5C542', '#FF5A4A'];
+  const TREE_PALETTE = { '--bark': '#3A335F', '--c-park': '#4A4470', '--c-growth': '#B9A6FF', '--c-turn': '#FF5A4A', '--c-close': '#3DD6C6', '--accent': '#F5C542', '--ground': '#0B0918' };
+  // Clifford attractors: x' = sin(a y) + c cos(a x), y' = sin(b x) + d cos(b y). One shape per game.
+  const ATTRACTOR = {
+    golf: [-1.4, 1.6, 1.0, 0.7], duel: [1.7, 1.7, 0.6, 1.2], battleship: [-1.7, 1.3, -0.1, -1.21],
+    cards: [-1.8, -2.0, -0.5, -0.9], war: [1.5, -1.8, 1.6, 0.9], gauntlet: [-1.24, -1.25, -1.81, -1.91],
   };
+  const TAU = Math.PI * 2;
   function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h; }
   function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   const today = () => new Date().toISOString().slice(0, 10);
   const daysSince = (d) => Math.round((Date.parse(today()) - Date.parse(d)) / 864e5);
 
-  // Each topic's growth, from its events.
   function grow(topic, events) {
     const evs = events.filter((e) => e.topic === topic.id);
     const effort = evs.reduce((s, e) => s + (+e.effort || 1), 0);
     const last = evs.length ? evs[evs.length - 1].day : topic.created;
     let parked = topic.stage === 'parked';
     for (let i = evs.length - 1; i >= 0 && !parked; i--) { if (evs[i].kind === 'revive') break; if (evs[i].kind === 'park') parked = true; }
-    const shipped = topic.stage === 'shipped' || evs.some((e) => e.kind === 'ship');
     const played = evs.reduce((s, e) => s + (+e.meta?.played || 0), 0), won = evs.reduce((s, e) => s + (+e.meta?.won || 0), 0);
-    return { evs, effort, n: evs.length, parked, shipped, quiet: !parked && daysSince(last) > QUIET_DAYS, played, won };
+    return { evs, effort, n: evs.length, parked, quiet: !parked && daysSince(last) > QUIET_DAYS, played, won,
+      shipped: topic.stage === 'shipped' || evs.some((e) => e.kind === 'ship') };
+  }
+  // Mirror slots: 0 sits on the axis's right, 1 on its left, 2 further right...
+  const side = (i) => (i % 2 ? -1 : 1), rank = (i) => Math.floor(i / 2);
+
+  // An attractor's orbit, drawn once into its own small canvas (additive dots).
+  function attractorImage(kind, played, won, size) {
+    const [a, b, c, d] = ATTRACTOR[kind];
+    const n = Math.min(60000, 6000 + played * 2500);
+    const pts = new Float32Array(n * 2);
+    let x = 0.1, y = 0.1, minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < n + 100; i++) {
+      const nx = Math.sin(a * y) + c * Math.cos(a * x), ny = Math.sin(b * x) + d * Math.cos(b * y);
+      x = nx; y = ny;
+      if (i >= 100) { const k = (i - 100) * 2; pts[k] = x; pts[k + 1] = y; minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+    }
+    const cv = document.createElement('canvas'); cv.width = cv.height = size;
+    const g = cv.getContext('2d'), span = Math.max(maxX - minX, maxY - minY) || 1, pad = size * 0.06, k = (size - pad * 2) / span;
+    const ox = (size - (maxX - minX) * k) / 2 - minX * k, oy = (size - (maxY - minY) * k) / 2 - minY * k;
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < n; i++) {
+      g.fillStyle = FLOW[Math.floor((i / n) * 3)]; g.globalAlpha = 0.09;
+      g.fillRect(pts[i * 2] * k + ox, pts[i * 2 + 1] * k + oy, 1, 1);
+    }
+    const sparks = [], r = rng(hash(kind));
+    for (let s = 0; s < Math.min(24, won * 2); s++) { const i = Math.floor(r() * n); sparks.push({ x: pts[i * 2] * k + ox - size / 2, y: pts[i * 2 + 1] * k + oy - size / 2, tw: r() * TAU }); }
+    return { cv, sparks };
   }
 
   function layout(data, W, H) {
-    const horizon = H * 0.6, items = [], hits = [];
-    const topics = (data.topics || []).slice().sort((a, b) => String(a.created).localeCompare(String(b.created)) || a.slug.localeCompare(b.slug));
+    const topics = (data.topics || []).slice().sort((p, q) => String(p.created).localeCompare(String(q.created)) || p.slug.localeCompare(q.slug));
     const by = (src) => topics.filter((t) => t.source === src).map((t) => ({ t, g: grow(t, data.events || []) }));
-    // Trees along the ground, spread evenly with a little jitter; a branched topic stands by its parent.
-    const trees = by('tutor');
-    trees.forEach((o, i) => {
-      const r = rng(hash(o.t.slug));
-      const x = W * (0.08 + 0.84 * ((i + 0.5) / Math.max(trees.length, 1))) + (r() - 0.5) * W * 0.04;
-      // Bigger with effort, but never wider than its share of the ground.
-      const scale = Math.min(1.25, 0.45 + Math.sqrt(o.g.effort) * 0.16, (W / Math.max(trees.length, 1)) / 150) * Math.min(1, H / 520);
-      const y = horizon + H * (0.04 + r() * 0.08);
-      const segs = [], leaves = [], fruit = [];
-      const depth = Math.min(5, 2 + Math.floor(o.g.n / 2)), spread = 0.35 + r() * 0.25;
-      (function branch(x0, y0, len, ang, d) {
-        const x1 = x0 + Math.sin(ang) * len, y1 = y0 - Math.cos(ang) * len;
-        segs.push({ x0, y0, x1, y1, w: Math.max(1, (depth - d + 1) * 2.2 * scale), d });
-        if (d >= depth) { leaves.push({ x: x1, y: y1, r: (9 + r() * 7) * scale, c: PAL.leaf[Math.floor(r() * PAL.leaf.length)], d }); if (o.g.shipped && r() < 0.5) fruit.push({ x: x1 + (r() - .5) * 8, y: y1 + (r() - .5) * 8, d }); return; }
-        const kids = d === 0 ? 2 + (o.g.n > 3 ? 1 : 0) : 2;
-        for (let k = 0; k < kids; k++) branch(x1, y1, len * (0.68 + r() * 0.12), ang + (k - (kids - 1) / 2) * spread * 2 + (r() - .5) * 0.3, d + 1);
-      })(x, y, 46 * scale, (r() - .5) * 0.12, 0);
-      items.push({ type: 'tree', z: y, x, y, segs, leaves, fruit, g: o.g, seed: r() * 6.28 });
-      hits.push({ x, y: y - 70 * scale, r: 55 * scale, topic: o.t });
+    const cx = W / 2, narrow = W < 620, m = Math.min(W, H);
+    const tree = { x: W * (narrow ? 0.04 : 0.2), y: H * 0.05, w: W * (narrow ? 0.92 : 0.6), h: H * 0.8 };
+    const hits = [], sky = [], roses = [], swarms = [];
+    by('trip').forEach((o, i) => {
+      const r = Math.min(m * 0.075, 16 + Math.sqrt(o.g.effort) * 6);
+      const x = cx + side(i) * W * (narrow ? 0.3 + rank(i) * 0.12 : 0.36 + rank(i) * 0.07), y = H * (0.12 + (rank(i) % 3) * 0.1);
+      const n = Math.max(5, Math.min(12, o.g.n + 4));
+      sky.push({ ...o, x, y, r, n, k: Math.floor((n - 1) / 2), spin: (hash(o.t.slug) % 2 ? 1 : -1) * 0.05 });
+      hits.push({ x, y, r: r + 8, topic: o.t });
     });
-    // Constellations in the sky, one star per event.
-    by('trip').forEach((o, i, all) => {
-      const r = rng(hash(o.t.slug));
-      const cx = W * (0.12 + 0.76 * ((i + 0.5) / all.length)) + (r() - .5) * W * 0.08, cy = horizon * (0.15 + r() * 0.5);
-      const stars = []; let px = cx, py = cy;
-      for (let k = 0; k < Math.max(1, o.g.n); k++) { stars.push({ x: px, y: py, s: 1.4 + Math.min(5, +o.g.evs[k]?.effort || 1) * 0.45, tw: r() * 6.28 }); px += (r() - .5) * 70; py += (r() - .5) * 40; }
-      items.push({ type: 'stars', z: -1, stars, g: o.g });
-      hits.push({ x: cx, y: cy, r: 40, topic: o.t });
+    by('chat').forEach((o, i) => {
+      const r = Math.min(m * 0.085, 18 + Math.sqrt(o.g.effort) * 7);
+      const x = cx + side(i) * (W * 0.13 + rank(i) * Math.max(64, r * 2.5)), y = H * 0.88 - (rank(i) % 2) * r * 0.8;
+      // Even petal counts keep the mandala symmetric: 6, 8, 10... as the topic grows.
+      roses.push({ ...o, x, y, r, petals: Math.min(16, 4 + 2 * o.g.n), seed: (hash(o.t.slug) % 1000) / 1000 * TAU });
+      hits.push({ x, y, r: r + 6, topic: o.t });
     });
-    // Flowers in the meadow at the front.
-    by('chat').forEach((o, i, all) => {
-      const r = rng(hash(o.t.slug));
-      const x = W * (0.05 + 0.9 * ((i + r() * 0.8) / all.length)), y = H * (0.86 + r() * 0.1);
-      const h = Math.min(H * 0.22, (24 + Math.sqrt(o.g.effort) * 16) * Math.min(1, H / 520));
-      items.push({ type: 'flower', z: y, x, y, h, petals: Math.min(9, 4 + o.g.n), c: PAL.petal[hash(o.t.slug) % PAL.petal.length], g: o.g, seed: r() * 6.28 });
-      hits.push({ x, y: y - h, r: 22, topic: o.t });
+    by('game').forEach((o, i) => {
+      const kind = o.t.slug.replace(/^game-/, ''); if (!ATTRACTOR[kind]) return;
+      const s = Math.round(Math.min(m * 0.3, 90 + Math.sqrt(o.g.played) * 14));
+      const x = cx + side(i) * W * (narrow ? 0.34 : 0.4), y = H * (0.5 + rank(i) * 0.2);
+      swarms.push({ ...o, kind, x, y, s, img: attractorImage(kind, o.g.played, o.g.won, s * 2), dir: side(i) });
+      hits.push({ x, y, r: s * 0.45, topic: o.t });
     });
-    // Animals roaming between the trees and the meadow: more of them as the wins add up.
-    by('game').forEach((o) => {
-      const kind = o.t.slug.replace(/^game-/, ''), sp = SPECIES[kind]; if (!sp) return;
-      const r = rng(hash(o.t.slug)), count = Math.max(1, Math.min(6, 1 + Math.floor(o.g.won / 2)));
-      const size = Math.min(1.3, 0.7 + Math.sqrt(o.g.played) * 0.1) * Math.min(1, H / 520);
-      for (let k = 0; k < count; k++) {
-        const y = horizon + H * (0.14 + r() * 0.12);
-        items.push({ type: 'animal', z: y, y, sp, size: size * (k ? 0.8 : 1), x0: r() * W, speed: (0.15 + r() * 0.25) * (r() < .5 ? -1 : 1), range: W * (0.15 + r() * 0.25), seed: r() * 6.28, topic: o.t, lead: k === 0 });
-      }
-    });
-    items.sort((a, b) => a.z - b.z);
-    // Far background stars, the same every time.
-    const r = rng(7), dust = Array.from({ length: Math.round(W * H / 9000) }, () => ({ x: r() * W, y: r() * horizon * 0.95, s: r() * 1.1 + 0.2, tw: r() * 6.28 }));
-    return { horizon, items, hits, dust };
+    const r = rng(7), dust = Array.from({ length: Math.round(W * H / 7000) }, () => ({ x: r() * W, y: r() * H * 0.7, s: r() * 1.1 + 0.2, tw: r() * TAU }));
+    return { tree, hits, sky, roses, swarms, dust, root: { x: cx, y: tree.y + tree.h - 26 * Math.min(1, tree.h / 400) }, m };
   }
 
-  function drawAnimal(ctx, a, x, t, alpha) {
-    const s = 14 * a.size, sp = a.sp, dir = Math.sign(a.speed) || 1, step = Math.sin(t * 6 + a.seed);
-    ctx.save(); ctx.translate(x, a.y); ctx.scale(dir, 1); ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#00000044'; ctx.beginPath(); ctx.ellipse(0, 2, s * 1.1, s * 0.25, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = ctx.strokeStyle = sp.body; ctx.lineWidth = Math.max(1.5, s * 0.16); ctx.lineCap = 'round';
-    if (sp.bird) {   // a round owl that bobs
-      const by = -s * 1.1 + step * 1.5;
-      ctx.beginPath(); ctx.ellipse(0, by, s * 0.7, s * 0.9, 0, 0, 7); ctx.fill();
-      ctx.fillStyle = '#0B0918'; ctx.beginPath(); ctx.arc(-s * .25, by - s * .3, s * .14, 0, 7); ctx.arc(s * .25, by - s * .3, s * .14, 0, 7); ctx.fill();
-      ctx.fillStyle = sp.body; ctx.beginPath(); ctx.moveTo(-s * .5, by - s * .75); ctx.lineTo(-s * .3, by - s * 1.15); ctx.lineTo(-s * .1, by - s * .8); ctx.moveTo(s * .5, by - s * .75); ctx.lineTo(s * .3, by - s * 1.15); ctx.lineTo(s * .1, by - s * .8); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(-s * .2, 0); ctx.lineTo(-s * .2, by + s * .8); ctx.moveTo(s * .2, 0); ctx.lineTo(s * .2, by + s * .8); ctx.stroke();
-      ctx.restore(); return;
+  // A star polygon {n/k} in its circle, with the inner circle it leaves.
+  function drawStar(ctx, s, t, fade) {
+    const rot = t * s.spin - Math.PI / 2;
+    ctx.save(); ctx.translate(s.x, s.y); ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#B9A6FF'; ctx.globalAlpha = 0.22 * fade; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0, 0, s.r, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, s.r * Math.cos(Math.PI * s.k / s.n), 0, TAU); ctx.stroke();
+    const p = (i) => [Math.cos(rot + (i * TAU) / s.n) * s.r, Math.sin(rot + (i * TAU) / s.n) * s.r];
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < s.n; i++) {
+      const [x1, y1] = p(i), [x2, y2] = p(i + s.k);
+      ctx.strokeStyle = FLOW[i % 3]; ctx.globalAlpha = 0.55 * fade;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     }
-    const bodyY = -s * (sp.shell ? 0.55 : 0.85);
-    for (let i = 0; i < 4; i++) { const lx = (i < 2 ? -0.55 : 0.5) * s + (i % 2) * s * 0.15, sw = (i % 2 ? step : -step) * s * 0.25; ctx.beginPath(); ctx.moveTo(lx, bodyY + s * .2); ctx.lineTo(lx + sw, 0); ctx.stroke(); }
-    if (sp.shell) { ctx.fillStyle = '#2A9C91'; ctx.beginPath(); ctx.ellipse(0, bodyY, s * 1.05, s * 0.6, 0, Math.PI, 0); ctx.fill(); ctx.fillStyle = sp.body; ctx.beginPath(); ctx.ellipse(0, bodyY, s * 0.9, s * 0.45, 0, Math.PI, 0); ctx.fill(); }
-    else { ctx.beginPath(); ctx.ellipse(0, bodyY, s * 0.95, s * 0.5, 0, 0, 7); ctx.fill(); }
-    if (sp.tail === 'puff') { ctx.beginPath(); ctx.arc(-s * 0.95, bodyY - s * .1, s * 0.22, 0, 7); ctx.fill(); }
-    if (sp.tail === 'bush') { ctx.beginPath(); ctx.ellipse(-s * 1.2, bodyY - s * .25, s * 0.45, s * 0.2, -0.5, 0, 7); ctx.fill(); }
-    const hx = s * 1.0, hy = bodyY - s * (sp.shell ? 0.05 : 0.45);
-    ctx.beginPath(); ctx.arc(hx, hy, s * (sp.shell ? 0.28 : 0.38), 0, 7); ctx.fill();
-    if (sp.ears === 'long') { ctx.beginPath(); ctx.ellipse(hx - s * .08, hy - s * .65, s * .1, s * .38, -0.15, 0, 7); ctx.ellipse(hx + s * .14, hy - s * .62, s * .1, s * .36, 0.2, 0, 7); ctx.fill(); }
-    if (sp.ears === 'point') { ctx.beginPath(); ctx.moveTo(hx - s * .25, hy - s * .2); ctx.lineTo(hx - s * .12, hy - s * .62); ctx.lineTo(hx + s * .02, hy - s * .25); ctx.moveTo(hx + s * .05, hy - s * .25); ctx.lineTo(hx + s * .22, hy - s * .6); ctx.lineTo(hx + s * .32, hy - s * .15); ctx.fill(); }
-    if (sp.ears === 'round') { ctx.beginPath(); ctx.arc(hx - s * .22, hy - s * .3, s * .14, 0, 7); ctx.arc(hx + s * .22, hy - s * .3, s * .14, 0, 7); ctx.fill(); }
-    if (sp.antlers) { ctx.strokeStyle = '#F5C542'; ctx.lineWidth = Math.max(1, s * .08); ctx.beginPath(); ctx.moveTo(hx, hy - s * .3); ctx.lineTo(hx - s * .25, hy - s * .85); ctx.moveTo(hx - s * .12, hy - s * .6); ctx.lineTo(hx - s * .4, hy - s * .7); ctx.moveTo(hx + s * .05, hy - s * .3); ctx.lineTo(hx + s * .3, hy - s * .85); ctx.stroke(); }
-    ctx.fillStyle = '#0B0918'; ctx.beginPath(); ctx.arc(hx + s * .15, hy - s * .05, Math.max(1, s * .06), 0, 7); ctx.fill();
+    // a glowing point for each event; the newest brightest
+    for (let i = 0; i < s.n; i++) {
+      const lit = i < s.g.n, [x, y] = p(i), b = 0.7 + 0.3 * Math.sin(t * 2 + i * 1.7);
+      const gr = ctx.createRadialGradient(x, y, 0, x, y, lit ? 9 : 4);
+      gr.addColorStop(0, lit ? '#FFF6DA' : '#B9A6FF'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = (lit ? 0.9 : 0.3) * b * fade; ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, lit ? 9 : 4, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // A rose-curve mandala, r = cos(k θ), over a Seed of Life.
+  function drawRose(ctx, o, t, fade) {
+    const breathe = 1 + 0.04 * Math.sin(t * 1.1 + o.seed), R = o.r * breathe;
+    ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.seed + t * 0.06); ctx.globalCompositeOperation = 'lighter';
+    ctx.lineWidth = 1; ctx.strokeStyle = '#B9A6FF'; ctx.globalAlpha = 0.25 * fade;
+    for (let i = 0; i < 7; i++) {   // Seed of Life: one circle, six round it
+      const a = (i * TAU) / 6, d = i === 6 ? 0 : R * 0.27;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, R * 0.27, 0, TAU); ctx.stroke();
+    }
+    // the outer circle, with a point for each petal
+    ctx.strokeStyle = '#B9A6FF'; ctx.globalAlpha = 0.3 * fade; ctx.beginPath(); ctx.arc(0, 0, R * 1.08, 0, TAU); ctx.stroke();
+    ctx.fillStyle = '#C9FFF8';
+    for (let i = 0; i < o.petals; i++) { const a = (i * TAU) / o.petals; ctx.globalAlpha = (0.5 + 0.4 * Math.sin(t * 1.6 + i)) * fade; ctx.beginPath(); ctx.arc(Math.cos(a) * R * 1.08, Math.sin(a) * R * 1.08, 1.4, 0, TAU); ctx.fill(); }
+    const k = o.petals % 2 ? o.petals : o.petals / 2, turns = o.petals % 2 ? Math.PI : TAU;
+    const dim = o.parked ? '#4A4470' : null;
+    [[1, dim || '#3DD6C6', 0.7], [0.72, dim || '#B9A6FF', 0.55], [0.45, dim || '#F5C542', 0.65]].forEach(([s, col, al], layer) => {
+      ctx.strokeStyle = col; ctx.globalAlpha = al * fade; ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let j = 0; j <= 240; j++) {
+        const th = (j / 240) * turns, rr = R * s * Math.cos(k * th);
+        const x = rr * Math.cos(th + layer * Math.PI / o.petals), y = rr * Math.sin(th + layer * Math.PI / o.petals);
+        j ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    });
+    if (o.g.shipped) { ctx.fillStyle = '#F5C542'; ctx.globalAlpha = fade; ctx.beginPath(); ctx.arc(0, 0, 2.6, 0, TAU); ctx.fill(); }
     ctx.restore();
   }
 
   window.mountEcosystem = function (cv, data, opts = {}) {
-    const ctx = cv.getContext('2d'), bg = !!opts.background;
+    const ctx = cv.getContext('2d'), bg = !!opts.background, host = cv.parentNode;
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let W = 0, H = 0, L = null, raf = 0, dead = false;
+    let W = 0, H = 0, L = null, raf = 0, dead = false, treeStop = null;
+    // The tree lives on its own canvas, in a box over this one, drawn by the Clearing tree code.
+    const box = document.createElement('div'), tcv = document.createElement('canvas');
+    box.style.cssText = 'position:absolute;pointer-events:none;'; tcv.style.cssText = 'display:block;';
+    box.appendChild(tcv); host.insertBefore(box, cv.nextSibling);
+    const tutor = (data.topics || []).filter((t) => t.source === 'tutor');
+    function mountTree() {
+      if (treeStop) treeStop(); treeStop = null;
+      if (!tutor.length || !window.mountDiaryTree) return;
+      const ids = new Set(tutor.map((t) => t.id));
+      const ideas = tutor.map((t) => ({ id: t.id, created: t.created, stage: t.stage, parent: ids.has(t.parent) ? t.parent : null }));
+      const events = (data.events || []).filter((e) => ids.has(e.topic))
+        .map((e) => ({ id: 'e' + e.id, idea: e.topic, date: e.day, kind: e.kind, effort: e.effort }))
+        .sort((p, q) => String(p.date).localeCompare(String(q.date)) || p.id.localeCompare(q.id));
+      treeStop = window.mountDiaryTree(tcv, { ideas, events }, { palette: TREE_PALETTE, fill: true,
+        flow: { colors: FLOW, wave: 120, speed: 0.45, tail: 2.6 } });
+    }
     function size() {
       const b = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
       W = Math.max(1, b.width); H = Math.max(1, b.height);
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       L = layout(data, W, H);
+      const off = cv.offsetTop, offL = cv.offsetLeft;
+      Object.assign(box.style, { left: offL + L.tree.x + 'px', top: off + L.tree.y + 'px', width: L.tree.w + 'px', height: L.tree.h + 'px' });
     }
-    function frame(ms) {
-      if (dead) return;
-      const t = ms / 1000, hz = L.horizon;
-      const sky = ctx.createLinearGradient(0, 0, 0, hz); sky.addColorStop(0, PAL.sky0); sky.addColorStop(1, PAL.sky1);
-      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, hz + 2);
-      for (const d of L.dust) { ctx.globalAlpha = 0.25 + 0.25 * Math.sin(t * 1.3 + d.tw); ctx.fillStyle = PAL.star; ctx.fillRect(d.x, d.y, d.s, d.s); }
-      ctx.globalAlpha = 1;
-      // two hills, then the ground
-      [[PAL.hill0, 0.06, 0.0021, 1.7], [PAL.hill1, 0.03, 0.0034, 4.1]].forEach(([c, amp, f, ph]) => {
-        ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, H);
-        for (let x = 0; x <= W; x += 8) ctx.lineTo(x, hz - H * amp * (1 + Math.sin(x * f + ph)) * 0.8);
-        ctx.lineTo(W, H); ctx.fill();
-      });
-      const gr = ctx.createLinearGradient(0, hz, 0, H); gr.addColorStop(0, PAL.ground0); gr.addColorStop(1, PAL.ground1);
-      ctx.fillStyle = gr; ctx.fillRect(0, hz, W, H - hz);
-      for (const it of L.items) {
-        const fade = it.g?.quiet ? 0.45 : 1;
-        if (it.type === 'stars') {
-          ctx.strokeStyle = PAL.line; ctx.globalAlpha = 0.25 * fade; ctx.lineWidth = 1; ctx.beginPath();
-          it.stars.forEach((s, i) => (i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y))); ctx.stroke();
-          for (const s of it.stars) {
-            const tw = 0.75 + 0.25 * Math.sin(t * 2 + s.tw);
-            ctx.globalAlpha = fade * tw;
-            const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.s * 5);
-            glow.addColorStop(0, 'rgba(255,240,200,.55)'); glow.addColorStop(1, 'rgba(255,240,200,0)');
-            ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(s.x, s.y, s.s * 5, 0, 7); ctx.fill();
-            ctx.fillStyle = '#FFF6DA'; ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, 7); ctx.fill();
-            // a small cross of light on the bigger ones
-            if (s.s > 2.5) { ctx.strokeStyle = '#FFF6DA'; ctx.lineWidth = 1; ctx.globalAlpha = fade * tw * 0.6; ctx.beginPath(); ctx.moveTo(s.x - s.s * 3, s.y); ctx.lineTo(s.x + s.s * 3, s.y); ctx.moveTo(s.x, s.y - s.s * 3); ctx.lineTo(s.x, s.y + s.s * 3); ctx.stroke(); }
-          }
-        } else if (it.type === 'tree') {
-          const sway = (d) => Math.sin(t * 0.9 + it.seed) * d * 1.3;
-          ctx.globalAlpha = fade; ctx.strokeStyle = PAL.bark; ctx.lineCap = 'round';
-          for (const s of it.segs) { ctx.lineWidth = s.w; ctx.beginPath(); ctx.moveTo(s.x0 + sway(s.d), s.y0); ctx.lineTo(s.x1 + sway(s.d + 1), s.y1); ctx.stroke(); }
-          if (!it.g.parked) for (const l of it.leaves) { ctx.fillStyle = it.g.quiet ? PAL.quietLeaf : l.c; ctx.globalAlpha = fade * 0.85; ctx.beginPath(); ctx.arc(l.x + sway(l.d + 1), l.y, l.r, 0, 7); ctx.fill(); }
-          ctx.globalAlpha = fade; ctx.fillStyle = PAL.fruit;
-          for (const f of it.fruit) { ctx.beginPath(); ctx.arc(f.x + sway(f.d + 1), f.y, 3.2, 0, 7); ctx.fill(); }
-        } else if (it.type === 'flower') {
-          const sw = Math.sin(t * 1.4 + it.seed) * 3, tx = it.x + sw, ty = it.y - it.h;
-          ctx.globalAlpha = fade; ctx.strokeStyle = '#3E9C7A'; ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.moveTo(it.x, it.y); ctx.quadraticCurveTo(it.x, it.y - it.h * .5, tx, ty); ctx.stroke();
-          ctx.fillStyle = '#3E9C7A'; ctx.beginPath(); ctx.ellipse(it.x + 5, it.y - it.h * .35, 6, 2.5, -0.5, 0, 7); ctx.fill();
-          ctx.fillStyle = it.g.parked ? PAL.quietLeaf : it.c;
-          for (let k = 0; k < it.petals; k++) { const a = (k / it.petals) * 6.283 + it.seed; ctx.beginPath(); ctx.ellipse(tx + Math.cos(a) * 6, ty + Math.sin(a) * 6, 6, 3.2, a, 0, 7); ctx.fill(); }
-          ctx.fillStyle = PAL.fruit; ctx.beginPath(); ctx.arc(tx, ty, 3.4, 0, 7); ctx.fill();
-        } else if (it.type === 'animal') {
-          const x = ((it.x0 + Math.sin(t * it.speed * 0.6 + it.seed) * it.range) % W + W) % W;
-          it.cur = x;
-          const dir = Math.cos(t * it.speed * 0.6 + it.seed) * it.speed;
-          drawAnimal(ctx, { ...it, speed: dir || it.speed }, x, still ? 0 : t, fade);
-        }
-        ctx.globalAlpha = 1;
+    function draw(t) {
+      ctx.clearRect(0, 0, W, H);
+      const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#0B0918'); sky.addColorStop(1, '#120F2A');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+      for (const d of L.dust) { ctx.globalAlpha = 0.2 + 0.2 * Math.sin(t * 1.3 + d.tw); ctx.fillStyle = '#F5F1FF'; ctx.fillRect(d.x, d.y, d.s, d.s); }
+      // The ground: a Flower of Life laid flat round the root, fading outward.
+      ctx.save(); ctx.translate(L.root.x, L.root.y); ctx.scale(1, 0.28); ctx.lineWidth = 1 / 0.28 * 0.6;
+      const cr = L.m * 0.07;
+      for (let ring = 0; ring <= 3; ring++) for (let i = 0; i < Math.max(1, ring * 6); i++) {
+        const a = (i / Math.max(1, ring * 6)) * TAU, d = ring * cr;
+        ctx.strokeStyle = '#B9A6FF'; ctx.globalAlpha = 0.09 * (1 - ring / 4);
+        ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, cr, 0, TAU); ctx.stroke();
       }
-      if (bg) { ctx.fillStyle = 'rgba(11,9,24,.35)'; ctx.fillRect(0, 0, W, H); }
-      if (!still) raf = requestAnimationFrame(frame);
+      ctx.restore();
+      if (!tutor.length) {   // no tree yet: a Seed of Life where it will grow
+        ctx.save(); ctx.translate(L.root.x, L.root.y - L.m * 0.12); ctx.rotate(t * 0.05); ctx.strokeStyle = '#3DD6C6'; ctx.lineWidth = 1;
+        for (let i = 0; i < 7; i++) { const a = (i * TAU) / 6, d = i === 6 ? 0 : L.m * 0.035; ctx.globalAlpha = 0.35 + 0.15 * Math.sin(t + i); ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, L.m * 0.035, 0, TAU); ctx.stroke(); }
+        ctx.restore();
+      }
+      for (const s of L.sky) drawStar(ctx, s, t, s.g.quiet ? 0.5 : 1);
+      for (const o of L.swarms) {
+        const fade = o.g.quiet ? 0.5 : 1, breathe = 1 + 0.03 * Math.sin(t * 0.8 + o.dir);
+        ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.dir * t * 0.03); ctx.scale(breathe, breathe);
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.95 * fade;
+        ctx.drawImage(o.img.cv, -o.s / 2, -o.s / 2, o.s, o.s);
+        for (const sp of o.img.sparks) {
+          const x = sp.x / 2, y = sp.y / 2, b = 0.6 + 0.4 * Math.sin(t * 2.2 + sp.tw);
+          const gr = ctx.createRadialGradient(x, y, 0, x, y, 6); gr.addColorStop(0, '#F5C542'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.globalAlpha = b * fade; ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, 6, 0, TAU); ctx.fill();
+        }
+        ctx.restore();
+      }
+      for (const o of L.roses) drawRose(ctx, { ...o, parked: o.g.parked }, t, o.g.quiet ? 0.5 : 1);
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      if (bg) { ctx.fillStyle = 'rgba(11,9,24,.3)'; ctx.fillRect(0, 0, W, H); }
     }
-    size(); raf = requestAnimationFrame(frame);
-    const ro = new ResizeObserver(() => { size(); if (still) frame(0); }); ro.observe(cv);
+    function loop(ms) { if (dead) return; draw(ms / 1000); if (!still) raf = requestAnimationFrame(loop); }
+    size(); mountTree(); raf = requestAnimationFrame(loop);
+    // Resizing a canvas clears it: draw again at once rather than show a blank frame.
+    const ro = new ResizeObserver(() => { size(); draw(performance.now() / 1000); }); ro.observe(cv);
     if (!bg && opts.onPick) cv.addEventListener('click', (e) => {
       const b = cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
-      const animals = L.items.filter((i) => i.type === 'animal' && i.lead).map((i) => ({ x: i.cur ?? i.x0, y: i.y - 14, r: 26, topic: i.topic }));
       let best = null, bd = Infinity;
-      for (const h of [...L.hits, ...animals]) { const d = Math.hypot(h.x - x, h.y - y); if (d < h.r && d < bd) { bd = d; best = h; } }
-      opts.onPick(best ? best.topic : null);
+      for (const h of L.hits) { const d = Math.hypot(h.x - x, h.y - y); if (d < h.r && d < bd) { bd = d; best = h; } }
+      if (best) return opts.onPick(best.topic);
+      const tr = L.tree;
+      opts.onPick(tutor.length && x > tr.x && x < tr.x + tr.w && y > tr.y && y < tr.y + tr.h ? { group: 'tutor' } : null);
     });
-    return { destroy() { dead = true; cancelAnimationFrame(raf); ro.disconnect(); } };
+    return { destroy() { dead = true; cancelAnimationFrame(raf); ro.disconnect(); if (treeStop) treeStop(); box.remove(); } };
   };
 })();
