@@ -73,6 +73,22 @@
     .choices > h2 small { font: 700 13px/1 var(--body); color: var(--teal); }
     .choices > p { margin: 4px 0 0; }
     .choice { margin-top: 16px; }
+    /* each part folds up: a summary line when closed, its options when open */
+    details.fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 12px 0; border-radius: 12px; }
+    details.fold > summary::-webkit-details-marker { display: none; }
+    details.fold > summary .grow { flex: 1; min-width: 0; }
+    details.fold > summary h3 { margin: 0 !important; }
+    details.fold > summary .sum { display: block; margin-top: 4px; font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    details.fold > summary .sum.ok { color: var(--teal); font-weight: 700; }
+    details.fold > summary .chev { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--line); color: var(--muted); transition: transform .2s; }
+    details.fold[open] > summary .chev { transform: rotate(180deg); }
+    details.fold[open] > summary .sum { display: none; }
+    details.fold > summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    .choices details.fold { border-top: 1px solid #ffffff12; }
+    .choices details.fold:first-of-type { margin-top: 10px; }
+    details.fold > .opts, details.fold > .list, details.fold > .booked { margin-bottom: 12px; }
+    .choice { margin-top: 0; }
+    @media (prefers-reduced-motion: reduce) { details.fold > summary .chev { transition: none; } }
     .choice h3 { margin: 0 0 8px; font: 800 13px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--violet); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
     .choice h3 small { color: var(--teal); letter-spacing: 0; text-transform: none; font-weight: 700; }
     .opts { display: grid; gap: 8px; }
@@ -382,8 +398,18 @@
     wire();
   }
 
+  // Which sections are open, per trip, kept on this device. Unset: only the first
+  // undecided part is open, so the page starts short and points at the next decision.
+  let folds = {}, foldsFor = null;
+  const isOpen = (k) => folds[k] ?? false;
   function ideas() {
     const list = items.filter((i) => i.kind === 'idea');
+    if (foldsFor !== trip.id) {
+      foldsFor = trip.id; folds = {};
+      try { folds = JSON.parse(localStorage.getItem('trip-folds-' + trip.id) || '{}') || {}; } catch {}
+      const next = CHOICES.find((t) => list.some((i) => i.topic === t) && !decided(t));
+      if (next && folds[next] === undefined && !Object.keys(folds).length) folds[next] = true;
+    }
     const mayChoose = canChoose();
     const parts = CHOICES.filter((t) => list.some((i) => i.topic === t) || bookedFor(t));
     const done = parts.filter(decided).length;
@@ -399,17 +425,24 @@
       ${parts.map((t) => {
         const bk = bookedFor(t), opts = list.filter((i) => i.topic === t);
         const status = bk ? '<small>✓ booked</small>' : chosenFor(t) ? '<small>✓ chosen</small>' : t === 'dates' && trip.starts ? '<small>✓ set</small>' : '';
-        return `<div class="choice" id="topic-${t}"><h3>${TOPIC[t][0]} ${TOPIC[t][1]} ${status}</h3>
-          ${bk ? `<div class="booked" data-more="${bk.id}">✓ ${esc(bk.title)}${bk.conf ? ` <code>${esc(bk.conf)}</code>` : ''}</div>` : `<div class="opts" role="radiogroup" aria-label="${TOPIC[t][1]}">${opts.map(opt).join('')}</div>`}</div>`;
+        const ch = chosenFor(t);
+        const sum = bk ? `<span class="sum ok">✓ booked: ${esc(bk.title)}</span>` : ch ? `<span class="sum ok">✓ ${esc(ch.title)}</span>`
+          : `<span class="sum">${opts.length} option${opts.length === 1 ? '' : 's'} to choose from</span>`;
+        return `<details class="choice fold" id="topic-${t}" data-fold="${t}"${isOpen(t) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC[t][0]} ${TOPIC[t][1]} ${status}</h3>${sum}</span><span class="chev" aria-hidden="true">⌄</span></summary>
+          ${bk ? `<div class="booked" data-more="${bk.id}">✓ ${esc(bk.title)}${bk.conf ? ` <code>${esc(bk.conf)}</code>` : ''}</div>` : `<div class="opts" role="radiogroup" aria-label="${TOPIC[t][1]}">${opts.map(opt).join('')}</div>`}</details>`;
       }).join('')}</div>` : '';
     // Everything else: places to go, food to try, other ideas.
     const rest = list.filter((i) => !CHOICES.includes(i.topic));
     const groups = [...Object.keys(TOPIC).filter((t) => !CHOICES.includes(t)), null].map((t) => ({ t, its: rest.filter((i) => (TOPIC[i.topic] ? i.topic : null) === t) })).filter((g) => g.its.length);
     $('view').innerHTML = card
-      + (groups.length ? groups.map((g) => `<div class="topic" id="topic-${g.t || 'none'}"><h3>${g.t ? TOPIC[g.t].join(' ') : 'More ideas'}</h3>
-          <div class="list">${g.its.map((i) => itemRow(i, { tm: null, meta: [`added by ${esc(nameOf(i.created_by) || 'someone')}`] })).join('')}</div></div>`).join('')
+      + (groups.length ? groups.map((g) => { const k = 'g:' + (g.t || 'none'); return `<details class="topic fold" id="topic-${g.t || 'none'}" data-fold="${k}"${isOpen(k) ? ' open' : ''}><summary><span class="grow"><h3>${g.t ? TOPIC[g.t].join(' ') : 'More ideas'}</h3><span class="sum">${g.its.length} idea${g.its.length === 1 ? '' : 's'}: ${esc(g.its.slice(0, 3).map((i) => i.title).join(', '))}</span></span><span class="chev" aria-hidden="true">⌄</span></summary>
+          <div class="list">${g.its.map((i) => itemRow(i, { tm: null, meta: [`added by ${esc(nameOf(i.created_by) || 'someone')}`] })).join('')}</div></details>`; }).join('')
         : parts.length ? '' : `<p class="empty">No ideas yet. Add one, or ask Claude to “break the trip down”: dates, flights, tickets and where to stay come back as choices to make.</p>`)
       + `<button class="add" id="addidea">＋ Add an idea</button>`;
+    $('view').querySelectorAll('details.fold').forEach((d) => d.addEventListener('toggle', () => {
+      folds[d.dataset.fold] = d.open;
+      try { localStorage.setItem('trip-folds-' + trip.id, JSON.stringify(folds)); } catch {}
+    }));
     $('addidea').onclick = () => edit({ kind: 'idea' });
     $('view').querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); view(items.find((i) => i.id === b.dataset.more)); });
     $('view').querySelectorAll('[data-choose]').forEach((el) => {
@@ -418,6 +451,12 @@
         if (!mayChoose) { view(i); return; }
         const { error } = await sb.rpc('trip_choose', { p_item: i.id, p_on: !i.chosen });
         if (error) { alert('Could not choose: ' + error.message); return; }
+        if (!i.chosen) {   // chosen: fold this part away and open the next one still to decide
+          folds[i.topic] = false;
+          const next = CHOICES.find((t) => t !== i.topic && list.some((x) => x.topic === t) && !decided(t));
+          if (next) folds[next] = true;
+          try { localStorage.setItem('trip-folds-' + trip.id, JSON.stringify(folds)); } catch {}
+        }
         load();
       };
       el.onclick = pick;
