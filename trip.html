@@ -63,13 +63,33 @@
     .item .meta { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 13px; color: var(--faint); }
     .item .meta a { color: var(--teal); font-weight: 600; text-decoration: none; }
     .item .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px; padding-top: 10px; border-top: 1px solid #ffffff10; }
+    .item .foot .btn { flex: none; white-space: nowrap; }
     .item code { font: 600 12px/1 var(--mono); color: var(--gold); background: #F5C5421a; padding: 4px 7px; border-radius: 6px; }
     .add { all: unset; cursor: pointer; color: var(--muted); font-weight: 700; padding: 8px 2px; }
     .add:hover { color: var(--teal); }
-    .votes { flex: none; display: flex; gap: 6px; align-items: center; }
-    .votes button { all: unset; cursor: pointer; padding: 6px 9px; border-radius: 10px; border: 1px solid var(--line); font-size: 14px; }
-    .votes button.on { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
-    .votes .score { min-width: 26px; text-align: center; font-weight: 800; }
+    /* Choices to make: each one-or-the-other part of the trip, its options as rows to tap */
+    .choices { background: var(--panel-2); border: 1px solid var(--line); border-radius: 20px; padding: 16px; margin: 6px 0 4px; }
+    .choices > h2 { margin: 0; font: 800 18px/1.2 var(--display); display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .choices > h2 small { font: 700 13px/1 var(--body); color: var(--teal); }
+    .choices > p { margin: 4px 0 0; }
+    .choice { margin-top: 16px; }
+    .choice h3 { margin: 0 0 8px; font: 800 13px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--violet); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+    .choice h3 small { color: var(--teal); letter-spacing: 0; text-transform: none; font-weight: 700; }
+    .opts { display: grid; gap: 8px; }
+    .opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 14px; background: var(--panel); border: 1.5px solid var(--line); cursor: pointer; }
+    .opt:hover { border-color: #ffffff33; }
+    .opt .dot { flex: none; width: 22px; height: 22px; margin-top: 1px; border-radius: 50%; border: 2px solid var(--faint); display: grid; place-items: center; }
+    .opt.on { border-color: var(--teal); background: color-mix(in srgb, var(--teal) 10%, var(--panel)); }
+    .opt.on .dot { border-color: var(--teal); background: var(--teal); }
+    .opt.on .dot::after { content: "✓"; color: var(--teal-ink); font-size: 13px; font-weight: 900; }
+    .opt.off { opacity: .55; }
+    .opt .ot { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .opt .ot b { display: block; font-size: 15.5px; line-height: 1.35; }
+    .opt .ot span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 13.5px; line-height: 1.45; margin-top: 2px; }
+    .opt .more { all: unset; cursor: pointer; flex: none; color: var(--faint); font-size: 13px; font-weight: 700; padding: 2px 4px; }
+    .opt .more:hover { color: var(--teal); }
+    .opt.ro { cursor: default; }
+    .booked { display: flex; gap: 10px; align-items: center; padding: 12px; border-radius: 14px; background: #3DD6C614; border: 1px solid #3DD6C655; font-weight: 700; cursor: pointer; }
     .total { display: flex; justify-content: space-between; align-items: baseline; padding: 14px; border-radius: 14px; background: var(--panel-2); margin: 10px 0; }
     .total b { font: 800 22px/1 var(--display); color: var(--gold); }
     .packs { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 14px; }
@@ -106,12 +126,6 @@
     .answer .chips button { all: unset; cursor: pointer; font-size: 13px; padding: 4px 10px; border-radius: 99px; background: #ffffff12; }
     .answer.wait { color: var(--muted); }
     .claude { color: var(--gold); font-size: 12px; margin-left: 4px; }
-    /* the breakdown: what the trip needs, decided or still open */
-    .needs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
-    .needs a { display: inline-flex; gap: 6px; align-items: center; padding: 6px 11px; border-radius: 99px; font-size: 13px; font-weight: 700; text-decoration: none; color: var(--ink); background: var(--panel); border: 1px solid var(--line); }
-    .needs a small { color: var(--muted); font-weight: 600; }
-    .needs a.ok { border-color: #3DD6C666; background: #3DD6C614; }
-    .needs a.ok small { color: var(--teal); }
     .topic { margin: 20px 0 0; scroll-margin-top: 64px; }
     .topic h3 { font: 800 14px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
     .topic h3 small { color: var(--teal); font-weight: 700; letter-spacing: 0; text-transform: none; }
@@ -166,7 +180,7 @@
   const ME = { id: session?.user.id, role: roleOf(session?.user) };
   const PARENT = ME.role === 'parent';
 
-  let trips = [], trip = null, items = [], votes = [], family = [], asks = [];
+  let trips = [], trip = null, items = [], family = [], asks = [];
   const nameOf = (id) => family.find((f) => f.id === id)?.username || '';
 
   // ---- dates ----
@@ -189,11 +203,8 @@
     const today = iso(new Date());
     trip = trips.find((x) => x.id === want) || trips.find((x) => !x.ends || x.ends >= today) || trips[trips.length - 1] || null;
     if (trip) {
-      const [{ data: it }, { data: v }] = await Promise.all([
-        sb.from('trip_items').select('*').eq('trip', trip.id).order('created_at'),
-        sb.from('trip_votes').select('item, voter, value'),
-      ]);
-      items = it || []; votes = v || [];
+      const { data: it } = await sb.from('trip_items').select('*').eq('trip', trip.id).order('created_at');
+      items = it || [];
       const { data: a } = await sb.from('trip_asks').select('asker, text, reply, added, created_at').eq('trip', trip.id).order('created_at', { ascending: false }).limit(8);
       asks = a || [];
     }
@@ -228,7 +239,12 @@
   // What a trip needs, in the order it gets decided (dates first: flights and hotels hang on them).
   const TOPIC = { dates: ['📅', 'Dates'], flights: ['✈️', 'Flights'], tickets: ['🎟️', 'Tickets'], stay: ['🏨', 'Where to stay'],
     transport: ['🚕', 'Getting around'], food: ['🍽️', 'Food'], activities: ['🎯', 'Things to do'], other: ['✦', 'Other'] };
-  const decided = (t) => (t === 'dates' && !!trip.starts) || items.some((i) => i.kind === 'booking' && i.topic === t);
+  // The parts of a trip that are one-or-the-other: the Choices card. Food, things to do and the rest stay plain ideas.
+  const CHOICES = ['dates', 'flights', 'tickets', 'stay', 'transport'];
+  const bookedFor = (t) => items.find((i) => i.kind === 'booking' && i.topic === t);
+  const chosenFor = (t) => items.find((i) => i.kind === 'idea' && i.topic === t && i.chosen);
+  const decided = (t) => (t === 'dates' && !!trip.starts) || !!bookedFor(t) || !!chosenFor(t);
+  const canChoose = () => PARENT || trip.created_by === ME.id;
   $('askq').oninput = () => {
     const q = $('askq').value.trim().toLowerCase();
     if (!q) { $('found').hidden = true; return; }
@@ -270,7 +286,7 @@
   };
   window.addEventListener('hashchange', render);
 
-  // tm: time or date before the title; cost: on the title row; meta: extra details (html) for the line below; foot: a footer (votes).
+  // tm: time or date before the title; cost: on the title row; meta: extra details (html) for the line below; foot: a footer (e.g. Booked it).
   const itemRow = (i, { tm = i.at, cost = '', icon = false, meta = [], foot = '' } = {}) => {
     const link = safeLink(i.link) ? `<a href="${esc(i.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(new URL(i.link).hostname.replace(/^www\./, ''))} ↗</a>` : '';
     const details = [...meta, link].filter(Boolean);
@@ -296,32 +312,45 @@
   }
 
   function ideas() {
-    const score = (id) => votes.filter((v) => v.item === id).reduce((s, v) => s + v.value, 0);
-    const mine = (id) => votes.find((v) => v.item === id && v.voter === ME.id)?.value || 0;
-    const list = items.filter((i) => i.kind === 'idea').sort((a, b) => score(b.id) - score(a.id) || a.created_at.localeCompare(b.created_at));
-    const row = (i) => itemRow(i, { tm: null, foot: `<span class="note">added by ${esc(nameOf(i.created_by) || 'someone')}</span>
-        <span class="votes"><button data-v="1" data-i="${i.id}" class="${mine(i.id) === 1 ? 'on' : ''}" aria-label="Vote up">👍</button><span class="score">${score(i.id)}</span><button data-v="-1" data-i="${i.id}" class="${mine(i.id) === -1 ? 'on' : ''}" aria-label="Vote down">👎</button></span>` });
-    // Grouped by what each idea decides, in TOPIC order; ideas with no topic come last.
-    const groups = [...Object.keys(TOPIC), null].map((t) => ({ t, its: list.filter((i) => (TOPIC[i.topic] ? i.topic : null) === t) })).filter((g) => g.its.length);
-    const shown = Object.keys(TOPIC).filter((t) => t !== 'other' && (decided(t) || items.some((i) => i.topic === t)));
-    const needs = shown.length ? `<div class="needs">${shown.map((t) => {
-      const n = list.filter((i) => i.topic === t).length;
-      return `<a href="#ideas" data-topic="${t}" class="${decided(t) ? 'ok' : ''}">${TOPIC[t][0]} ${TOPIC[t][1]} <small>${decided(t) ? '✓ decided' : n ? `${n} option${n === 1 ? '' : 's'}` : 'open'}</small></a>`;
-    }).join('')}</div>` : '';
-    $('view').innerHTML = `<p class="note">Options for each part of the trip, plus places to go and food to try. Vote them up or down; the best ones go into the plan or get booked.</p>
-      ${needs}
-      ${groups.map((g) => `<div class="topic" id="topic-${g.t || 'none'}">${groups.length > 1 || g.t ? `<h3>${g.t ? TOPIC[g.t].join(' ') : 'More ideas'}${g.t && decided(g.t) ? '<small>✓ decided</small>' : ''}</h3>` : ''}
-        <div class="list">${g.its.map(row).join('')}</div></div>`).join('')
-      || `<p class="empty">No ideas yet. Add the first one, or ask Claude to “break the trip down”.</p>`}
-      <button class="add" id="addidea">＋ Add an idea</button>`;
+    const list = items.filter((i) => i.kind === 'idea');
+    const mayChoose = canChoose();
+    const parts = CHOICES.filter((t) => list.some((i) => i.topic === t) || bookedFor(t));
+    const done = parts.filter(decided).length;
+    const opt = (i) => {
+      const on = !!i.chosen, other = !on && !!chosenFor(i.topic);
+      return `<div class="opt${on ? ' on' : ''}${other ? ' off' : ''}${mayChoose ? '' : ' ro'}" data-choose="${i.id}" role="radio" aria-checked="${on}" tabindex="0">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="ot"><b>${esc(i.title)}</b>${i.notes ? `<span>${esc(i.notes)}</span>` : ''}</span>
+        <button class="more" data-more="${i.id}" aria-label="Details">Details</button></div>`;
+    };
+    const card = parts.length ? `<div class="choices"><h2>Choices to make <small>${done} of ${parts.length} decided</small></h2>
+      <p class="note">${mayChoose ? 'Tap an option to choose it, tap again to undo. Claude builds on what you choose.' : `${trip.created_by && family.find((f) => f.id === trip.created_by)?.role === 'kid' ? 'Whoever started this trip' : 'Dad'} makes the choices. Tap Details to read an option.`}</p>
+      ${parts.map((t) => {
+        const bk = bookedFor(t), opts = list.filter((i) => i.topic === t);
+        const status = bk ? '<small>✓ booked</small>' : chosenFor(t) ? '<small>✓ chosen</small>' : t === 'dates' && trip.starts ? '<small>✓ set</small>' : '';
+        return `<div class="choice" id="topic-${t}"><h3>${TOPIC[t][0]} ${TOPIC[t][1]} ${status}</h3>
+          ${bk ? `<div class="booked" data-more="${bk.id}">✓ ${esc(bk.title)}${bk.conf ? ` <code>${esc(bk.conf)}</code>` : ''}</div>` : `<div class="opts" role="radiogroup" aria-label="${TOPIC[t][1]}">${opts.map(opt).join('')}</div>`}</div>`;
+      }).join('')}</div>` : '';
+    // Everything else: places to go, food to try, other ideas.
+    const rest = list.filter((i) => !CHOICES.includes(i.topic));
+    const groups = [...Object.keys(TOPIC).filter((t) => !CHOICES.includes(t)), null].map((t) => ({ t, its: rest.filter((i) => (TOPIC[i.topic] ? i.topic : null) === t) })).filter((g) => g.its.length);
+    $('view').innerHTML = card
+      + (groups.length ? groups.map((g) => `<div class="topic" id="topic-${g.t || 'none'}"><h3>${g.t ? TOPIC[g.t].join(' ') : 'More ideas'}</h3>
+          <div class="list">${g.its.map((i) => itemRow(i, { tm: null, meta: [`added by ${esc(nameOf(i.created_by) || 'someone')}`] })).join('')}</div></div>`).join('')
+        : parts.length ? '' : `<p class="empty">No ideas yet. Add one, or ask Claude to “break the trip down”: dates, flights, tickets and where to stay come back as choices to make.</p>`)
+      + `<button class="add" id="addidea">＋ Add an idea</button>`;
     $('addidea').onclick = () => edit({ kind: 'idea' });
-    $('view').querySelectorAll('.needs a').forEach((a) => a.onclick = (e) => { e.preventDefault(); const el = $('topic-' + a.dataset.topic); if (el) el.scrollIntoView({ behavior: 'smooth' }); });
-    $('view').querySelectorAll('.votes button').forEach((b) => b.onclick = async (e) => {
-      e.stopPropagation();   // a vote, not a tap on the card
-      const item = b.dataset.i, v = +b.dataset.v;
-      if (mine(item) === v) await sb.from('trip_votes').delete().eq('item', item).eq('voter', ME.id);
-      else await sb.from('trip_votes').upsert({ item, voter: ME.id, value: v });
-      load();
+    $('view').querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); edit(items.find((i) => i.id === b.dataset.more)); });
+    $('view').querySelectorAll('[data-choose]').forEach((el) => {
+      const pick = async () => {
+        const i = items.find((x) => x.id === el.dataset.choose);
+        if (!mayChoose) { edit(i); return; }
+        const { error } = await sb.rpc('trip_choose', { p_item: i.id, p_on: !i.chosen });
+        if (error) { alert('Could not choose: ' + error.message); return; }
+        load();
+      };
+      el.onclick = pick;
+      el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
     });
     wire();
   }
@@ -330,11 +359,16 @@
     const list = items.filter((i) => i.kind === 'booking').sort((a, b) => String(a.day || '9').localeCompare(String(b.day || '9')) || String(a.at || '').localeCompare(String(b.at || '')));
     const planCost = items.filter((i) => i.kind === 'plan').reduce((s, i) => s + (+i.cost || 0), 0);
     const bookCost = list.reduce((s, i) => s + (+i.cost || 0), 0);
-    $('view').innerHTML = `<div class="total"><span>Trip total<br><small class="note">bookings ${money(bookCost)} · planned activities ${money(planCost)}</small></span><b>${money(bookCost + planCost)}</b></div>
+    // Chosen on the Choices card, not booked yet.
+    const toBook = items.filter((i) => i.kind === 'idea' && i.chosen && ['flights', 'stay', 'tickets', 'transport'].includes(i.topic) && !bookedFor(i.topic));
+    const todo = toBook.length ? `<div class="topic"><h3>To book <small>chosen, not booked yet</small></h3><div class="list">${toBook.map((i) => itemRow(i, { tm: null, icon: true,
+        foot: PARENT ? `<span class="note">Booked it? Add the confirmation.</span><button class="btn p" data-book="${i.id}">Booked it</button>` : '' })).join('')}</div></div><div class="topic"><h3>Booked</h3></div>` : '';
+    $('view').innerHTML = `${todo}<div class="total"><span>Trip total<br><small class="note">bookings ${money(bookCost)} · planned activities ${money(planCost)}</small></span><b>${money(bookCost + planCost)}</b></div>
       <div class="list">${list.map((i) => itemRow(i, { icon: true, tm: i.day ? nice(i.day, { month: 'short', day: 'numeric' }) + (i.at ? ' ' + i.at : '') : '', cost: i.cost ? money(i.cost) : '', meta: i.conf ? [`<code>${esc(i.conf)}</code>`] : [] })).join('')
       || '<p class="empty">No bookings yet: flights, hotels, cars, tickets.</p>'}</div>
       ${PARENT ? '<button class="add" id="addbook">＋ Add a booking</button>' : '<p class="note">Dad adds and changes bookings.</p>'}`;
     if ($('addbook')) $('addbook').onclick = () => edit({ kind: 'booking' });
+    $('view').querySelectorAll('[data-book]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const i = items.find((x) => x.id === b.dataset.book); edit({ ...i, kind: 'booking', _from: i.id }); });
     if (PARENT) wire();
   }
 
@@ -386,7 +420,7 @@
       if (f.elements.conf) v.conf = f.elements.conf.value.trim() || null;
       if (f.elements.topic) v.topic = f.elements.topic.value || null;
       let error;
-      if (i._from) ({ error } = await sb.from('trip_items').update({ ...v, kind: 'plan' }).eq('id', i._from));
+      if (i._from) ({ error } = await sb.from('trip_items').update({ ...v, kind: k }).eq('id', i._from));   // an idea becoming a plan or a booking
       else if (isNew) ({ error } = await sb.from('trip_items').insert({ ...v, trip: trip.id, kind: k, created_by: ME.id }));
       else ({ error } = await sb.from('trip_items').update(v).eq('id', i.id));
       if (error) { $('derr').textContent = 'Could not save: ' + error.message; return; }
@@ -428,7 +462,6 @@
   let tick = 0;
   const soon = () => { clearTimeout(tick); tick = setTimeout(load, 300); };
   sb.channel('trips').on('postgres_changes', { event: '*', schema: 'public', table: 'trip_items' }, soon)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_votes' }, soon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, soon)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trip_asks' }, soon).subscribe();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
