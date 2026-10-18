@@ -410,7 +410,7 @@
 
     async function loadHome() {
       const parent = ME.role === 'parent', since = new Date(Date.now() - 7 * 864e5).toISOString();
-      const [w, h, box, reads, chat, news, items, mine] = await Promise.all([
+      const [w, h, box, reads, chat, news, items, mine, shares] = await Promise.all([
         sb.rpc('r4_family_world'), sb.rpc('r4_home'),
         parent ? sb.from('box_status').select('*') : { data: [] },
         sb.from('chat_reads').select('read_at').eq('user_id', ME.id).maybeSingle(),
@@ -418,13 +418,14 @@
         sb.from('chaos_events').select('icon, message, game_kind, game_id, created_at').eq('player', ME.id).order('id', { ascending: false }).limit(6),
         sb.from('trip_items').select('id, trip, title, created_by, by_claude, created_at').gte('created_at', since).neq('created_by', ME.id).order('created_at', { ascending: false }).limit(6),
         sb.from('kid_events').select('topic, day, kind, summary, created_at').eq('kid', ME.id).order('day', { ascending: false }).limit(8),
+        sb.from('kid_shares').select('owner, kind, ref, title, day, text, created_at').order('created_at', { ascending: false }).limit(8),
       ]);
       const family = (w.data || []).map((p, i) => ({ id: p.id, name: p.username, role: p.role, dot: DOTS[i % DOTS.length], world: { topics: p.topics, events: p.events } }));
       const readAt = reads.data?.read_at ? new Date(reads.data.read_at) : null;
       const msgs = chat.data || [];
       H = { family, home: h.data || { turns: [], together: [], trips: [] }, box: Object.fromEntries((box.data || []).map((b) => [b.app, b])),
         unread: msgs.filter((m) => m.author !== ME.id && (!readAt || new Date(m.created_at) > readAt)).length,
-        msgs, news: news.data || [], items: items.data || [], mine: mine.data || [] };
+        msgs, news: news.data || [], items: items.data || [], mine: mine.data || [], shares: shares.data || [] };
       drawWorld(); renderHome();
     }
 
@@ -537,9 +538,10 @@
 
     function familyCard() {
       const shared = live?.shared || [];
-      return `<section class="ctx" id="famcard"><button class="ctxh" aria-expanded="false"><span class="top"><b>Family</b><span class="n">${fam().length}</span><span class="chev">⌄</span></span><span class="sum">Worlds, growing together</span></button><div class="ctxb">
+      return `<section class="ctx" id="famcard"><button class="ctxh" aria-expanded="false"><span class="top"><b>Family</b><span class="n">${fam().length}</span><span class="chev">⌄</span></span><span class="sum">${H.shares.length ? H.shares.length + ' shared · ' : ''}Worlds, growing together</span></button><div class="ctxb">
         <p class="note">${ME.role === 'parent' ? 'Everyone’s tree, on one ground. Roots are games you played together; stars are trips you share. You see the kids’ topic names, never their words.'
           : 'Everyone’s tree, on one ground. You see the others’ trees as shapes. What you write stays yours.'}</p>
+        ${H.shares.length ? `<h3 class="k">Shared with the family</h3><div class="people">${H.shares.map((x, i) => `<a href="#" data-sh="${i}"><i class="dot" style="background:${person(x.owner)?.dot || '#B9A6FF'}"></i><span><b>${esc(x.title || (x.kind === 'story' ? 'A story' : 'An entry'))}</b><small>${esc(nm(x.owner))} · ${x.kind === 'story' ? 'a story' : 'a journal entry'}${x.text ? ' · ' + esc(x.text.slice(0, 80)) : ''}</small></span></a>`).join('')}</div>` : ''}
         ${shared.length ? `<h3 class="k">Growing together</h3><div class="topics">${shared.map((x, i) => `<button data-s="${i}">${x.source === 'game' ? KIND[x.slug.slice(5)]?.[0] || '🌀' : '✶'} ${esc(x.title)}<small>${esc(x.who.map((w) => fam()[w.pi]?.name).join(' · '))}</small></button>`).join('')}</div>` : ''}
         <h3 class="k">Worlds</h3><div class="people">${fam().map((p) => { const n = p.world.topics.length, s = streak(p.world.events.map((e) => e.day)), href = worldLink(p);
           return `<a ${href ? `href="${href}"` : `data-p="${p.id}" href="#"`}><i class="dot" style="background:${p.dot};box-shadow:0 0 8px ${p.dot}"></i><span><b>${p.id === ME.id ? 'My world' : esc(p.name) + '’s world'}</b><small>${n} thing${n === 1 ? '' : 's'} growing${s.now ? ' · ' + s.now + '-day streak' : ''}</small></span><span class="lock">${p.id === ME.id ? 'open ›' : href ? 'names only ›' : 'theirs'}</span></a>`; }).join('')}</div>
@@ -554,6 +556,12 @@
       const fc = $('famcard');
       fc.querySelector('.ctxh').onclick = () => { const o = !fc.classList.contains('open'); fc.classList.toggle('open', o); fc.querySelector('.ctxh').setAttribute('aria-expanded', String(o)); };
       fc.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => { pickWorld({ shared: live.shared[+b.dataset.s] }); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+      fc.querySelectorAll('[data-sh]').forEach((a) => (a.onclick = (e) => {
+        e.preventDefault();
+        const x = H.shares[+a.dataset.sh], p = person(x.owner), href = p && worldLink(p);
+        $('pick').innerHTML = `<h2>${esc(x.title || '')} <small>${esc(nm(x.owner))} shared this${x.day ? ' · ' + esc(new Date(x.day + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })) : ''}</small></h2><p>${esc(x.text || '')}</p>${href ? `<a class="go" href="${href}">Open ${p.id === ME.id ? 'my world' : 'their world'} ›</a>` : ''}`;
+        $('pick').hidden = false; window.scrollTo({ top: 0, behavior: 'smooth' });
+      }));
       fc.querySelectorAll('[data-p]').forEach((a) => (a.onclick = (e) => { e.preventDefault(); pickWorld({ person: person(a.dataset.p) }); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
       const q = $('q'); if (!q) return;
       // Where to? Apps, places, worlds, your own topics, the trips. Kids: anything else asks the tutor.
