@@ -383,6 +383,10 @@
     transport: ['🚕', 'Getting around'], food: ['🍽️', 'Food'], activities: ['🎯', 'Things to do'], other: ['✦', 'Other'] };
   // The parts of a trip that are one-or-the-other: the Choices card. Food, things to do and the rest stay plain ideas.
   const CHOICES = ['dates', 'flights', 'tickets', 'stay', 'transport'];
+  // What a choice changes further down: the parts Claude reworks to fit it.
+  const AFFECTS = { dates: ['flights', 'tickets', 'stay', 'transport'], flights: ['transport'], tickets: ['stay', 'transport'], stay: ['transport'], transport: [] };
+  let updating = null;     // { text } while Claude reworks the parts below a choice
+  const showOthers = new Set();   // decided parts whose other options are shown again
   const bookedFor = (t) => items.find((i) => i.kind === 'booking' && i.topic === t);
   const chosenFor = (t) => items.find((i) => i.kind === 'idea' && i.topic === t && i.chosen);
   const decided = (t) => (t === 'dates' && !!trip.starts) || !!bookedFor(t) || !!chosenFor(t);
@@ -514,6 +518,7 @@
         <button class="more" data-more="${i.id}" aria-label="Details">Details</button></div>`;
     };
     const card = parts.length ? `<div class="choices"><h2>Choices to make <small>${done} of ${parts.length} decided</small></h2>
+      ${updating ? `<div class="answer wait" style="margin-top:10px">✦ ${esc(updating.text)}</div>` : ''}
       <p class="note">${mayChoose ? 'Tap an option to choose it, tap again to undo. Claude builds on what you choose.' : `${trip.created_by && family.find((f) => f.id === trip.created_by)?.role === 'kid' ? 'Whoever started this trip' : 'Dad'} makes the choices. Tap Details to read an option.`}</p>
       ${parts.map((t) => {
         const bk = bookedFor(t), opts = list.filter((i) => i.topic === t);
@@ -522,7 +527,9 @@
         const sum = bk ? `<span class="sum ok">✓ booked: ${esc(bk.title)}</span>` : ch ? `<span class="sum ok">✓ ${esc(ch.title)}</span>`
           : `<span class="sum">${opts.length} option${opts.length === 1 ? '' : 's'} to choose from</span>`;
         return `<details class="choice fold" id="topic-${t}" data-fold="${t}"${isOpen(t) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC[t][0]} ${TOPIC[t][1]} ${status}</h3>${sum}</span><span class="chev" aria-hidden="true">⌄</span></summary>
-          ${bk ? `<div class="booked" data-more="${bk.id}">✓ ${esc(bk.title)}${bk.conf ? ` <code>${esc(bk.conf)}</code>` : ''}</div>` : `<div class="opts" role="radiogroup" aria-label="${TOPIC[t][1]}">${opts.map(opt).join('')}</div>`}</details>`;
+          ${bk ? `<div class="booked" data-more="${bk.id}">✓ ${esc(bk.title)}${bk.conf ? ` <code>${esc(bk.conf)}</code>` : ''}</div>`
+            : `<div class="opts" role="radiogroup" aria-label="${TOPIC[t][1]}">${(ch && !showOthers.has(t) ? [ch] : opts).map(opt).join('')}
+              ${ch && opts.length > 1 ? `<button type="button" class="add" data-others="${t}">${showOthers.has(t) ? 'Hide the other options' : `Show ${opts.length - 1} other option${opts.length === 2 ? '' : 's'}`}</button>` : ''}</div>`}</details>`;
       }).join('')}</div>` : '';
     // Everything else: places to go, food to try, other ideas.
     const rest = list.filter((i) => !CHOICES.includes(i.topic));
@@ -544,12 +551,14 @@
     }));
     $('addidea').onclick = () => edit({ kind: 'idea' });
     $('view').querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); view(items.find((i) => i.id === b.dataset.more)); });
+    $('view').querySelectorAll('[data-others]').forEach((b) => b.onclick = () => { const t = b.dataset.others; showOthers.has(t) ? showOthers.delete(t) : showOthers.add(t); render(); });
     $('view').querySelectorAll('[data-choose]').forEach((el) => {
       const pick = async () => {
         const i = items.find((x) => x.id === el.dataset.choose);
         if (!mayChoose) { view(i); return; }
         const { error } = await sb.rpc('trip_choose', { p_item: i.id, p_on: !i.chosen });
         if (error) { alert('Could not choose: ' + error.message); return; }
+        if (!i.chosen) { showOthers.delete(i.topic); reworkBelow(i); }
         if (!i.chosen) {   // chosen: fold this part away and open the next one still to decide
           folds[i.topic] = false;
           const next = CHOICES.find((t) => t !== i.topic && list.some((x) => x.topic === t) && !decided(t));
@@ -830,6 +839,27 @@
       load();
     } catch (e) { alert("Couldn't add the photo: " + (e.message || e)); }
   };
+
+  // A choice was made: Claude reworks the undecided parts below it to fit (retiring options it
+  // found that no longer fit, keeping what still does, finding new ones where a part runs short).
+  async function reworkBelow(i) {
+    const below = (AFFECTS[i.topic] || []).filter((t) => !decided(t) && (items.some((x) => x.kind === 'idea' && x.topic === t) || i.topic === 'dates'));
+    if (!below.length || updating) return;
+    const names = below.map((t) => TOPIC[t][1].toLowerCase());
+    updating = { text: `Updating ${names.join(', ')} for “${i.title.replace(/^[A-Za-z ]+:\s*/, '')}”… (about a minute)` };
+    render();
+    let r;
+    try {
+      const { data: { session: s } } = await sb.auth.getSession();
+      r = await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trip: trip.id, text: `The family just chose "${i.title}" [${i.id.slice(0, 8)}] for ${TOPIC[i.topic][1].toLowerCase()}.${i.topic === 'dates' ? ' Set the trip dates to match it with update_trip (travel days included).' : ''} Now make ${names.join(', ')} fit this choice: retire the options you found that no longer fit, keep and adjust the ones that still do, and find new options where a part is left with fewer than 2 that fit. Leave everything else as it is.` }) })).json();
+    } catch { r = { error: 'Claude could not update the rest just now.' }; }
+    updating = null;
+    await load();
+    $('answer').innerHTML = `<div class="answer"><div class="q">After choosing ${esc(i.title)}</div>${r.error ? esc(r.error) : '✦ ' + esc(r.reply)}
+      <div style="margin-top:6px"><button class="link quiet" id="ansx">Dismiss</button></div></div>`;
+    $('ansx').onclick = () => { $('answer').innerHTML = ''; };
+  }
 
   // ---- edit one item ----
   const KIND = { plan: 'Plan', idea: 'Idea', booking: 'Booking', pack: 'Packing' };
