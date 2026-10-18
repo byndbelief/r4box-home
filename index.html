@@ -63,6 +63,17 @@
     .msg.bad { background: var(--hot-soft); }
 
     /* login (3a: who's here, then passkey) */
+    /* the tree login (design system: Login, baby tree): trace buds, blossoms and fruit, then passkey */
+    #treein { position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; gap: 12px; padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); background: var(--bg); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+    #treein .tbox { position: relative; flex: 1; min-height: 0; touch-action: none; cursor: crosshair; max-width: 720px; width: 100%; margin: 0 auto; }
+    #treein .tbox > div { position: absolute; inset: 0; }
+    #treein canvas { display: block; }
+    #treein svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+    #treein .tkey { display: flex; gap: 16px; justify-content: center; font-size: 12px; color: var(--muted); }
+    #treein .tkey span { display: flex; align-items: center; gap: 6px; }
+    #treein .tkey i { width: 9px; height: 9px; border-radius: 9px; }
+    #treein .tfoot { display: grid; justify-items: center; gap: 10px; }
+    #treein .msg { max-width: 420px; text-align: center; }
     #login .body { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 22px; max-width: 520px; padding-top: 40px; }
     .who { display: flex; gap: 10px; flex-wrap: wrap; }
     .who button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; background: #ffffff0e; border: 1px solid #ffffff22; font-weight: 700; }
@@ -212,6 +223,13 @@
   <div class="bg" id="ecowrap" hidden><canvas id="eco" aria-hidden="true"></canvas></div>
 
   <!-- signed out: 3a, who's here -->
+  <main id="treein" hidden aria-label="Sign in">
+    <header><a class="mark" href="/"><i aria-hidden="true"></i>r4box<small>r = 4</small></a></header>
+    <div class="tbox" id="tbox" role="group" aria-label="Trace at least four buds, blossoms or fruit, then use your passkey"><div><canvas id="tcv" aria-hidden="true"></canvas></div><svg id="tsvg" aria-hidden="true"></svg></div>
+    <div class="tkey"><span><i style="background:#B9A6FF;box-shadow:0 0 8px #B9A6FF"></i>bud</span><span><i style="background:#FF5A4A;box-shadow:0 0 8px #FF5A4A"></i>blossom</span><span><i style="background:#F5C542;box-shadow:0 0 8px #F5C542"></i>fruit</span></div>
+    <div class="tfoot"><p class="msg" id="treemsg" hidden></p><button class="link quiet" id="tfall">Use a password or email link</button></div>
+  </main>
+
   <main class="page" id="login" hidden>
     <header><a class="mark" href="/"><i aria-hidden="true"></i>r4box<small>r = 4</small></a><span class="xpill">x = <b class="x">0.0000</b></span></header>
     <div class="body">
@@ -291,8 +309,90 @@
 
     // ---------------- signed out ----------------
     let who = null;
+    // ---------------- the tree login ----------------
+    // A baby diary tree whose buds, blossoms and fruit you trace (four or more), then your
+    // passkey: the trace is the ritual, the passkey is the sign-in (and picks who you are).
+    // "Use a password or email link" is the way in without a passkey on this device.
+    const SAPLING = (() => {
+      const day = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+      const roots = [['r1', 16], ['r2', 14], ['r3', 12], ['r4', 9], ['r5', 7], ['r6', 4]];
+      const ideas = roots.map(([id, n]) => ({ id, created: day(n), stage: 'explored', parent: null })), events = [];
+      roots.forEach(([id, n]) => { for (let i = 0; i < 4; i++) events.push({ id: `ev-${id}-${i}`, date: day(Math.max(0, n - i)), idea: id, kind: 'deepen', effort: 1 + (i % 2) }); });
+      [['r1', 2], ['r3', 1], ['r5', 2]].forEach(([p, at], j) => {
+        const d = day(Math.max(0, roots.find((r) => r[0] === p)[1] - at)), id = 'k' + j;
+        ideas.push({ id, created: d, stage: 'explored', parent: p });
+        for (let i = 0; i < 3; i++) events.push({ id: `ev-${id}-${i}`, date: d, idea: id, kind: 'deepen', effort: 1 });
+      });
+      events.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+      return { ideas, events };
+    })();
+    const JIT = [[-.14, .1], [.06, -.12], [.16, .04], [.1, -.08], [-.05, .13], [-.12, -.06], [-.08, .05], [.13, .12], [.02, -.1]];
+    const DOTC = { spark: '#B9A6FF', branch: '#FF5A4A', ship: '#F5C542' };
+    // Nine dots on a loose 3x3 grid over the trunk (rows: fruit, blossoms, buds), each tied to the tree by a twig.
+    function codeDots(nodes, w, h) {
+      if (nodes.length < 9) return [];
+      const ys = nodes.map((n) => n.y), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      const sx = Math.min(w * .3, 150), sy = Math.min((y1 - y0) * .42, sx * 1.9), cy = (y0 + y1) / 2 - sy * .1, kinds = ['ship', 'branch', 'spark'], out = [];
+      for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) {
+        const [jx, jy] = JIT[row * 3 + col], x = w / 2 + (col - 1 + jx) * sx, y = cy + (row - 1 + jy) * sy;
+        let a = null, bd = Infinity;
+        nodes.forEach((n) => { if (n.y < y + 18) return; const d = (n.x - x) ** 2 + (n.y - y) ** 2; if (d < bd) { bd = d; a = n; } });
+        if (!a) nodes.forEach((n) => { const d = (n.x - x) ** 2 + (n.y - y) ** 2; if (d < bd) { bd = d; a = n; } });
+        const bend = (col - 1 || (row % 2 ? 1 : -1)) * 14;
+        out.push({ x, y, kind: kinds[row], ax: a.x, ay: a.y, cx: (a.x + x) / 2 + bend, cy: (a.y + y) / 2 + 6 });
+      }
+      return out;
+    }
+    let dots = [], tpath = [], tbad = false, stopTree = null, tbusy = false;
+    function drawDots() {
+      const L = (a, b) => `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${tbad ? '#FF5A4A' : '#F3F1FF'}" stroke-opacity=".75" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1 7"/>`;
+      $('tsvg').innerHTML = tpath.slice(1).map((i, k) => L(dots[tpath[k]], dots[i])).join('')
+        + dots.map((n) => `<path d="M${n.ax} ${n.ay} Q${n.cx} ${n.cy} ${n.x} ${n.y}" fill="none" stroke="#3A335F" stroke-width="4.5" stroke-linecap="round"/><path d="M${n.ax} ${n.ay} Q${n.cx} ${n.cy} ${n.x} ${n.y}" fill="none" stroke="${DOTC[n.kind]}" stroke-opacity=".35" stroke-width="1.5" stroke-linecap="round"/>`).join('')
+        + dots.map((n) => `<circle cx="${n.x}" cy="${n.y}" r="16" fill="${DOTC[n.kind]}" opacity=".22"/><circle cx="${n.x}" cy="${n.y}" r="8.5" fill="${DOTC[n.kind]}" style="filter:drop-shadow(0 0 8px ${DOTC[n.kind]})"/>`).join('')
+        + tpath.map((i) => `<circle cx="${dots[i].x}" cy="${dots[i].y}" r="22" fill="none" stroke="${tbad ? '#FF5A4A' : DOTC[dots[i].kind]}" stroke-width="2"/>`).join('');
+    }
+    function showTree(msg) {
+      $('home').hidden = true; $('login').hidden = true; $('treein').hidden = false; $('bifwrap').hidden = true;
+      $('treemsg').hidden = !msg; $('treemsg').textContent = msg || ''; $('treemsg').className = 'msg bad';
+      tpath = []; tbad = false;
+      if (!stopTree) stopTree = window.mountDiaryTree($('tcv'), SAPLING, {
+        palette: { '--bark': '#3A335F', '--c-park': '#4A4470', '--c-growth': '#B9A6FF', '--c-turn': '#FF5A4A', '--c-close': '#3DD6C6', '--accent': '#F5C542', '--ground': '#06050F' },
+        flow: { colors: ['#3DD6C6', '#C9FFF8', '#B9A6FF', '#F5C542', '#FF5A4A'], wave: 70, speed: .45, tail: 2.6 },
+        spin: false, fill: true, segScale: 1.7, withTips: true, onLayout: (n, w, h) => { dots = codeDots(n, w, h); drawDots(); },
+      });
+      drawDots();
+    }
+    function hideTree() { $('treein').hidden = true; if (stopTree) { stopTree(); stopTree = null; } }
+    function hitDot(e) {
+      const b = $('tbox').getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top;
+      let best = -1, bd = 30 * 30;
+      dots.forEach((n, i) => { const d = (n.x - mx) ** 2 + (n.y - my) ** 2; if (d < bd) { bd = d; best = i; } });
+      if (best >= 0 && !tpath.includes(best)) { tpath.push(best); drawDots(); }
+    }
+    $('tbox').addEventListener('pointerdown', (e) => { if (tbusy) return; $('tbox').setPointerCapture(e.pointerId); tpath = []; tbad = false; $('treemsg').hidden = true; hitDot(e); });
+    $('tbox').addEventListener('pointermove', (e) => { if (e.buttons && !tbusy) hitDot(e); });
+    $('tbox').addEventListener('pointerup', async () => {
+      if (tbusy) return;
+      if (tpath.length && tpath.length < 4) { tbad = true; drawDots(); setTimeout(() => { tbad = false; tpath = []; drawDots(); }, 600); return; }
+      if (!tpath.length) return;
+      if (!window.PublicKeyCredential) { showLogin('This browser has no passkeys: use your password.', true); return; }
+      tbusy = true; who = null; sheet('wait');
+      const { error } = await sb.auth.signInWithPasskey();
+      tbusy = false;
+      if (error) {
+        sheet(null); tpath = []; drawDots();
+        const m = (error.code || '') + error.message;
+        showTree(/disabled/.test(m) ? 'Passkeys are not switched on yet: use a password or email link.'
+          : /not_found|NotAllowed|abort/i.test(m) ? 'No passkey for you on this device yet: sign in with a password or email link once, then add one.'
+          : 'That did not work: ' + error.message);
+        return;
+      }
+      sheet('ok');
+    });
+    $('tfall').onclick = () => { hideTree(); showLogin(); };
+
     function showLogin(msg, bad) {
-      $('home').hidden = true; $('login').hidden = false; $('bifwrap').hidden = false; $('treewrap').hidden = true; $('ecowrap').hidden = true; $('bifwrap').classList.remove('faint'); if (live) { live.destroy(); live = null; }
+      hideTree(); $('home').hidden = true; $('login').hidden = false; $('bifwrap').hidden = false; $('treewrap').hidden = true; $('ecowrap').hidden = true; $('bifwrap').classList.remove('faint'); if (live) { live.destroy(); live = null; }
       $('who').innerHTML = FAMILY.map((f, i) => `<button data-i="${i}">${f.avatar ? `<img src="${f.avatar}" alt="">` : `<span class="av">${esc(f.name[0].toUpperCase())}</span>`}${esc(f.name)}</button>`).join('');
       pick(null);
       if (msg) say(msg, bad);
@@ -400,7 +500,7 @@
         try { const u = new URL(next); if (u.protocol === 'https:' && (u.hostname === 'r4box.com' || u.hostname.endsWith('.r4box.com'))) { history.replaceState(null, '', '/'); go(u.href); return; } } catch {}
       }
       ME = { role, name, id: user.id };
-      $('login').hidden = true; $('home').hidden = false;
+      hideTree(); $('login').hidden = true; $('home').hidden = false;
       for (const id of ['bifwrap', 'treewrap', 'ecowrap']) $(id).hidden = true;
       await loadHome();
       if (role === 'parent') showFlags();
@@ -748,10 +848,10 @@
     sb.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         doorOut();
-        showLogin();
+        showTree();
       }
       else if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) showHome(session);
-      else if (!session && event === 'INITIAL_SESSION') showLogin();
+      else if (!session && event === 'INITIAL_SESSION') showTree();
     });
   </script>
 
