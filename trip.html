@@ -464,6 +464,9 @@
   // ---- one item, in full: pictures, notes, link, actions and the family's discussion ----
   const PREVIEW = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/link-preview';
   const linkify = (t) => esc(t).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48)}${u.length > 60 ? '…' : ''}</a>`);
+  // A readable name from an address when the site gives none: ".../things-to-do-with-kids-in-mexico-city/" -> "Things to do with kids in mexico city";
+  // id-like parts are skipped, and with nothing readable left it is the site's name.
+  const pageName = (u) => { try { const segs = decodeURIComponent(new URL(u).pathname).split('/').filter(Boolean), seg = segs.filter((x) => !/^[0-9a-f-]{12,}$/i.test(x) && /[a-z]{4}/i.test(x)).pop() || ''; const t = seg.replace(/\.[a-z]+$/, '').replace(/[-_]+/g, ' ').replace(/\b(pl|ttd)?\d{3,}\b/gi, '').trim(); return t ? t[0].toUpperCase() + t.slice(1) : new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
   const when = (ts) => new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   let open = null;   // the item shown in the sheet
   async function view(i) {
@@ -471,7 +474,9 @@
     open = i.id; renderSheet();
     if (!$('sheet').open) $('sheet').showModal();
     // Its link's preview: fetched once, then kept on the item.
-    if (safeLink(i.link) && i.preview?.url !== i.link) {
+    // asked again while it has no picture: the server answers from what it saved unless a retry is due
+    const pv0 = i.preview;
+    if (i.kind !== 'pack' && (!pv0 || (pv0.url ?? null) !== (i.link ?? null) || !pv0.image)) {
       try {
         const { data: { session: s } } = await sb.auth.getSession();
         const r = await (await fetch(PREVIEW, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ item: i.id }) })).json();
@@ -485,7 +490,7 @@
     const pv = i.preview || {}, link = safeLink(i.link);
     const canEdit = i.kind !== 'booking' || PARENT;
     const pics = [...(i.photos || []).map((p) => ({ src: photoUrls.get(p), path: p, by: p.split('/')[0] })).filter((x) => x.src),
-      ...(pv.image && /^https:\/\//.test(pv.image) ? [{ src: pv.image, site: pv.site }] : [])];
+      ...(pv.image && /^https:\/\//.test(pv.image) ? [{ src: pv.image, site: pv.credit || pv.site, href: pv.credit_url }] : [])];
     const isChoice = i.kind === 'idea' && CHOICES.includes(i.topic), mayChoose = canChoose();
     const place = ['stay', 'food', 'activities', 'tickets', 'transport'].includes(i.topic) || i.kind === 'plan';
     const maps = place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(i.title.replace(/^[A-Za-z ]+:\s*/, '') + (trip.place ? ', ' + trip.place : ''))}` : '';
@@ -496,7 +501,7 @@
       <header class="sh"><b>${TOPIC[i.topic] ? TOPIC[i.topic].join(' ') : KIND[i.kind]}</b>${canEdit ? '<button class="btn" id="shedit">Edit</button>' : ''}<button class="btn" id="shx" aria-label="Close" autofocus>✕</button></header>
       <div class="body">
         ${pics.length ? `<div class="pics">${pics.map((p) => `<figure><img src="${esc(p.src)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()">
-          <figcaption>${p.path ? 'added by ' + esc(who(p.by)) : esc(p.site || 'from the link')}</figcaption>
+          <figcaption>${p.path ? 'added by ' + esc(who(p.by)) : p.href ? `<a href="${esc(p.href)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${esc(p.site)}</a>` : esc(p.site || 'from the link')}</figcaption>
           ${p.path && (p.by === ME.id || PARENT) ? `<button class="x" data-unphoto="${esc(p.path)}" aria-label="Remove photo">✕</button>` : ''}</figure>`).join('')}</div>` : ''}
         <div class="sec">
           <h2 class="t">${esc(i.title)}</h2>
@@ -508,7 +513,7 @@
           ${i.notes ? `<p class="notes">${linkify(i.notes)}</p>` : ''}
           ${link ? `<a class="linkcard" href="${esc(link)}" target="_blank" rel="noopener noreferrer">
               ${pv.image && /^https:\/\//.test(pv.image) && (i.photos || []).length ? `<img src="${esc(pv.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
-              <div><small>${esc(pv.site || new URL(link).hostname.replace(/^www\./, ''))} ↗</small><b>${esc(pv.title || link)}</b>${pv.description ? `<span>${esc(pv.description)}</span>` : ''}</div></a>` : ''}
+              <div><small>${esc(pv.site || new URL(link).hostname.replace(/^www\./, ''))} ↗</small><b>${esc(pv.title || pageName(link))}</b>${pv.description ? `<span>${esc(pv.description)}</span>` : ''}</div></a>` : ''}
           <div class="acts">
             ${isChoice && mayChoose ? `<button class="btn p" id="shchoose">${i.chosen ? 'Undo choice' : '✓ Choose this'}</button>` : ''}
             ${i.kind === 'idea' && i.chosen && PARENT && ['flights', 'stay', 'tickets', 'transport'].includes(i.topic) ? '<button class="btn p" id="shbook">Booked it</button>' : ''}
