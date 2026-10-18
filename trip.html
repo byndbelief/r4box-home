@@ -89,6 +89,58 @@
     .opt .more { all: unset; cursor: pointer; flex: none; color: var(--faint); font-size: 13px; font-weight: 700; padding: 2px 4px; }
     .opt .more:hover { color: var(--teal); }
     .opt.ro { cursor: default; }
+    /* small picture and comment count on cards */
+    .item .hd .thumb, .opt .thumb { flex: none; width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: var(--panel-2); }
+    .opt .thumb { width: 44px; height: 44px; }
+    .cc { font-size: 12.5px; color: var(--violet); font-weight: 700; }
+    /* the detail sheet: full screen on a phone, a centred panel on a wide screen */
+    #sheet { padding: 0; border: 0; width: 100%; max-width: 680px; height: 100dvh; max-height: 100dvh; margin: 0 auto; background: var(--bg); color: var(--ink); border-radius: 0; }
+    @media (min-width: 720px) { #sheet { height: 92dvh; margin-top: 4dvh; border-radius: 22px; border: 1px solid var(--line); } }
+    #sheet::backdrop { background: #0B0918dd; }
+    #sheet .wrap { display: flex; flex-direction: column; height: 100%; }
+    #sheet header.sh { flex: none; display: flex; align-items: center; gap: 10px; padding: max(12px, env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--line); }
+    #sheet header.sh b { flex: 1; min-width: 0; font: 800 15px/1.2 var(--body); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #sheet .body { flex: 1; overflow-y: auto; padding: 0 0 16px; overscroll-behavior: contain; }
+    #sheet .pics { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 14px 16px 0; }
+    #sheet .pics figure { position: relative; flex: none; margin: 0; width: min(86%, 520px); aspect-ratio: 16 / 10; border-radius: 16px; overflow: hidden; background: var(--panel-2); scroll-snap-align: start; }
+    #sheet .pics figure:only-child { width: 100%; }
+    #sheet .pics img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #sheet .pics figcaption { position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: 99px; background: #0B0918cc; font-size: 11px; color: var(--muted); }
+    #sheet .pics .x { position: absolute; top: 8px; right: 8px; all: unset; cursor: pointer; padding: 4px 9px; border-radius: 99px; background: #0B0918cc; font-size: 13px; }
+    #sheet .sec { padding: 16px 16px 0; }
+    #sheet h2.t { margin: 0; font: 800 clamp(22px, 6vw, 28px)/1.15 var(--display); letter-spacing: -.02em; overflow-wrap: anywhere; }
+    #sheet .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    #sheet .chip { padding: 4px 10px; border-radius: 99px; background: #ffffff0e; border: 1px solid #ffffff18; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+    #sheet .chip.on { color: var(--teal-ink); background: var(--teal); border-color: var(--teal); }
+    #sheet .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 14px; }
+    #sheet .fact { padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+    #sheet .fact small { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 700; }
+    #sheet .fact b { font-size: 16px; }
+    #sheet .notes { margin: 14px 0 0; font-size: 16px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; color: #E3DFFA; }
+    #sheet .notes a { color: var(--teal); }
+    #sheet .linkcard { display: flex; gap: 12px; align-items: stretch; margin-top: 14px; border-radius: 14px; overflow: hidden; background: var(--panel); border: 1px solid var(--line); color: inherit; text-decoration: none; }
+    #sheet .linkcard img { flex: none; width: 96px; object-fit: cover; background: var(--panel-2); }
+    #sheet .linkcard div { padding: 10px 12px 10px 0; min-width: 0; }
+    #sheet .linkcard div:first-child { padding-left: 12px; }
+    #sheet .linkcard small { display: block; color: var(--teal); font-weight: 700; font-size: 12px; }
+    #sheet .linkcard b { display: block; font-size: 14.5px; line-height: 1.3; overflow-wrap: anywhere; }
+    #sheet .linkcard span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 13px; margin-top: 2px; }
+    #sheet .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; justify-content: flex-start; }
+    #sheet .acts a.btn { text-decoration: none; }
+    #sheet h3.k { margin: 22px 0 10px; font: 700 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+    #sheet .talk { display: grid; gap: 10px; }
+    #sheet .cm { display: flex; gap: 10px; align-items: flex-start; }
+    #sheet .cm .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--display); background: var(--panel-2); border: 1px solid var(--line); }
+    #sheet .cm .bx { flex: 1; min-width: 0; padding: 8px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); overflow-wrap: anywhere; }
+    #sheet .cm.me .bx { background: color-mix(in srgb, var(--teal) 12%, var(--panel)); border-color: #3DD6C640; }
+    #sheet .cm .bx small { display: flex; justify-content: space-between; gap: 8px; color: var(--faint); font-size: 12px; }
+    #sheet .cm .bx small b { color: var(--violet); }
+    #sheet .cm .bx p { margin: 2px 0 0; white-space: pre-wrap; font-size: 15px; }
+    #sheet .cm .bx p a { color: var(--teal); }
+    #sheet .cm .del { all: unset; cursor: pointer; color: var(--faint); }
+    #sheet form.say { flex: none; display: flex; gap: 8px; align-items: flex-end; padding: 10px 16px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
+    #sheet form.say textarea { flex: 1; min-height: 44px; max-height: 120px; resize: none; padding: 11px 14px; border-radius: 22px; background: var(--panel); }
+    #sheet form.say button { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--teal); color: var(--teal-ink); font-weight: 900; font-size: 18px; cursor: pointer; }
     .booked { display: flex; gap: 10px; align-items: center; padding: 12px; border-radius: 14px; background: #3DD6C614; border: 1px solid #3DD6C655; font-weight: 700; cursor: pointer; }
     .total { display: flex; justify-content: space-between; align-items: baseline; padding: 14px; border-radius: 14px; background: var(--panel-2); margin: 10px 0; }
     .total b { font: 800 22px/1 var(--display); color: var(--gold); }
@@ -168,6 +220,8 @@
 </main>
 
 <dialog id="dlg"><form method="dialog" id="dform"></form></dialog>
+<dialog id="sheet" aria-label="Details"></dialog>
+<input type="file" id="photofile" accept="image/*" hidden>
 
 <script type="module">
   import { sb, roleOf } from './auth.js';
@@ -180,7 +234,9 @@
   const ME = { id: session?.user.id, role: roleOf(session?.user) };
   const PARENT = ME.role === 'parent';
 
-  let trips = [], trip = null, items = [], family = [], asks = [];
+  let trips = [], trip = null, items = [], family = [], asks = [], comments = [];
+  const photoUrls = new Map();   // trip-photos path -> signed URL
+  const cc = (id) => comments.filter((c) => c.item === id).length;
   const nameOf = (id) => family.find((f) => f.id === id)?.username || '';
 
   // ---- dates ----
@@ -205,10 +261,22 @@
     if (trip) {
       const { data: it } = await sb.from('trip_items').select('*').eq('trip', trip.id).order('created_at');
       items = it || [];
+      const { data: cm } = await sb.from('trip_comments').select('id, item, author, body, created_at').eq('trip', trip.id).order('id');
+      comments = cm || [];
+      const need = [...new Set(items.flatMap((i) => i.photos || []))].filter((p) => !photoUrls.has(p));
+      if (need.length) { const { data: su } = await sb.storage.from('trip-photos').createSignedUrls(need, 3600); for (const x of su || []) if (x.signedUrl) photoUrls.set(x.path, x.signedUrl); }
       const { data: a } = await sb.from('trip_asks').select('asker, text, reply, added, created_at').eq('trip', trip.id).order('created_at', { ascending: false }).limit(8);
       asks = a || [];
     }
     render();
+    if (open && $('sheet').open) {
+      // keep a half-typed comment across a live refresh
+      const t = $('sheet').querySelector('#shtext'), draft = t ? t.value : '', focused = document.activeElement === t;
+      const b = $('sheet').querySelector('.body'), atEnd = b && b.scrollHeight - b.scrollTop - b.clientHeight < 60, top = b ? b.scrollTop : 0;
+      renderSheet();
+      const t2 = $('sheet').querySelector('#shtext'); if (t2) { t2.value = draft; if (focused) t2.focus(); }
+      const b2 = $('sheet').querySelector('.body'); if (b2) b2.scrollTop = atEnd ? b2.scrollHeight : top;
+    }
   }
 
   function render() {
@@ -254,7 +322,7 @@
       + `<button class="askrow" data-ask="1"><span class="k">✦ Claude</span><b>Ask: “${esc($('askq').value.trim().slice(0, 60))}”</b></button>`;
     $('found').querySelectorAll('button[data-id]').forEach((b) => b.onclick = () => {
       const i = items.find((x) => x.id === b.dataset.id); $('found').hidden = true; $('askq').value = '';
-      location.hash = TAB[i.kind]; if (i.kind !== 'booking' || PARENT) setTimeout(() => edit(i), 50);
+      location.hash = TAB[i.kind]; setTimeout(() => view(i), 50);
     });
     $('found').querySelector('[data-ask]').onclick = () => $('askf').requestSubmit();
   };
@@ -281,7 +349,7 @@
       ${r.left != null && r.left < 10 ? `<div class="note" style="margin-top:6px">${r.left} questions left today</div>` : ''}
       <div style="margin-top:6px"><button class="link quiet" id="ansx">Dismiss</button></div></div>`;
     $('ansx').onclick = () => { $('answer').innerHTML = ''; };
-    $('answer').querySelectorAll('.chips button').forEach((b) => b.onclick = () => { const i = items.find((x) => x.id === b.dataset.id); if (i) { location.hash = TAB[i.kind]; if (i.kind !== 'booking' || PARENT) setTimeout(() => edit(i), 50); } });
+    $('answer').querySelectorAll('.chips button').forEach((b) => b.onclick = () => { const i = items.find((x) => x.id === b.dataset.id); if (i) { location.hash = TAB[i.kind]; setTimeout(() => view(i), 50); } });
     if (touched[0]) location.hash = TAB[touched[0].kind];
   };
   window.addEventListener('hashchange', render);
@@ -289,14 +357,17 @@
   // tm: time or date before the title; cost: on the title row; meta: extra details (html) for the line below; foot: a footer (e.g. Booked it).
   const itemRow = (i, { tm = i.at, cost = '', icon = false, meta = [], foot = '' } = {}) => {
     const link = safeLink(i.link) ? `<a href="${esc(i.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(new URL(i.link).hostname.replace(/^www\./, ''))} ↗</a>` : '';
-    const details = [...meta, link].filter(Boolean);
+    const details = [...meta, link, cc(i.id) ? `<span class="cc">💬 ${cc(i.id)}</span>` : ''].filter(Boolean);
+    const pic = picOf(i);
     return `<div class="item" data-id="${i.id}">
-      <div class="hd">${tm ? `<span class="tm${String(tm).length > 6 ? ' wide' : ''}">${esc(tm)}</span>` : ''}<span class="ttl">${icon && TOPIC[i.topic] ? `<span class="ti" title="${TOPIC[i.topic][1]}">${TOPIC[i.topic][0]}</span>` : ''}${esc(i.title)}${i.by_claude ? '<span class="claude" title="Added by Claude">✦</span>' : ''}</span>${cost ? `<span class="cost">${cost}</span>` : ''}</div>
+      <div class="hd">${tm ? `<span class="tm${String(tm).length > 6 ? ' wide' : ''}">${esc(tm)}</span>` : ''}<span class="ttl">${icon && TOPIC[i.topic] ? `<span class="ti" title="${TOPIC[i.topic][1]}">${TOPIC[i.topic][0]}</span>` : ''}${esc(i.title)}${i.by_claude ? '<span class="claude" title="Added by Claude">✦</span>' : ''}</span>${cost ? `<span class="cost">${cost}</span>` : ''}${pic ? `<img class="thumb" src="${esc(pic)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
       ${i.notes ? `<p class="notes">${esc(i.notes)}</p>` : ''}
       ${details.length ? `<div class="meta">${details.join('<span aria-hidden="true">·</span>')}</div>` : ''}
       ${foot ? `<div class="foot">${foot}</div>` : ''}</div>`;
   };
-  const wire = () => $('view').querySelectorAll('.item[data-id]').forEach((el) => el.onclick = () => edit(items.find((i) => i.id === el.dataset.id)));
+  const wire = () => $('view').querySelectorAll('.item[data-id]').forEach((el) => el.onclick = () => view(items.find((i) => i.id === el.dataset.id)));
+  // An item's picture: one the family added first, else its link's preview image.
+  const picOf = (i) => (i.photos || []).map((p) => photoUrls.get(p)).find(Boolean) || (i.preview?.image && /^https:\/\//.test(i.preview.image) ? i.preview.image : '');
 
   function plan() {
     const ds = days(), list = items.filter((i) => i.kind === 'plan');
@@ -320,7 +391,7 @@
       const on = !!i.chosen, other = !on && !!chosenFor(i.topic);
       return `<div class="opt${on ? ' on' : ''}${other ? ' off' : ''}${mayChoose ? '' : ' ro'}" data-choose="${i.id}" role="radio" aria-checked="${on}" tabindex="0">
         <span class="dot" aria-hidden="true"></span>
-        <span class="ot"><b>${esc(i.title)}</b>${i.notes ? `<span>${esc(i.notes)}</span>` : ''}</span>
+        <span class="ot"><b>${esc(i.title)}</b>${i.notes ? `<span>${esc(i.notes)}</span>` : ''}${cc(i.id) ? `<em class="cc" style="font-style:normal">💬 ${cc(i.id)}</em>` : ''}</span>${picOf(i) ? `<img class="thumb" src="${esc(picOf(i))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
         <button class="more" data-more="${i.id}" aria-label="Details">Details</button></div>`;
     };
     const card = parts.length ? `<div class="choices"><h2>Choices to make <small>${done} of ${parts.length} decided</small></h2>
@@ -340,11 +411,11 @@
         : parts.length ? '' : `<p class="empty">No ideas yet. Add one, or ask Claude to “break the trip down”: dates, flights, tickets and where to stay come back as choices to make.</p>`)
       + `<button class="add" id="addidea">＋ Add an idea</button>`;
     $('addidea').onclick = () => edit({ kind: 'idea' });
-    $('view').querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); edit(items.find((i) => i.id === b.dataset.more)); });
+    $('view').querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); view(items.find((i) => i.id === b.dataset.more)); });
     $('view').querySelectorAll('[data-choose]').forEach((el) => {
       const pick = async () => {
         const i = items.find((x) => x.id === el.dataset.choose);
-        if (!mayChoose) { edit(i); return; }
+        if (!mayChoose) { view(i); return; }
         const { error } = await sb.rpc('trip_choose', { p_item: i.id, p_on: !i.chosen });
         if (error) { alert('Could not choose: ' + error.message); return; }
         load();
@@ -389,6 +460,122 @@
       load();
     });
   }
+
+  // ---- one item, in full: pictures, notes, link, actions and the family's discussion ----
+  const PREVIEW = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/link-preview';
+  const linkify = (t) => esc(t).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48)}${u.length > 60 ? '…' : ''}</a>`);
+  const when = (ts) => new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  let open = null;   // the item shown in the sheet
+  async function view(i) {
+    if (!i) return;
+    open = i.id; renderSheet();
+    if (!$('sheet').open) $('sheet').showModal();
+    // Its link's preview: fetched once, then kept on the item.
+    if (safeLink(i.link) && i.preview?.url !== i.link) {
+      try {
+        const { data: { session: s } } = await sb.auth.getSession();
+        const r = await (await fetch(PREVIEW, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ item: i.id }) })).json();
+        if (r.preview) { i.preview = r.preview; if (open === i.id) renderSheet(); }
+      } catch {}
+    }
+  }
+  function renderSheet() {
+    const i = items.find((x) => x.id === open);
+    if (!i) { $('sheet').close(); return; }
+    const pv = i.preview || {}, link = safeLink(i.link);
+    const canEdit = i.kind !== 'booking' || PARENT;
+    const pics = [...(i.photos || []).map((p) => ({ src: photoUrls.get(p), path: p, by: p.split('/')[0] })).filter((x) => x.src),
+      ...(pv.image && /^https:\/\//.test(pv.image) ? [{ src: pv.image, site: pv.site }] : [])];
+    const isChoice = i.kind === 'idea' && CHOICES.includes(i.topic), mayChoose = canChoose();
+    const place = ['stay', 'food', 'activities', 'tickets', 'transport'].includes(i.topic) || i.kind === 'plan';
+    const maps = place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(i.title.replace(/^[A-Za-z ]+:\s*/, '') + (trip.place ? ', ' + trip.place : ''))}` : '';
+    const facts = [i.day && ['Day', nice(i.day)], i.at && ['Time', i.at], i.cost != null && ['Cost', money(i.cost)], i.conf && ['Confirmation', i.conf]].filter(Boolean);
+    const talk = comments.filter((c) => c.item === i.id);
+    const who = (id) => nameOf(id) || 'someone';
+    $('sheet').innerHTML = `<div class="wrap">
+      <header class="sh"><b>${TOPIC[i.topic] ? TOPIC[i.topic].join(' ') : KIND[i.kind]}</b>${canEdit ? '<button class="btn" id="shedit">Edit</button>' : ''}<button class="btn" id="shx" aria-label="Close" autofocus>✕</button></header>
+      <div class="body">
+        ${pics.length ? `<div class="pics">${pics.map((p) => `<figure><img src="${esc(p.src)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()">
+          <figcaption>${p.path ? 'added by ' + esc(who(p.by)) : esc(p.site || 'from the link')}</figcaption>
+          ${p.path && (p.by === ME.id || PARENT) ? `<button class="x" data-unphoto="${esc(p.path)}" aria-label="Remove photo">✕</button>` : ''}</figure>`).join('')}</div>` : ''}
+        <div class="sec">
+          <h2 class="t">${esc(i.title)}</h2>
+          <div class="chips">
+            ${i.chosen ? '<span class="chip on">✓ Chosen</span>' : ''}${i.kind !== 'idea' ? `<span class="chip">${KIND[i.kind]}</span>` : ''}
+            ${i.by_claude ? '<span class="chip">✦ found by Claude</span>' : ''}<span class="chip">added by ${esc(who(i.created_by))}</span>
+          </div>
+          ${facts.length ? `<div class="facts">${facts.map(([k, v]) => `<div class="fact"><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div>` : ''}
+          ${i.notes ? `<p class="notes">${linkify(i.notes)}</p>` : ''}
+          ${link ? `<a class="linkcard" href="${esc(link)}" target="_blank" rel="noopener noreferrer">
+              ${pv.image && /^https:\/\//.test(pv.image) && (i.photos || []).length ? `<img src="${esc(pv.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+              <div><small>${esc(pv.site || new URL(link).hostname.replace(/^www\./, ''))} ↗</small><b>${esc(pv.title || link)}</b>${pv.description ? `<span>${esc(pv.description)}</span>` : ''}</div></a>` : ''}
+          <div class="acts">
+            ${isChoice && mayChoose ? `<button class="btn p" id="shchoose">${i.chosen ? 'Undo choice' : '✓ Choose this'}</button>` : ''}
+            ${i.kind === 'idea' && i.chosen && PARENT && ['flights', 'stay', 'tickets', 'transport'].includes(i.topic) ? '<button class="btn p" id="shbook">Booked it</button>' : ''}
+            ${i.kind === 'idea' ? '<button class="btn" id="shplan">Put in the plan</button>' : ''}
+            ${maps ? `<a class="btn" href="${esc(maps)}" target="_blank" rel="noopener noreferrer">📍 Open in Maps</a>` : ''}
+            ${canEdit ? '<button class="btn" id="shphoto">📷 Add photo</button>' : ''}
+          </div>
+          <h3 class="k">Discussion${talk.length ? ` · ${talk.length}` : ''}</h3>
+          <div class="talk">${talk.map((c) => `<div class="cm${c.author === ME.id ? ' me' : ''}"><span class="av">${esc(who(c.author)[0].toUpperCase())}</span>
+            <div class="bx"><small><b>${esc(who(c.author))}</b><span>${esc(when(c.created_at))}${c.author === ME.id || PARENT ? ` <button class="del" data-uncomment="${c.id}" aria-label="Delete">✕</button>` : ''}</span></small><p>${linkify(c.body)}</p></div></div>`).join('')
+            || '<p class="note" style="margin:0">No comments yet. What does everyone think?</p>'}</div>
+        </div>
+      </div>
+      <form class="say" id="shsay"><textarea id="shtext" rows="1" maxlength="2000" placeholder="Say something about this…" aria-label="Comment"></textarea><button aria-label="Send">↑</button></form>
+    </div>`;
+    const S = (id) => $('sheet').querySelector('#' + id);
+    S('shx').onclick = () => { open = null; $('sheet').close(); };
+    if (S('shedit')) S('shedit').onclick = () => { $('sheet').close(); edit(i); };
+    if (S('shchoose')) S('shchoose').onclick = async () => { const { error } = await sb.rpc('trip_choose', { p_item: i.id, p_on: !i.chosen }); if (error) alert(error.message); else load(); };
+    if (S('shbook')) S('shbook').onclick = () => { $('sheet').close(); edit({ ...i, kind: 'booking', _from: i.id }); };
+    if (S('shplan')) S('shplan').onclick = () => { $('sheet').close(); edit({ ...i, kind: 'plan', _from: i.id }); };
+    if (S('shphoto')) S('shphoto').onclick = () => $('photofile').click();
+    $('sheet').querySelectorAll('[data-unphoto]').forEach((b) => b.onclick = async () => {
+      if (!confirm('Remove this photo?')) return;
+      const path = b.dataset.unphoto;
+      const { error } = await sb.from('trip_items').update({ photos: (i.photos || []).filter((p) => p !== path), updated_at: new Date().toISOString() }).eq('id', i.id);
+      if (error) { alert(error.message); return; }
+      sb.storage.from('trip-photos').remove([path]); load();
+    });
+    $('sheet').querySelectorAll('[data-uncomment]').forEach((b) => b.onclick = async () => {
+      if (!confirm('Delete this comment?')) return;
+      await sb.from('trip_comments').delete().eq('id', +b.dataset.uncomment); load();
+    });
+    const t = S('shtext');
+    t.oninput = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; };
+    S('shsay').onsubmit = async (e) => {
+      e.preventDefault();
+      const body = t.value.trim(); if (!body) return;
+      t.disabled = true;
+      const { error } = await sb.from('trip_comments').insert({ trip: trip.id, item: i.id, body });
+      t.disabled = false;
+      if (error) { alert('Could not send: ' + error.message); return; }
+      t.value = ''; await load();
+      const b = $('sheet').querySelector('.body'); if (b) b.scrollTop = b.scrollHeight;
+      $('sheet').querySelector('#shtext')?.focus();
+    };
+  }
+  $('sheet').addEventListener('close', () => { open = null; });
+  // A photo from the phone, shrunk to 1600 px before it goes up.
+  $('photofile').onchange = async () => {
+    const f = $('photofile').files[0]; $('photofile').value = '';
+    const i = items.find((x) => x.id === open);
+    if (!f || !i) return;
+    try {
+      const img = await createImageBitmap(f, { imageOrientation: 'from-image' });
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const c = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * k), height: Math.round(img.height * k) });
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
+      const path = `${ME.id}/${crypto.randomUUID()}.jpg`;
+      const up = await sb.storage.from('trip-photos').upload(path, blob, { contentType: 'image/jpeg' });
+      if (up.error) throw up.error;
+      const { error } = await sb.from('trip_items').update({ photos: [...(i.photos || []), path], updated_at: new Date().toISOString() }).eq('id', i.id);
+      if (error) { sb.storage.from('trip-photos').remove([path]); throw error; }
+      load();
+    } catch (e) { alert("Couldn't add the photo: " + (e.message || e)); }
+  };
 
   // ---- edit one item ----
   const KIND = { plan: 'Plan', idea: 'Idea', booking: 'Booking', pack: 'Packing' };
@@ -463,7 +650,8 @@
   const soon = () => { clearTimeout(tick); tick = setTimeout(load, 300); };
   sb.channel('trips').on('postgres_changes', { event: '*', schema: 'public', table: 'trip_items' }, soon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, soon)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trip_asks' }, soon).subscribe();
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trip_asks' }, soon)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_comments' }, soon).subscribe();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 
   if (session) load();
