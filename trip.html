@@ -234,6 +234,10 @@
     #fly .legsec h3 small { color: var(--muted); letter-spacing: 0; text-transform: none; }
     #fly .totals { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--panel-2); }
     #fly .totals b { display: block; font: 800 18px/1.1 var(--display); color: var(--gold); } #fly .totals small { color: var(--muted); font-size: 12.5px; }
+    .fcard .facts2 { display: flex; flex-wrap: wrap; gap: 6px; }
+    .fcard .facts2 span { padding: 3px 9px; border-radius: 99px; background: #ffffff0c; border: 1px solid #ffffff14; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+    .fcard .facts2 span.good { color: var(--teal); border-color: #3DD6C644; } .fcard .facts2 span.star { color: var(--gold); }
+    .fcard .route { font-size: 14px; color: var(--muted); } .fcard .route b { color: var(--ink); }
     /* polls */
     .poll { flex: 1; min-width: 0; padding: 12px; border-radius: 14px; background: var(--panel); border: 1.5px solid #B9A6FF55; }
     .poll .pq { margin: 0 0 8px; font-weight: 800; font-size: 15.5px; line-height: 1.35; overflow-wrap: anywhere; }
@@ -410,7 +414,7 @@
       const b2 = $('sheet').querySelector('.body'); if (b2) b2.scrollTop = atEnd ? b2.scrollHeight : top;
     }
     if (focusKey) (inSheet ? $('sheet') : $('view')).querySelector(`[data-f="${focusKey}"]`)?.focus();
-    if ($('fly').open && document.activeElement?.type !== 'range') (planOf() ? renderBuilder() : renderFlights());   // not mid-drag
+    if ($('fly').open && document.activeElement?.type !== 'range') (flyMode !== 'flights' ? renderPartBuilder() : planOf() ? renderBuilder() : renderFlights());   // not mid-drag
   }
 
   function render() {
@@ -453,7 +457,14 @@
   const legOpts = (n) => items.filter((i) => i.kind === 'idea' && i.topic === 'flights' && i.flight?.kind === 'leg' && i.flight.leg === n);
   const pickOf = (n) => { const id = planOf()?.[n]?.pick; return id ? items.find((i) => i.id === id && i.flight?.leg === n) : null; };
   const planDone = () => { const p = planOf(); return !!p && p.every((_, n) => pickOf(n)); };
-  const decided = (t) => (t === 'dates' && !!trip.starts) || !!bookedFor(t) || !!chosenFor(t) || (t === 'flights' && planDone());
+  // Tickets, stay and getting around: plans like the flight plan (trips.plans[part]: pieces, a pick each).
+  const PARTS = ['tickets', 'stay', 'transport'];
+  const partPlan = (t) => (Array.isArray(trip?.plans?.[t]) && trip.plans[t].length ? trip.plans[t] : null);
+  const partOpts = (t, n) => items.filter((i) => i.kind === 'idea' && i.topic === t && i.details && i.details.seg === n);
+  const partPick = (t, n) => { const id = partPlan(t)?.[n]?.pick; return id ? items.find((i) => i.id === id && i.details?.seg === n) : null; };
+  const partDone = (t) => { const p = partPlan(t); return !!p && p.every((_, n) => partPick(t, n)); };
+  const totalOf = (i) => { const d = i?.details || {}; return d.total ?? (d.price_each != null ? d.price_each * (d.count || family.length || 1) : d.nightly != null && d.nights ? d.nightly * d.nights : i?.cost ?? null); };
+  const decided = (t) => (t === 'dates' && !!trip.starts) || !!bookedFor(t) || !!chosenFor(t) || (t === 'flights' && planDone()) || (PARTS.includes(t) && partDone(t));
   const canChoose = () => PARENT || trip.created_by === ME.id;
   $('askq').oninput = () => {
     const q = $('askq').value.trim().toLowerCase();
@@ -573,7 +584,7 @@
     }
     const mayChoose = canChoose();
     // Flights show once there are options, a booking or a flight plan, or as soon as the trip knows when and from where.
-    const parts = CHOICES.filter((t) => list.some((i) => i.topic === t) || bookedFor(t) || (t === 'flights' && (planOf() || (trip.origin && trip.starts))));
+    const parts = CHOICES.filter((t) => list.some((i) => i.topic === t) || bookedFor(t) || (t === 'flights' && (planOf() || (trip.origin && trip.starts))) || (PARTS.includes(t) && (partPlan(t) || trip.starts)));
     const done = parts.filter(decided).length;
     const opt = (i) => {
       const on = !!i.chosen, other = !on && !!chosenFor(i.topic);
@@ -589,12 +600,13 @@
         const bk = bookedFor(t), opts = list.filter((i) => i.topic === t);
         const status = bk ? '<small>✓ booked</small>' : chosenFor(t) ? '<small>✓ chosen</small>' : t === 'dates' && trip.starts ? '<small>✓ set</small>' : '';
         if (t === 'flights' && !bk && (planOf() || !opts.length)) return flightPart(status);
+        if (PARTS.includes(t) && !bk && (partPlan(t) || !opts.length)) return partSection(t, status);
         const ch = chosenFor(t);
         const sum = bk ? `<span class="sum ok">✓ booked: ${esc(bk.title)}</span>` : ch ? `<span class="sum ok">✓ ${esc(ch.title)}</span>`
           : `<span class="sum">${opts.length} option${opts.length === 1 ? '' : 's'} to choose from</span>`;
         return `<details class="choice fold" id="topic-${t}" data-fold="${t}"${isOpen(t) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC[t][0]} ${TOPIC[t][1]} ${status}</h3>${sum}</span><span class="chev" aria-hidden="true">⌄</span></summary>
           ${bk ? `<div class="booked" data-more="${bk.id}">✓ ${esc(bk.title)}${bk.conf ? ` <code>${esc(bk.conf)}</code>` : ''}</div>`
-            : `<div class="opts" role="radiogroup" aria-label="${TOPIC[t][1]}">${t === 'flights' && opts.length > 1 ? '<button type="button" class="btn p" data-compare="1" style="justify-self:start">✈️ Compare flights side by side</button>' : ''}${(ch && !showOthers.has(t) ? [ch] : opts).map(opt).join('')}
+            : `<div class="opts" role="radiogroup" aria-label="${TOPIC[t][1]}">${PARTS.includes(t) && canChoose() ? `<button type="button" class="btn p" data-setuppart="${t}" style="justify-self:start" ${flyBusy ? 'disabled' : ''}>${flyBusy ? '✦ Setting up… (about a minute)' : `✦ Set up the ${TOPIC[t][1].toLowerCase()} builder`}</button>` : ''}${t === 'flights' && opts.length > 1 ? '<button type="button" class="btn p" data-compare="1" style="justify-self:start">✈️ Compare flights side by side</button>' : ''}${(ch && !showOthers.has(t) ? [ch] : opts).map(opt).join('')}
               ${ch && opts.length > 1 ? `<button type="button" class="add" data-others="${t}">${showOthers.has(t) ? 'Hide the other options' : `Show ${opts.length - 1} other option${opts.length === 2 ? '' : 's'}`}</button>` : ''}</div>`}</details>`;
       }).join('')}</div>` : '';
     // Everything else: places to go, food to try, other ideas.
@@ -618,6 +630,8 @@
     $('addidea').onclick = () => edit({ kind: 'idea' });
     $('view').querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); view(items.find((i) => i.id === b.dataset.more)); });
     $('view').querySelectorAll('[data-compare]').forEach((b) => b.onclick = () => openFlights());
+    $('view').querySelectorAll('[data-openpart]').forEach((b) => b.onclick = () => openPart(b.dataset.openpart));
+    $('view').querySelectorAll('[data-setuppart]').forEach((b) => b.onclick = () => setupPart(b.dataset.setuppart));
     $('view').querySelectorAll('[data-setupflights]').forEach((b) => b.onclick = () => askFlights(`Set up the flights for this trip: set the flight plan from the chosen dates and places${trip.origin ? ' (the family travels from ' + trip.origin + ')' : ''}, every flight the trip takes in order, then find 3 to 5 options for each leg as flight ideas with flight kind 'leg'. Leave everything else as it is.`));
     $('view').querySelectorAll('[data-others]').forEach((b) => b.onclick = () => { const t = b.dataset.others; showOthers.has(t) ? showOthers.delete(t) : showOthers.add(t); render(); });
     $('view').querySelectorAll('[data-choose]').forEach((el) => {
@@ -929,6 +943,135 @@
     $('ansx').onclick = () => { $('answer').innerHTML = ''; };
   }
 
+  // ---- builders for tickets, where to stay and getting around: pieces, options per piece, a pick each ----
+  const MODE = { metro: '🚇 Metro', bus: '🚌 Bus', taxi: '🚕 Taxi', rideshare: '🚗 Rideshare', shuttle: '🚐 Shuttle', car: '🚙 Rental car', walk: '🚶 Walk', train: '🚆 Train' };
+  const PB = {
+    stay: { what: 'where to stay', toggles: [['free_cancel', 'Free cancellation', (d) => d.free_cancel], ['walk', 'Walkable (≤15 min)', (d) => d.walk_min != null && d.walk_min <= 15], ['rated', 'Rated 4+', (d) => (d.rating ?? 0) >= 4]],
+      sorts: [['price', 'Cheapest'], ['rating', 'Best rated'], ['walk', 'Closest']], combos: [['Best rated', (c) => -avg(c, (d) => d.rating)], ['Closest', (c) => sumD(c, (d) => d.walk_min ?? 99)]] },
+    tickets: { what: 'tickets', toggles: [['official', 'Official sellers', (d) => d.official], ['together', 'Seats together', (d) => d.together], ['fees', 'Fees included', (d) => d.fees_included]],
+      sorts: [['price', 'Cheapest'], ['official', 'Official first']], combos: [['Official sellers', (c) => -c.filter((i) => i.details.official).length]] },
+    transport: { what: 'getting around', toggles: [], sorts: [['price', 'Cheapest'], ['fast', 'Fastest']], combos: [['Fastest', (c) => sumD(c, (d) => d.minutes ?? 999)]] },
+  };
+  const sumD = (c, f) => c.reduce((s2, i) => s2 + f(i.details || {}), 0);
+  const avg = (c, f) => c.reduce((s2, i) => s2 + (f(i.details || {}) ?? 0), 0) / (c.length || 1);
+  let flyMode = 'flights';   // which builder the full-screen panel is showing
+  const pf = { t: null, on: new Set(), modes: new Set(), sort: 'price' };
+  const pickLine = (t, i) => { const d = i?.details || {}, tot = totalOf(i);
+    if (!i) return '';
+    if (t === 'stay') return `${d.name || i.title}${d.rating ? ` · ★ ${d.rating}` : ''}${d.nightly != null ? ` · ${money(d.nightly)}/night` : ''}`;
+    if (t === 'tickets') return `${d.section || i.title}${d.seller ? ` · ${d.seller}` : ''}${d.price_each != null ? ` · ${money(d.price_each)} each` : ''}`;
+    return `${MODE[d.mode] || i.title}${d.minutes ? ` · ${hm(d.minutes)}` : ''}${tot != null ? ` · ${money(tot)}` : ''}`; };
+  function partSection(t, status) {
+    const plan = partPlan(t), name = TOPIC[t][1];
+    if (!plan) return `<details class="choice fold" id="topic-${t}" data-fold="${t}"${isOpen(t) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC[t][0]} ${name} ${status}</h3><span class="sum">Not set up yet</span></span><span class="chev" aria-hidden="true">⌄</span></summary>
+      <div class="opts"><p class="note" style="margin:0">${t === 'stay' ? 'Claude works out where you sleep each night from the flights, then finds places for each stay.' : t === 'tickets' ? 'Claude works out which events need tickets, then finds seats for each.' : 'Claude works out each trip you’ll make (airport, hotel, the show), timed to your flights, then finds ways to do each.'}</p>
+      ${canChoose() ? `<button type="button" class="btn p" data-setuppart="${t}" style="justify-self:start" ${flyBusy ? 'disabled' : ''}>${flyBusy ? '✦ Setting up… (about a minute)' : `✦ Set up ${name.toLowerCase()}`}</button>` : ''}</div></details>`;
+    const picked = plan.filter((_, n) => partPick(t, n)).length, tot = plan.reduce((s2, _, n) => s2 + (totalOf(partPick(t, n)) || 0), 0);
+    const sum = picked === plan.length ? `<span class="sum ok">✓ ${plan.length === 1 ? esc(pickLine(t, partPick(t, 0))) : `all ${plan.length} picked · ${money(tot)}`}</span>` : `<span class="sum">${picked} of ${plan.length} picked</span>`;
+    return `<details class="choice fold" id="topic-${t}" data-fold="${t}"${isOpen(t) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC[t][0]} ${name} ${picked === plan.length ? '<small>✓ picked</small>' : ''}</h3>${sum}</span><span class="chev" aria-hidden="true">⌄</span></summary>
+      <div class="opts"><button type="button" class="btn p" data-openpart="${t}" style="justify-self:start">${TOPIC[t][0]} Open the ${name.toLowerCase()} builder</button>
+      ${plan.map((x, n) => { const p2 = partPick(t, n), c = partOpts(t, n).length; return `<div class="legrow${p2 ? ' ok' : ''}"><span class="n">${p2 ? '✓' : n + 1}</span><b>${esc(x.label)}</b>
+        <small>${p2 ? esc(pickLine(t, p2)) : `${c} option${c === 1 ? '' : 's'} to pick from`}</small></div>`; }).join('')}</div></details>`;
+  }
+  function setupPart(t) {
+    askFlights(`Set up the ${t} plan for this trip: retire the old ${t} options you found, set_plan with the pieces it needs (from the flight plan, the chosen dates and the events), then find 3 or 4 options per piece as ${t} ideas with details { seg, ... } filled in. Leave everything else as it is.`);
+  }
+  function openPart(t) {
+    if (pf.t !== t) { pf.t = t; pf.on = new Set(); pf.modes = new Set(); pf.sort = 'price'; }
+    flyMode = t; renderPartBuilder(); if (!$('fly').open) $('fly').showModal();
+  }
+  async function savePartPlan(t, pieces, wasDone) {
+    const plans = { ...(trip.plans || {}), [t]: pieces };
+    const { error } = await sb.from('trips').update({ plans }).eq('id', trip.id);
+    if (error) { alert('Could not save: ' + error.message); return false; }
+    trip.plans = plans;
+    if (!wasDone && partDone(t)) { if ($('fly').open) $('fly').close(); reworkBelow({ id: pieces[0].pick, title: 'these ' + TOPIC[t][1].toLowerCase(), topic: t }); }
+    return true;
+  }
+  function partCard(t, i, n, on, mayChoose) {
+    const d = i.details || {}, tot = totalOf(i), facts = [];
+    let head = '', mid = '';
+    if (t === 'stay') {
+      head = `<div class="al">${esc(d.name || i.title)}<small>${esc([d.area, d.room].filter(Boolean).join(' · '))}</small></div>`;
+      if (d.rating) facts.push(`<span class="star">★ ${d.rating}${d.reviews ? ` (${d.reviews.toLocaleString()})` : ''}</span>`);
+      if (d.walk_min != null) facts.push(`<span${d.walk_min <= 15 ? ' class="good"' : ''}>🚶 ${d.walk_min} min</span>`);
+      if (d.free_cancel) facts.push('<span class="good">Free cancellation</span>');
+      (d.perks || []).forEach((x) => facts.push(`<span>${esc(x)}</span>`));
+      mid = d.nightly != null ? `<span>${money(d.nightly)} a night${d.nights ? ` × ${d.nights}` : ''}</span>` : '';
+    } else if (t === 'tickets') {
+      head = `<div class="al">${esc(d.section || i.title)}<small>${esc([d.event, d.venue, d.date && nice(d.date)].filter(Boolean).join(' · '))}</small></div>`;
+      facts.push(d.official ? '<span class="good">Official seller</span>' : `<span>Resale${d.seller ? '' : ''}</span>`);
+      if (d.seller) facts.push(`<span>${esc(d.seller)}</span>`);
+      if (d.together) facts.push('<span class="good">Seats together</span>');
+      if (d.fees_included === false) facts.push('<span>+ fees</span>');
+      if (d.view) facts.push(`<span>👀 ${esc(d.view)}</span>`);
+      mid = d.price_each != null ? `<span>${money(d.price_each)} each${d.count ? ` × ${d.count}` : ''}</span>` : '';
+    } else {
+      head = `<div class="al">${esc(MODE[d.mode] || '')} ${esc(i.title)}<small>${esc(d.when || '')}</small></div>`;
+      if (d.from || d.to) mid = `<span class="route">${esc(d.from || '')} → <b>${esc(d.to || '')}</b></span>`;
+      if (d.minutes) facts.push(`<span>⏱ ${hm(d.minutes)}</span>`);
+      if (d.book_ahead) facts.push('<span>Book ahead</span>');
+    }
+    return `<div class="fcard${on ? ' on' : ''}"><div class="top"><div class="pr"><b>${tot != null ? money(tot) : '?'}</b><small>${t === 'transport' ? 'for everyone' : 'for the family'}${mid ? ' · ' : ''}${mid.replace(/<[^>]+>/g, '')}</small></div>
+      <div class="badges">${on ? '<span class="badge fast">✓ Picked</span>' : ''}</div></div>${head}
+      ${facts.length ? `<div class="facts2">${facts.join('')}</div>` : ''}${i.notes ? `<p class="note" style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(i.notes)}</p>` : ''}
+      <div class="acts">${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-ppick="${n}:${i.id}">${on ? 'Unpick' : '✓ Pick this'}</button>` : ''}<button class="btn" data-fmore="${i.id}">Details</button>${safeLink(i.link) ? `<a class="btn" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">Open ↗</a>` : ''}</div></div>`;
+  }
+  function renderPartBuilder() {
+    const t = flyMode, plan = partPlan(t), cfg = PB[t]; if (!plan) { $('fly').close(); return; }
+    const mayChoose = canChoose(), wasDone = partDone(t);
+    const modes = t === 'transport' ? [...new Set(items.filter((i) => i.topic === t && i.details?.mode).map((i) => i.details.mode))] : [];
+    const keep = (i) => { const d = i.details || {}; return cfg.toggles.every(([k, , f]) => !pf.on.has(k) || f(d)) && (!pf.modes.size || pf.modes.has(d.mode)); };
+    const sortBy = (a, b) => { const x = a.details || {}, y = b.details || {};
+      if (pf.sort === 'rating') return (y.rating ?? 0) - (x.rating ?? 0); if (pf.sort === 'walk') return (x.walk_min ?? 999) - (y.walk_min ?? 999);
+      if (pf.sort === 'official') return (y.official ? 1 : 0) - (x.official ? 1 : 0) || (totalOf(a) ?? 1e9) - (totalOf(b) ?? 1e9);
+      if (pf.sort === 'fast') return (x.minutes ?? 999) - (y.minutes ?? 999); return (totalOf(a) ?? 1e9) - (totalOf(b) ?? 1e9); };
+    // Combinations, when there is more than one piece: the cheapest, plus this part's own idea of best.
+    const per = plan.map((_, n) => partOpts(t, n).filter(keep));
+    let combos = [];
+    if (plan.length > 1 && per.every((o) => o.length)) { const walk = (n, acc) => { if (n === per.length) { combos.push(acc); return; } if (combos.length > 4000) return; for (const o of per[n]) walk(n + 1, [...acc, o]); }; walk(0, []); }
+    const price = (c) => c.reduce((s2, i) => s2 + (totalOf(i) ?? 1e5), 0);
+    const sugg = [['Cheapest', price], ...cfg.combos].map(([label, f]) => { const best = combos.slice().sort((a, b) => f(a) - f(b) || price(a) - price(b))[0]; return best ? { label, c: best } : null; }).filter(Boolean);
+    const seen = new Map(); for (const x of sugg) { const k = x.c.map((i) => i.id).join(); if (seen.has(k)) seen.get(k).label += ' · ' + x.label; else seen.set(k, x); }
+    const uniq = [...seen.values()], current = plan.map((x) => x.pick).join();
+    const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}>${label}</button>`;
+    const tot = plan.reduce((s2, _, n) => s2 + (totalOf(partPick(t, n)) || 0), 0), np = plan.filter((_, n) => partPick(t, n)).length;
+    $('fly').innerHTML = `<div class="wrap">
+      <header class="sh"><b>${TOPIC[t][0]} ${esc(TOPIC[t][1])}</b><button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
+      <div class="filters">
+        ${cfg.toggles.length ? `<div class="frow"><small>Only show</small>${cfg.toggles.map(([k, label]) => chip(pf.on.has(k), `data-ptog="${k}"`, label)).join('')}</div>` : ''}
+        ${modes.length > 1 ? `<div class="frow"><small>Ways to go</small>${modes.map((m) => chip(pf.modes.has(m), `data-pmode="${m}"`, esc(MODE[m] || m))).join('')}</div>` : ''}
+        <div class="frow"><small>Sort</small>${cfg.sorts.map(([k, label]) => chip(pf.sort === k, `data-psort="${k}"`, label)).join('')}</div></div>
+      <div class="list">
+        ${uniq.length ? `<div><h3 class="k" style="margin:0 0 8px">Suggested combinations</h3><div class="combos">${uniq.map((x) => { const on = x.c.map((i) => i.id).join() === current;
+          return `<div class="combo${on ? ' on' : ''}"><h4>${esc(x.label)}<small>${money(price(x.c))}</small></h4>
+            <ul>${x.c.map((i, n) => `<li><b>${esc(plan[n].label)}</b> ${esc(pickLine(t, i))}</li>`).join('')}</ul>
+            ${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-puse="${x.c.map((i) => i.id).join(',')}" ${on ? 'disabled' : ''}>${on ? '✓ Your picks' : 'Use these'}</button>` : ''}</div>`; }).join('')}</div></div>` : ''}
+        ${plan.map((x, n) => { const opts = partOpts(t, n).filter(keep).sort(sortBy), all = partOpts(t, n).length;
+          return `<div class="legsec"><h3><span>${plan.length > 1 ? `${n + 1} · ` : ''}${esc(x.label)}</span><small>${x.date ? esc(nice(x.date)) + (x.until ? ' – ' + esc(nice(x.until)) : '') : ''}</small></h3>
+            ${opts.map((i) => partCard(t, i, n, x.pick === i.id, mayChoose)).join('') || `<p class="note">${all ? 'Nothing matches these filters.' : 'No options for this yet.'}</p>`}
+            ${mayChoose ? `<button class="btn" data-pmore="${n}" ${flyBusy ? 'disabled' : ''} style="margin-top:8px">${flyBusy ? '✦ Looking…' : `✦ Find ${all ? 'more ' : ''}options for this`}</button>` : ''}</div>`; }).join('')}
+      </div>
+      <div class="totals"><div><b>${np ? money(tot) : '–'}</b><small>${np} of ${plan.length} picked${np ? ' · the family’s total for these' : ''}</small></div><button class="btn p" id="flydone">Done</button></div></div>`;
+    const F = (id) => $('fly').querySelector('#' + id);
+    F('flyx').onclick = F('flydone').onclick = () => $('fly').close();
+    $('fly').querySelectorAll('[data-ptog]').forEach((b) => b.onclick = () => { const k = b.dataset.ptog; pf.on.has(k) ? pf.on.delete(k) : pf.on.add(k); renderPartBuilder(); });
+    $('fly').querySelectorAll('[data-pmode]').forEach((b) => b.onclick = () => { const k = b.dataset.pmode; pf.modes.has(k) ? pf.modes.delete(k) : pf.modes.add(k); renderPartBuilder(); });
+    $('fly').querySelectorAll('[data-psort]').forEach((b) => b.onclick = () => { pf.sort = b.dataset.psort; renderPartBuilder(); });
+    $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => { $('fly').close(); view(items.find((i) => i.id === b.dataset.fmore)); });
+    $('fly').querySelectorAll('[data-ppick]').forEach((b) => b.onclick = async () => {
+      const [n, id] = b.dataset.ppick.split(':'), p2 = plan.map((x) => ({ ...x }));
+      p2[+n].pick = p2[+n].pick === id ? null : id;
+      if (await savePartPlan(t, p2, wasDone)) { render(); if ($('fly').open) renderPartBuilder(); }
+    });
+    $('fly').querySelectorAll('[data-puse]').forEach((b) => b.onclick = async () => {
+      const ids = b.dataset.puse.split(','), p2 = plan.map((x, n) => ({ ...x, pick: ids[n] }));
+      if (await savePartPlan(t, p2, wasDone)) { render(); if ($('fly').open) renderPartBuilder(); }
+    });
+    $('fly').querySelectorAll('[data-pmore]').forEach((b) => b.onclick = () => { const x = plan[+b.dataset.pmore];
+      askFlights(`Find 2 or 3 more ${t} options for piece ${b.dataset.pmore} of the ${t} plan (${x.label}), different from the ones already there, as ${t} ideas with details { seg: ${b.dataset.pmore}, ... }. Change nothing else.`); });
+  }
+
   // ---- the flight builder: the trip's legs, a pick per leg, suggested combinations ----
   const legLabel = (l) => `${l.from} → ${l.to}`;
   const legLine = (i) => { const l = i?.flight?.legs?.[0] || {}; return i ? `${(i.flight.airlines || []).join(' + ') || i.title} · ${l.depart || '?'}–${l.arrive || '?'}${l.arrive_plus ? '+' + l.arrive_plus : ''} · ${l.stops ? l.stops + ' stop' + (l.stops > 1 ? 's' : '') : 'nonstop'}` : ''; };
@@ -954,13 +1097,13 @@
     return true;
   }
   async function askFlights(text) {
-    flyBusy = true; render(); if ($('fly').open) renderBuilder();
+    flyBusy = true; render(); if ($('fly').open) (flyMode === 'flights' ? renderBuilder() : renderPartBuilder());
     try {
       const { data: { session: s } } = await sb.auth.getSession();
       const r = await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ trip: trip.id, text }) })).json();
       if (r.error) alert(r.error);
     } catch { alert("Couldn't reach Claude just now."); }
-    flyBusy = false; await load(); if ($('fly').open) renderBuilder();
+    flyBusy = false; await load(); if ($('fly').open) (flyMode === 'flights' ? renderBuilder() : renderPartBuilder());
   }
   function renderBuilder() {
     const plan = planOf(); if (!plan) { $('fly').close(); return; }
@@ -1052,7 +1195,7 @@
         <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div>
       <div class="lm"><b>${hm(l.minutes)}</b> · ${l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}${l.via?.length ? ' via ' + l.via.map(esc).join(', ') : ''}` : 'Nonstop'}</div></div>`;
   }
-  function openFlights() { planOf() ? renderBuilder() : renderFlights(); if (!$('fly').open) $('fly').showModal(); }
+  function openFlights() { flyMode = 'flights'; planOf() ? renderBuilder() : renderFlights(); if (!$('fly').open) $('fly').showModal(); }
   function renderFlights() {
     const all = items.filter((i) => i.kind === 'idea' && i.topic === 'flights').map(flightInfo);
     const good = all.filter((x) => x.ok), need = all.filter((x) => !x.ok);
