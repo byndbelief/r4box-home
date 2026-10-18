@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0918">
+  <meta name="robots" content="noindex">
+  <title>r4box admin</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
+    @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
+    :root {
+      color-scheme: dark;
+      --bg: #0B0918; --panel: #171331; --panel-2: #1F1A3F; --line: #2F2957; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
+      --teal: #3DD6C6; --teal-ink: #062A26; --gold: #F5C542; --gold-ink: #2A2100; --hot: #FF5A4A; --hot-soft: #4A2230; --violet: #B9A6FF;
+      --display: "Unbounded", "Arial Black", Impact, sans-serif;
+      --body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, monospace;
+      --grad-mark: conic-gradient(from 210deg, var(--teal), var(--violet), var(--gold), var(--hot), var(--teal));
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); }
+    body { font: 15px/1.5 var(--body); -webkit-font-smoothing: antialiased; min-height: 100dvh;
+      background: radial-gradient(900px 420px at 15% -10%, #2A1F5E55, transparent 60%), radial-gradient(700px 380px at 100% 0%, #0E4A4655, transparent 60%), var(--bg); background-attachment: fixed; }
+    :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    button, input { font: inherit; color: inherit; }
+    a { color: var(--teal); }
+    .page { max-width: 960px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) 16px max(40px, env(safe-area-inset-bottom)); }
+    header { display: flex; align-items: center; gap: 12px; }
+    .mark { display: inline-flex; align-items: center; gap: 10px; font: 800 18px/1 var(--display); letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
+    .mark i { width: 1.05em; height: 1.05em; border-radius: 22%; background: var(--grad-mark); box-shadow: inset 0 0 0 .18em var(--bg), 0 0 18px #3DD6C666; }
+    header .sep { color: var(--faint); }
+    header h1 { font: 800 18px/1 var(--display); margin: 0; }
+    header .grow { flex: 1; }
+    nav.jump { display: flex; gap: 6px; overflow-x: auto; position: sticky; top: 0; z-index: 2; padding: 10px 0; margin: 14px 0 0; background: var(--bg); }
+    nav.jump a { flex: none; padding: 8px 14px; border-radius: 99px; color: var(--muted); text-decoration: none; font-weight: 700; border: 1px solid var(--line); }
+    nav.jump a:hover { color: var(--ink); }
+    section { scroll-margin-top: 60px; margin-top: 26px; }
+    h2 { font: 800 22px/1.1 var(--display); letter-spacing: -.02em; margin: 0 0 4px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    h2 small { font: 600 13px/1 var(--body); color: var(--muted); letter-spacing: 0; }
+    h3 { font: 800 16px/1.2 var(--display); margin: 0; }
+    .sub { color: var(--muted); margin: 0 0 12px; font-size: 13px; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; min-width: 0; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .between { justify-content: space-between; }
+    .muted { color: var(--muted); } .faint { color: var(--faint); } .small { font-size: 13px; }
+    .tag { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 700; background: #ffffff10; color: var(--muted); }
+    .tag.parent { background: #F5C5421f; color: var(--gold); } .tag.kid { background: #3DD6C61a; color: var(--teal); }
+    .btn { appearance: none; cursor: pointer; border: 1.5px solid #ffffff22; background: #ffffff0e; border-radius: 12px; padding: 7px 13px; font-weight: 700; font-size: 14px; }
+    .btn:hover { background: #ffffff1a; } .btn:disabled { opacity: .5; cursor: default; }
+    .btn.p { background: var(--teal); border-color: var(--teal); color: var(--teal-ink); }
+    .btn.bad { background: var(--hot-soft); border-color: transparent; }
+    .x { appearance: none; cursor: pointer; border: 0; background: none; color: var(--faint); font-size: 15px; padding: 2px 6px; border-radius: 8px; }
+    .x:hover { color: var(--hot); background: #FF5A4A1a; }
+    input { background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px; padding: 7px 9px; width: 100%; font-size: 15px; }
+    label { display: grid; gap: 3px; font-size: 12px; font-weight: 700; color: var(--muted); }
+    ul.list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+    ul.list li { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: #ffffff07; font-size: 13px; }
+    ul.list li .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .k { font: 700 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 14px 0 0; }
+
+    /* box */
+    .status { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    .st { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+    .st .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--teal); box-shadow: 0 0 10px #3DD6C688; }
+    .st.bad { border-color: #FF5A4A66; background: color-mix(in srgb, var(--hot) 8%, var(--panel)); }
+    .st.bad .dot { background: var(--hot); box-shadow: 0 0 10px #FF5A4A88; }
+    .st b { display: block; font-size: 14px; } .st small { color: var(--muted); }
+    .banner { padding: 12px 14px; border-radius: 14px; margin-bottom: 10px; font-weight: 700; }
+    .banner.ok { background: #3DD6C614; border: 1px solid #3DD6C644; color: var(--teal); }
+    .banner.bad { background: #FF5A4A14; border: 1px solid #FF5A4A55; color: #FFB3AB; }
+
+    /* kids */
+    .meter { height: 10px; border-radius: 99px; background: #ffffff10; overflow: hidden; display: flex; margin: 8px 0 6px; }
+    .meter i { display: block; height: 100%; }
+    .big { font: 800 28px/1 var(--display); }
+    .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+    .legend span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; background: var(--c); }
+    .limits { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 8px; align-items: end; margin-top: 12px; }
+    .flag { all: unset; cursor: pointer; display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: #F5C54212; border: 1px solid #F5C54244; }
+    .flag:hover { background: #F5C5421f; }
+
+    /* content */
+    .tabs { display: flex; gap: 6px; margin: 4px 0 12px; }
+    .tabs button { appearance: none; cursor: pointer; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); background: none; font-weight: 700; color: var(--muted); }
+    .tabs button[aria-pressed="true"] { background: var(--violet); border-color: var(--violet); color: #150F33; }
+    .photos { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .photo { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--panel-2); }
+    .photo img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+    .photo .x { position: absolute; top: 6px; right: 6px; background: #0B0918cc; color: var(--ink); }
+    .photo small { position: absolute; left: 6px; bottom: 6px; padding: 1px 7px; border-radius: 99px; background: #0B0918cc; font-size: 11px; }
+
+    dialog { border: 1px solid var(--line); border-radius: 20px; background: var(--panel-2); color: var(--ink); padding: 18px; width: min(520px, calc(100% - 24px)); max-height: 85dvh; }
+    dialog::backdrop { background: #0B0918cc; }
+    dialog .acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+    .bub { padding: 8px 12px; border-radius: 14px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+    .bub.user { background: #3DD6C61a; margin-left: 20%; } .bub.assistant { background: #ffffff0a; margin-right: 20%; }
+    .bub.flagged { box-shadow: 0 0 0 2px var(--gold); }
+    #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5; max-width: calc(100% - 32px); padding: 10px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); box-shadow: 0 10px 24px #0008; font-size: 14px; }
+    #toast.bad { border-color: #FF5A4A88; }
+    #viewer { position: fixed; inset: 0; z-index: 6; background: #000e; display: grid; place-items: center; padding: 16px; cursor: zoom-out; }
+    #viewer img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+    .gate { text-align: center; padding: 80px 0; color: var(--muted); }
+    .gate b { display: block; font: 800 24px/1.2 var(--display); color: var(--ink); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+<main class="page">
+  <header><a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1>Admin</h1><span class="grow"></span><button class="btn" id="refresh">↻ Refresh</button></header>
+
+  <div class="gate" id="gate" hidden><b>Parents only</b>This page is for Dad. <a href="/">Back to r4box</a></div>
+
+  <div id="admin" hidden>
+    <nav class="jump" aria-label="Sections"><a href="#box">Box</a><a href="#kids">Kids &amp; Claude</a><a href="#family">Family &amp; devices</a><a href="#content">Content</a></nav>
+
+    <section id="box"><h2>Box <small id="boxwhen"></small></h2>
+      <p class="sub">r4box reports in every 5 minutes, so this works away from the tailnet too.</p>
+      <div id="boxbody"></div></section>
+
+    <section id="kids"><h2>Kids &amp; Claude</h2>
+      <p class="sub">Claude questions across the tutor, trips and chat count toward one daily limit. Tutor chats stay private unless Claude flags one.</p>
+      <div id="flags"></div>
+      <div class="grid" id="kidcards"></div></section>
+
+    <section id="family"><h2>Family &amp; devices</h2>
+      <p class="sub">Who signs in where, passkeys, and which devices get alerts.</p>
+      <div class="grid" id="people"></div></section>
+
+    <section id="content"><h2>Content</h2>
+      <div class="tabs" role="group" aria-label="Content"><button data-tab="photos" aria-pressed="true">Chat photos</button><button data-tab="messages" aria-pressed="false">Chat messages</button><button data-tab="trips" aria-pressed="false">Trips</button></div>
+      <div id="contentbody"></div></section>
+  </div>
+</main>
+
+<dialog id="dlg"></dialog>
+<div id="toast" hidden></div>
+<div id="viewer" hidden><img id="viewimg" alt=""></div>
+
+<script type="module">
+  import { sb, roleOf } from './auth.js';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const TOOLS = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/admin-tools';
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
+  const PARENT = roleOf(session?.user) === 'parent';
+  $('gate').hidden = PARENT || !session; $('admin').hidden = !PARENT;
+
+  function toast(text, bad) {
+    const t = $('toast'); t.textContent = text; t.className = bad ? 'bad' : ''; t.hidden = false;
+    clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 4000);
+  }
+  const ago = (ts) => {
+    if (!ts) return 'never';
+    const m = Math.round((Date.now() - new Date(ts)) / 60000);
+    return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
+  };
+  const when = (ts) => new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  function confirmBox(title, text, yes = 'Delete') {
+    return new Promise((res) => {
+      $('dlg').innerHTML = `<h3>${esc(title)}</h3><p class="muted small" style="margin:8px 0 0">${esc(text)}</p><div class="acts"><button class="btn" data-no>Cancel</button><button class="btn bad" data-yes>${esc(yes)}</button></div>`;
+      $('dlg').querySelector('[data-no]').onclick = () => { $('dlg').close(); res(false); };
+      $('dlg').querySelector('[data-yes]').onclick = () => { $('dlg').close(); res(true); };
+      $('dlg').showModal();
+    });
+  }
+  let family = [];
+  const nameOf = (id) => family.find((f) => f.id === id)?.username || 'someone';
+
+  // ---------------- box ----------------
+  async function box() {
+    const { data, error } = await sb.from('box_health').select('*').order('name');
+    if (error) { $('boxbody').innerHTML = `<p class="muted">${esc(error.message)}</p>`; return; }
+    if (!data.length) { $('boxbody').innerHTML = '<div class="banner bad">No report from r4box yet.</div>'; $('boxwhen').textContent = ''; return; }
+    const last = data.reduce((a, c) => (c.checked_at > a ? c.checked_at : a), '');
+    const stale = Date.now() - new Date(last) > 15 * 60000, bad = data.filter((c) => !c.ok);
+    $('boxwhen').textContent = 'reported ' + ago(last);
+    // Problems first, then the rest in the box's order.
+    const order = [...bad, ...data.filter((c) => c.ok)];
+    $('boxbody').innerHTML = (stale ? `<div class="banner bad">r4box hasn't reported since ${esc(when(last))}. It may be down or offline.</div>`
+        : bad.length ? `<div class="banner bad">${bad.length} problem${bad.length > 1 ? 's' : ''}: ${bad.map((c) => esc(c.name)).join(', ')}</div>`
+        : '<div class="banner ok">All good.</div>')
+      + `<div class="status">${order.map((c) => `<div class="st${c.ok ? '' : ' bad'}"><span class="dot"></span><div><b>${esc(c.name)}</b><small>${esc(c.detail)}</small></div></div>`).join('')}</div>`;
+  }
+
+  // ---------------- kids & Claude ----------------
+  const COLORS = { tutor: 'var(--teal)', trip: 'var(--gold)', chat: 'var(--violet)' };
+  async function kids() {
+    const [{ data: usage, error }, { data: flags }] = await Promise.all([
+      sb.rpc('r4_admin_usage'),
+      sb.from('tutor_chats').select('id, kid, title, flag_reason, flagged_at').eq('flagged', true).order('flagged_at', { ascending: false }),
+    ]);
+    if (error) { $('kidcards').innerHTML = `<p class="muted">${esc(error.message)}</p>`; return; }
+    $('flags').innerHTML = (flags || []).length
+      ? `<div class="card" style="margin-bottom:12px;border-color:#F5C54266"><h3 style="color:var(--gold)">Flagged tutor chats</h3><div style="display:grid;gap:8px;margin-top:10px">${flags.map((c) =>
+          `<button class="flag" data-chat="${c.id}"><b>${esc(nameOf(c.kid))}: ${esc(c.flag_reason || 'flagged')}</b><small class="muted">${esc(c.title)} · ${esc(when(c.flagged_at))}</small></button>`).join('')}</div></div>`
+      : '';
+    $('flags').querySelectorAll('[data-chat]').forEach((b) => (b.onclick = () => openFlag(b.dataset.chat)));
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    $('kidcards').innerHTML = (usage || []).map((k) => {
+      const today = k.tutor_today + k.trip_today + k.chat_today, week = k.tutor_week + k.trip_week + k.chat_week;
+      const w = (n) => `${Math.min(100, (n / Math.max(k.daily_cap, 1)) * 100)}%`;
+      return `<div class="card"><div class="row between"><h3>${esc(k.username)}</h3><span class="small muted">open ${k.start_hour}:00–${k.end_hour}:00</span></div>
+        <div class="row" style="margin-top:10px;align-items:baseline"><span class="big">${today}</span><span class="muted">of ${k.daily_cap} today</span></div>
+        <div class="meter" title="${today} of ${k.daily_cap}"><i style="width:${w(k.tutor_today)};background:${COLORS.tutor}"></i><i style="width:${w(k.trip_today)};background:${COLORS.trip}"></i><i style="width:${w(k.chat_today)};background:${COLORS.chat}"></i></div>
+        <div class="legend"><span style="--c:${COLORS.tutor}">tutor ${k.tutor_today}</span><span style="--c:${COLORS.trip}">trips ${k.trip_today}</span><span style="--c:${COLORS.chat}">chat ${k.chat_today}</span></div>
+        <p class="small muted" style="margin:8px 0 0">Last 7 days: <b style="color:var(--ink)">${week}</b> (tutor ${k.tutor_week}, trips ${k.trip_week}, chat ${k.chat_week})</p>
+        <form class="limits" data-kid="${k.kid}">
+          <label>A day<input name="cap" type="number" min="0" max="500" value="${k.daily_cap}"></label>
+          <label>Opens<input name="start" type="number" min="0" max="23" value="${k.start_hour}"></label>
+          <label>Closes<input name="end" type="number" min="1" max="24" value="${k.end_hour}"></label>
+          <button class="btn">Save</button></form>
+        <p class="small faint" style="margin:6px 0 0">Hours in ${esc(k.tz)}${k.tz !== tz ? ` (saving sets ${esc(tz)}, this device's)` : ''}</p></div>`;
+    }).join('') || '<p class="muted">No kids yet.</p>';
+    $('kidcards').querySelectorAll('form.limits').forEach((f) => (f.onsubmit = async (e) => {
+      e.preventDefault();
+      const v = { daily_cap: +f.cap.value, start_hour: +f.start.value, end_hour: +f.end.value, tz, updated_at: new Date().toISOString() };
+      if (v.end_hour <= v.start_hour) { toast('Closing time must be after opening time.', true); return; }
+      const { error: e1 } = await sb.from('tutor_settings').upsert({ kid: f.dataset.kid, ...v });
+      toast(e1 ? 'Could not save: ' + e1.message : 'Saved.', !!e1);
+      if (!e1) kids();
+    }));
+  }
+  async function openFlag(id) {
+    const [{ data: c }, { data: ms }] = await Promise.all([
+      sb.from('tutor_chats').select('kid, title, flag_reason').eq('id', id).single(),
+      sb.from('tutor_messages').select('role, content, flagged').eq('chat', id).order('id'),
+    ]);
+    $('dlg').innerHTML = `<h3>${esc(nameOf(c.kid))}: ${esc(c.title)}</h3><p class="small muted" style="margin:6px 0 10px">Flagged: <b style="color:var(--gold)">${esc(c.flag_reason || '')}</b>. You see this chat because of the flag; their other chats stay private.</p>
+      ${(ms || []).map((m) => `<div class="bub ${m.role}${m.flagged ? ' flagged' : ''}">${esc(m.content)}</div>`).join('')}
+      <div class="acts"><button class="btn" data-no>Close</button><button class="btn p" data-seen>Mark as seen</button></div>`;
+    $('dlg').querySelector('[data-no]').onclick = () => $('dlg').close();
+    $('dlg').querySelector('[data-seen]').onclick = async () => { await sb.rpc('tutor_clear_flag', { p_chat: id }); $('dlg').close(); kids(); };
+    $('dlg').showModal();
+  }
+
+  // ---------------- family & devices ----------------
+  const pushHost = (ep) => {
+    const h = (() => { try { return new URL(ep).hostname; } catch { return ''; } })();
+    return /apple\.com$/.test(h) ? 'iPhone / Safari' : /googleapis\.com$/.test(h) ? 'Chrome / Android' : /mozilla\.com$/.test(h) ? 'Firefox' : /windows\.com$|microsoft/.test(h) ? 'Edge / Windows' : h || 'device';
+  };
+  const agent = (ua = '') => {
+    const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Macintosh|Mac OS/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : '';
+    const br = /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
+    return [br, os].filter(Boolean).join(' on ') || (ua ? ua.slice(0, 40) : 'unknown');
+  };
+  async function people() {
+    const { data, error } = await sb.rpc('r4_admin_family');
+    if (error) { $('people').innerHTML = `<p class="muted">${esc(error.message)}</p>`; return; }
+    family = data;
+    $('people').innerHTML = data.map((p) => `<div class="card"><div class="row between"><h3>${esc(p.username)}</h3><span class="tag ${p.role}">${p.role === 'parent' ? 'parent' : 'kid'}</span></div>
+      <p class="small muted" style="margin:4px 0 0">${esc(p.email)}<br>Last sign-in ${esc(ago(p.last_sign_in))}</p>
+      <p class="k">Passkeys</p>${p.passkeys.length ? `<ul class="list">${p.passkeys.map((k) => `<li><span class="grow">🔑 ${esc(k.name || 'Passkey')}</span><span class="faint">${k.used ? 'used ' + esc(ago(k.used)) : 'added ' + esc(ago(k.created))}</span></li>`).join('')}</ul>` : '<p class="small faint" style="margin:6px 0 0">None: password only.</p>'}
+      <p class="k">Alerts on</p>${p.devices.length ? `<ul class="list">${p.devices.map((d) => `<li><span class="grow">🔔 ${esc(pushHost(d.endpoint))}</span><span class="faint">${esc(ago(d.created))}</span><button class="x" data-dev="${esc(d.endpoint)}" aria-label="Remove device">✕</button></li>`).join('')}</ul>` : '<p class="small faint" style="margin:6px 0 0">No devices.</p>'}
+      <p class="k">Signed in on</p>${p.sessions.length ? `<ul class="list">${p.sessions.slice(0, 5).map((s) => `<li><span class="grow">${esc(agent(s.agent))}</span><span class="faint">${esc(ago(s.seen))}</span></li>`).join('')}</ul>` : '<p class="small faint" style="margin:6px 0 0">Nowhere right now.</p>'}
+      <div class="row" style="margin-top:12px"><button class="btn" data-test="${p.id}" ${p.devices.length ? '' : 'disabled'}>Send a test alert</button></div></div>`).join('');
+    $('people').querySelectorAll('[data-dev]').forEach((b) => (b.onclick = async () => {
+      if (!(await confirmBox('Remove this device?', "It stops getting alerts until someone turns them on again there.", 'Remove'))) return;
+      const { error: e } = await sb.rpc('r4_admin_remove_device', { p_endpoint: b.dataset.dev });
+      toast(e ? e.message : 'Removed.', !!e); people();
+    }));
+    $('people').querySelectorAll('[data-test]').forEach((b) => (b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const { data: { session: s } } = await sb.auth.getSession();
+        const r = await fetch(TOOLS, { method: 'POST', headers: { Authorization: `Bearer ${s.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'test_push', user: b.dataset.test }) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.status);
+        toast(`Sent to ${j.sent} device${j.sent === 1 ? '' : 's'}${j.failed ? `, ${j.failed} failed (old ones are removed)` : ''}.`, !!j.failed && !j.sent);
+      } catch (e) { toast("Couldn't send: " + e.message, true); }
+      b.disabled = false; people();
+    }));
+  }
+
+  // ---------------- content ----------------
+  let tab = 'photos';
+  document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => {
+    tab = b.dataset.tab; document.querySelectorAll('.tabs button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); content();
+  }));
+  async function content() {
+    const el = $('contentbody');
+    if (tab === 'photos') {
+      const { data } = await sb.from('chat_messages').select('id, author, image, created_at').not('image', 'is', null).order('id', { ascending: false }).limit(60);
+      if (!data?.length) { el.innerHTML = '<p class="muted">No photos in the chat yet.</p>'; return; }
+      const { data: signed } = await sb.storage.from('family-chat').createSignedUrls(data.map((m) => m.image), 3600);
+      const url = Object.fromEntries((signed || []).map((s) => [s.path, s.signedUrl]));
+      el.innerHTML = `<div class="photos">${data.map((m) => `<div class="photo"><img src="${esc(url[m.image] || '')}" alt="Photo from ${esc(nameOf(m.author))}" loading="lazy"><small>${esc(nameOf(m.author))} · ${esc(ago(m.created_at))}</small><button class="x" data-photo="${m.id}" aria-label="Delete photo">✕</button></div>`).join('')}</div>`;
+      el.querySelectorAll('.photo img').forEach((i) => (i.onclick = () => { $('viewimg').src = i.src; $('viewer').hidden = false; }));
+      el.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = async () => {
+        const m = data.find((x) => x.id === +b.dataset.photo);
+        if (!(await confirmBox('Delete this photo?', 'It goes from the chat for everyone, with its message.'))) return;
+        const { error } = await sb.from('chat_messages').delete().eq('id', m.id);
+        if (!error) await sb.storage.from('family-chat').remove([m.image]);
+        toast(error ? error.message : 'Deleted.', !!error); content();
+      }));
+    } else if (tab === 'messages') {
+      const { data } = await sb.from('chat_messages').select('id, author, is_claude, body, image, created_at').order('id', { ascending: false }).limit(60);
+      el.innerHTML = data?.length ? `<ul class="list">${data.map((m) => `<li><span class="grow"><b>${esc(m.is_claude ? '✦ Claude' : nameOf(m.author))}</b> <span class="faint">${esc(when(m.created_at))}</span><br>${m.image ? '📷 ' : ''}${esc((m.body || '').slice(0, 300))}</span><button class="x" data-msg="${m.id}" aria-label="Delete message">✕</button></li>`).join('')}</ul>` : '<p class="muted">No messages yet.</p>';
+      el.querySelectorAll('[data-msg]').forEach((b) => (b.onclick = async () => {
+        const m = data.find((x) => x.id === +b.dataset.msg);
+        if (!(await confirmBox('Delete this message?', 'It goes from the chat for everyone.'))) return;
+        const { error } = await sb.from('chat_messages').delete().eq('id', m.id);
+        if (!error && m.image) await sb.storage.from('family-chat').remove([m.image]);
+        toast(error ? error.message : 'Deleted.', !!error); content();
+      }));
+    } else {
+      const [{ data: trips }, { data: items }] = await Promise.all([
+        sb.from('trips').select('id, name, place, starts, ends, created_by, created_at').order('created_at', { ascending: false }),
+        sb.from('trip_items').select('trip, kind'),
+      ]);
+      const n = (id, k) => (items || []).filter((i) => i.trip === id && (!k || i.kind === k)).length;
+      el.innerHTML = trips?.length ? `<ul class="list">${trips.map((t) => `<li><span class="grow"><a href="/trip.html?t=${t.id}"><b>${esc(t.name)}</b></a>${t.place ? ' · ' + esc(t.place) : ''}<br><span class="faint">${t.starts ? esc(t.starts) + (t.ends ? ' → ' + esc(t.ends) : '') + ' · ' : ''}started by ${esc(nameOf(t.created_by))} · ${n(t.id)} items (${n(t.id, 'booking')} bookings)</span></span><button class="x" data-trip="${t.id}" aria-label="Delete trip">✕</button></li>`).join('')}</ul>` : '<p class="muted">No trips yet.</p>';
+      el.querySelectorAll('[data-trip]').forEach((b) => (b.onclick = async () => {
+        const t = trips.find((x) => x.id === b.dataset.trip);
+        if (!(await confirmBox(`Delete “${t.name}”?`, `Its plan, ideas, bookings and packing lists (${n(t.id)} items) go too. This can't be undone.`))) return;
+        const { error } = await sb.from('trips').delete().eq('id', t.id);
+        toast(error ? error.message : 'Deleted.', !!error); content();
+      }));
+    }
+  }
+  $('viewer').onclick = () => { $('viewer').hidden = true; };
+
+  async function all() { await people(); await Promise.all([box(), kids(), content()]); }   // names first: the rest use them
+  $('refresh').onclick = all;
+  if (PARENT) { all(); setInterval(() => { if (!document.hidden) box(); }, 60000); }
+</script>
+</body>
+</html>

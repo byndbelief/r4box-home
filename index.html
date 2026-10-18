@@ -218,6 +218,7 @@
       .map(([g, t]) => ({ g, t, d: 'Game room', h: 'games.r4box.com', c: 'var(--teal)', emoji: true }));
     const GAMES_TILE = { g: '⚓', t: 'games', h: 'games.r4box.com', c: 'var(--teal)', emoji: true };
     const TRIP_TILE = { g: '✈️', t: 'trip', d: 'Trip planning', h: 'r4box.com/trip', u: '/trip.html', c: 'var(--gold)', emoji: true };
+    const ADMIN_TILE = { g: '⚙', t: 'admin', d: 'Admin: box health, kids & Claude, devices, content', h: 'r4box.com/admin', u: '/admin.html', c: 'var(--muted)' };
     const CHAT_TILE = { g: '💬', t: 'chat', d: 'Family chat', h: 'r4box.com/chat', u: '/chat.html', c: 'var(--violet)', emoji: true };
 
     // The live x: the logistic map at r = 4, one step every half second.
@@ -313,8 +314,8 @@
       }
       $('login').hidden = true; $('cockpit').hidden = false;
       $('hello').textContent = role === 'parent' ? `Welcome back, ${name}.` : `Hi, ${name}. Your own tree is growing soon.`;
-      const tiles = role === 'parent' ? [...BOX, GAMES_TILE, TRIP_TILE, CHAT_TILE] : [GAMES_TILE, TRIP_TILE, CHAT_TILE];
-      places = role === 'parent' ? [...BOX, ...GAMES, TRIP_TILE, CHAT_TILE] : [...GAMES, TRIP_TILE, CHAT_TILE];
+      const tiles = role === 'parent' ? [...BOX, GAMES_TILE, TRIP_TILE, CHAT_TILE, ADMIN_TILE] : [GAMES_TILE, TRIP_TILE, CHAT_TILE];
+      places = role === 'parent' ? [...BOX, ...GAMES, TRIP_TILE, CHAT_TILE, ADMIN_TILE] : [...GAMES, TRIP_TILE, CHAT_TILE];
       $('dock').innerHTML = tiles.map((s) => `<a href="${s.u || `https://${s.h}/`}" style="--c:${s.c}"><span class="glyph${s.emoji ? ' emoji' : ''}" style="--s:36px">${s.g}</span><b>${esc(s.t)}</b></a>`).join('');
       $('dock').style.gridTemplateColumns = tiles.length < 4 ? `repeat(${tiles.length}, minmax(0, 140px))` : '';
       $('dock').style.justifyContent = tiles.length < 4 ? 'center' : '';

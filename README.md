@@ -10,3 +10,6 @@ The front door at https://r4box.com. Plain static files on GitHub Pages; pushing
   games lived here, opening those alerts on games.r4box.com.
 - `chat.html`: the family chat. Messages go through the `family-chat` Edge Function (in the
   game-room repo, `supabase/functions/family-chat`), which pushes alerts and answers @claude.
+- `admin.html`: a parent's admin page: box health (reported by r4os every 5 minutes), each kid's
+  Claude use and limits, flagged tutor chats, family devices and passkeys, and chat/trip clean-up.
+  Its data comes from parent-only database functions (094) and the `admin-tools` Edge Function.
