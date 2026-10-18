@@ -178,7 +178,11 @@
     const [{ data: p }, { data: v }] = await Promise.all([sb.from('trip_polls').select('*').in('id', ids), sb.from('trip_poll_votes').select('poll, voter, choice').in('poll', ids)]);
     polls = p || []; votes = v || [];
   }
-  const tripUrl = (r) => `/trip.html?t=${encodeURIComponent(r.trip)}${r.id && r.type === 'item' ? '&i=' + encodeURIComponent(r.id) : r.type === 'poll' && r.item ? '&i=' + encodeURIComponent(r.item) : '#chat'}`;
+  // Where a card goes: the item itself (a shared item, a poll on an item, what Claude added), else the trip's Ideas or Chat.
+  const tripUrl = (r) => {
+    const item = r.type === 'item' ? r.id : r.type === 'poll' ? r.item : r.type === 'added' ? r.ids?.[0] : null;
+    return `/trip.html?t=${encodeURIComponent(r.trip)}${item ? '&i=' + encodeURIComponent(item) : r.type === 'poll' ? '#chat' : '#ideas'}`;
+  };
   const initial = (id) => (member(id)?.username || '?')[0].toUpperCase();
   function refHTML(r) {
     if (r.type === 'item') return `<a class="rcard" href="${esc(tripUrl(r))}">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="ri">📍</span>'}<span><small>${esc(r.trip_name)} ↗</small><b>${esc(r.title)}</b></span></a>`;
