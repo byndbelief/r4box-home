@@ -222,6 +222,9 @@
     .legrow .n { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--body); background: #ffffff10; color: var(--muted); }
     .legrow.ok .n { background: var(--teal); color: var(--teal-ink); }
     .legrow b { font-size: 14.5px; } .legrow small { color: var(--muted); font-size: 13px; }
+    .legedit { display: grid; grid-template-columns: 26px minmax(0, 1fr) 14px minmax(0, 1fr); gap: 8px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+    .legedit .n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--body); background: #ffffff10; color: var(--muted); }
+    .legedit input { text-transform: uppercase; } .legedit input[type=date] { grid-column: 2 / 4; text-transform: none; } .legedit .btn { grid-column: 4; }
     .combos { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 82%); gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
     .combo { scroll-snap-align: start; padding: 12px; border-radius: 16px; background: var(--panel); border: 1.5px solid var(--line); display: grid; gap: 8px; align-content: start; }
     .combo.on { border-color: var(--teal); }
@@ -632,7 +635,7 @@
     $('view').querySelectorAll('[data-compare]').forEach((b) => b.onclick = () => openFlights());
     $('view').querySelectorAll('[data-openpart]').forEach((b) => b.onclick = () => openPart(b.dataset.openpart));
     $('view').querySelectorAll('[data-setuppart]').forEach((b) => b.onclick = () => setupPart(b.dataset.setuppart));
-    $('view').querySelectorAll('[data-setupflights]').forEach((b) => b.onclick = () => askFlights(`Set up the flights for this trip: set the flight plan from the chosen dates and places${trip.origin ? ' (the family travels from ' + trip.origin + ')' : ''}, every flight the trip takes in order, then find 3 to 5 options for each leg as flight ideas with flight kind 'leg'. Leave everything else as it is.`));
+    $('view').querySelectorAll('[data-setupflights]').forEach((b) => b.onclick = () => askFlights(`Set up the flights for this trip: first check every city it visits (the place, the plan, the ideas and bookings), not just the main one; if it isn't clear, ask instead of guessing. Then set the flight plan from the chosen dates and places${trip.origin ? ' (the family travels from ' + trip.origin + ')' : ''}, every flight the trip takes in order, then find 3 to 5 options for each leg as flight ideas with flight kind 'leg'. Leave everything else as it is.`));
     $('view').querySelectorAll('[data-others]').forEach((b) => b.onclick = () => { const t = b.dataset.others; showOthers.has(t) ? showOthers.delete(t) : showOthers.add(t); render(); });
     $('view').querySelectorAll('[data-choose]').forEach((el) => {
       const pick = async () => {
@@ -1105,7 +1108,45 @@
     } catch { alert("Couldn't reach Claude just now."); }
     flyBusy = false; await load(); if ($('fly').open) (flyMode === 'flights' ? renderBuilder() : renderPartBuilder());
   }
+  // Editing the legs themselves: airports and dates, add or remove. Options and picks follow their leg.
+  let legEdit = null;   // a working copy of the legs while editing
+  function renderLegEditor() {
+    $('fly').innerHTML = `<div class="wrap"><header class="sh"><b>✈️ Edit flights</b><button class="btn" id="flyx" aria-label="Close">✕</button></header>
+      <div class="list"><p class="note" style="margin:0">The flights this trip takes, in order. Airport codes like LAX, MEX, JFK.</p>
+      ${legEdit.map((l, n) => `<div class="legedit">
+          <span class="n">${n + 1}</span><input data-le="${n}:from" value="${esc(l.from)}" maxlength="3" aria-label="Flight ${n + 1} from">
+          <span class="muted">→</span><input data-le="${n}:to" value="${esc(l.to)}" maxlength="3" aria-label="Flight ${n + 1} to">
+          <span></span><input data-le="${n}:date" type="date" value="${esc(l.date)}" aria-label="Flight ${n + 1} day">
+          <button class="btn bad" data-ledel="${n}" aria-label="Remove this flight" ${legEdit.length < 2 ? 'disabled' : ''}>Remove</button></div>`).join('')}
+      <button class="btn" id="leadd" style="justify-self:start">＋ Add a flight</button></div>
+      <div class="totals"><button class="btn" id="lecancel">Cancel</button><button class="btn p" id="lesave">Save flights</button></div></div>`;
+    const F = (id) => $('fly').querySelector('#' + id);
+    $('fly').querySelectorAll('[data-le]').forEach((x) => x.oninput = () => { const [n, k] = x.dataset.le.split(':'); legEdit[+n][k] = k === 'date' ? x.value : x.value.toUpperCase(); });
+    $('fly').querySelectorAll('[data-ledel]').forEach((b) => b.onclick = () => { legEdit.splice(+b.dataset.ledel, 1); renderLegEditor(); });
+    F('leadd').onclick = () => { const last = legEdit[legEdit.length - 1]; legEdit.push({ from: last?.to || '', to: legEdit[0]?.from || '', date: last?.date || '', pick: null }); renderLegEditor(); };
+    F('flyx').onclick = () => $('fly').close();
+    F('lecancel').onclick = () => { legEdit = null; renderBuilder(); };
+    F('lesave').onclick = async () => {
+      const legs = legEdit.map((l) => ({ from: (l.from || '').trim().toUpperCase(), to: (l.to || '').trim().toUpperCase(), date: l.date, pick: l.pick ?? null, was: l.was }));
+      if (legs.some((l) => !/^[A-Z]{3}$/.test(l.from) || !/^[A-Z]{3}$/.test(l.to) || !/^\d{4}-\d{2}-\d{2}$/.test(l.date))) { alert('Each flight needs two 3-letter airport codes and a day.'); return; }
+      // A leg that kept its airports and day keeps its options and pick, wherever it now sits.
+      const old = planOf() || [];
+      const plan = legs.map((l) => { const o = l.was != null ? old[l.was] : null, same = o && o.from === l.from && o.to === l.to && o.date === l.date;
+        return { from: l.from, to: l.to, date: l.date, pick: same ? o.pick ?? null : null, _from: same ? l.was : null }; });
+      // Every option goes where its leg went; a leg that changed or went away takes its options off the board.
+      const where = new Map(plan.map((l, n) => [l._from, n]).filter(([a]) => a != null));
+      for (const i of items.filter((x) => x.topic === 'flights' && x.flight?.kind === 'leg')) {
+        const to = where.has(i.flight.leg) ? where.get(i.flight.leg) : -1;
+        if (to !== i.flight.leg) await sb.from('trip_items').update({ flight: { ...i.flight, leg: to } }).eq('id', i.id);
+      }
+      const clean = plan.map(({ _from, ...l }) => l);
+      const { error } = await sb.from('trips').update({ flight_plan: clean }).eq('id', trip.id);
+      if (error) { alert('Could not save: ' + error.message); return; }
+      legEdit = null; await load(); if ($('fly').open) renderBuilder();
+    };
+  }
   function renderBuilder() {
+    if (legEdit) { renderLegEditor(); return; }
     const plan = planOf(); if (!plan) { $('fly').close(); return; }
     const n0 = family.length || 1, mayChoose = canChoose();
     const okStops = (i) => fs.stops === 'any' || (i.flight?.legs?.[0]?.stops ?? 9) <= +fs.stops;
@@ -1135,7 +1176,7 @@
     const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}>${label}</button>`;
     const tp = plan.reduce((s2, _, n) => s2 + (ppOf(pickOf(n)) || 0), 0), tm = plan.reduce((s2, _, n) => s2 + (minOf(pickOf(n)) || 0), 0), np = plan.filter((_, n) => pickOf(n)).length;
     $('fly').innerHTML = `<div class="wrap">
-      <header class="sh"><b>✈️ ${esc([plan[0].from, ...plan.map((l) => l.to)].join(' → '))}</b><button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
+      <header class="sh"><b>✈️ ${esc([plan[0].from, ...plan.map((l) => l.to)].join(' → '))}</b>${mayChoose ? '<button class="btn" id="legedit">Edit flights</button>' : ''}<button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
       <div class="filters"><div class="frow"><small>Stops</small>${chip(fs.stops === 'any', 'data-fstops="any"', 'Any')}${chip(fs.stops === '0', 'data-fstops="0"', 'Nonstop')}${chip(fs.stops === '1', 'data-fstops="1"', '1 stop or fewer')}</div>
         <div class="frow"><small>Sort each leg</small>${chip(fs.sort === 'price', 'data-fsort="price"', 'Cheapest')}${chip(fs.sort === 'fast', 'data-fsort="fast"', 'Fastest')}${chip(fs.sort === 'early', 'data-fsort="early"', 'Earliest')}</div></div>
       <div class="list">
@@ -1152,6 +1193,7 @@
       <div class="totals"><div><b>${np ? money(tp * n0) : '–'}</b><small>${np} of ${plan.length} legs · ${np ? `${money(tp)} per person · ${hm(tm)} in the air` : 'pick a flight for each leg'}</small></div><button class="btn p" id="flydone">Done</button></div></div>`;
     const F = (id) => $('fly').querySelector('#' + id);
     F('flyx').onclick = F('flydone').onclick = () => $('fly').close();
+    if (F('legedit')) F('legedit').onclick = () => { legEdit = plan.map((l, n) => ({ ...l, was: n })); renderLegEditor(); };
     $('fly').querySelectorAll('[data-fstops]').forEach((b) => b.onclick = () => { fs.stops = b.dataset.fstops; renderBuilder(); });
     $('fly').querySelectorAll('[data-fsort]').forEach((b) => b.onclick = () => { fs.sort = b.dataset.fsort; renderBuilder(); });
     $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => { $('fly').close(); view(items.find((i) => i.id === b.dataset.fmore)); });
@@ -1195,7 +1237,7 @@
         <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div>
       <div class="lm"><b>${hm(l.minutes)}</b> · ${l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}${l.via?.length ? ' via ' + l.via.map(esc).join(', ') : ''}` : 'Nonstop'}</div></div>`;
   }
-  function openFlights() { flyMode = 'flights'; planOf() ? renderBuilder() : renderFlights(); if (!$('fly').open) $('fly').showModal(); }
+  function openFlights() { flyMode = 'flights'; legEdit = null; planOf() ? renderBuilder() : renderFlights(); if (!$('fly').open) $('fly').showModal(); }
   function renderFlights() {
     const all = items.filter((i) => i.kind === 'idea' && i.topic === 'flights').map(flightInfo);
     const good = all.filter((x) => x.ok), need = all.filter((x) => !x.ok);
