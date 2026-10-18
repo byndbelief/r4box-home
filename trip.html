@@ -99,6 +99,16 @@
     .answer .chips button { all: unset; cursor: pointer; font-size: 13px; padding: 4px 10px; border-radius: 99px; background: #ffffff12; }
     .answer.wait { color: var(--muted); }
     .claude { color: var(--gold); font-size: 12px; margin-left: 4px; }
+    /* the breakdown: what the trip needs, decided or still open */
+    .needs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
+    .needs a { display: inline-flex; gap: 6px; align-items: center; padding: 6px 11px; border-radius: 99px; font-size: 13px; font-weight: 700; text-decoration: none; color: var(--ink); background: var(--panel); border: 1px solid var(--line); }
+    .needs a small { color: var(--muted); font-weight: 600; }
+    .needs a.ok { border-color: #3DD6C666; background: #3DD6C614; }
+    .needs a.ok small { color: var(--teal); }
+    .topic { margin: 20px 0 0; scroll-margin-top: 64px; }
+    .topic h3 { font: 800 14px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
+    .topic h3 small { color: var(--teal); font-weight: 700; letter-spacing: 0; text-transform: none; }
+    .ti { margin-right: 6px; }
     details.asks { margin-top: 8px; color: var(--muted); font-size: 13px; }
     details.asks summary { cursor: pointer; }
     details.asks p { margin: 6px 0; }
@@ -121,7 +131,8 @@
   <section id="trip" hidden>
     <p class="eyebrow">Trip</p>
     <h1 id="name"></h1>
-    <p class="meta"><span id="where"></span><span id="when"></span><span class="count" id="countdown"></span><button class="link quiet" id="edittrip" hidden>Edit</button></p>
+    <p class="meta"><span id="where"></span><span id="when"></span><span class="count" id="countdown"></span><button class="link quiet" id="edittrip" hidden>Edit</button><button class="link quiet" id="newtrip2" hidden>＋ New trip</button></p>
+    <p class="meta" id="goal" hidden></p>
     <div class="ask">
       <form id="askf"><input id="askq" placeholder="Search the trip, or ask Claude…" autocomplete="off" aria-label="Search the trip, or ask Claude" maxlength="2000"><button class="btn" id="askgo">✦ Ask</button></form>
       <div class="found" id="found" hidden></div>
@@ -191,11 +202,12 @@
       $('newtrip').hidden = !PARENT; return;
     }
     $('name').textContent = trip.name;
-    $('where').textContent = trip.place || '';
+    $('where').textContent = (trip.origin && trip.place ? trip.origin + ' → ' : '') + (trip.place || '');
     $('when').textContent = trip.starts ? nice(trip.starts, { month: 'short', day: 'numeric' }) + (trip.ends ? ' – ' + nice(trip.ends, { month: 'short', day: 'numeric', year: 'numeric' }) : '') : '';
     const n = trip.starts ? Math.round((D(trip.starts) - D(iso(new Date()))) / 86400000) : null;
     $('countdown').textContent = n == null ? '' : n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow!' : n === 0 ? 'today!' : trip.ends && trip.ends >= iso(new Date()) ? 'happening now' : '';
-    $('edittrip').hidden = !PARENT;
+    $('edittrip').hidden = !PARENT; $('newtrip2').hidden = !PARENT;
+    $('goal').hidden = !trip.goal; $('goal').textContent = trip.goal ? '🎯 ' + trip.goal : '';
     const tab = (location.hash || '#plan').slice(1);
     document.querySelectorAll('.tabs a').forEach((a) => a.setAttribute('aria-current', String(a.hash === '#' + tab)));
     ({ plan, ideas, bookings, packing }[tab] || plan)();
@@ -205,6 +217,10 @@
 
   // ---- search the trip as you type; Enter or ✦ Ask asks Claude ----
   const TAB = { plan: 'plan', idea: 'ideas', booking: 'bookings', pack: 'packing' };
+  // What a trip needs, in the order it gets decided (dates first: flights and hotels hang on them).
+  const TOPIC = { dates: ['📅', 'Dates'], flights: ['✈️', 'Flights'], tickets: ['🎟️', 'Tickets'], stay: ['🏨', 'Where to stay'],
+    transport: ['🚕', 'Getting around'], food: ['🍽️', 'Food'], activities: ['🎯', 'Things to do'], other: ['✦', 'Other'] };
+  const decided = (t) => (t === 'dates' && !!trip.starts) || items.some((i) => i.kind === 'booking' && i.topic === t);
   $('askq').oninput = () => {
     const q = $('askq').value.trim().toLowerCase();
     if (!q) { $('found').hidden = true; return; }
@@ -234,6 +250,7 @@
     } catch { r = { error: 'Claude could not help just now. Try again in a minute.' }; }
     asking = false; $('askgo').disabled = false;
     await load();
+    if (r.trip) location.hash = '#ideas';
     const touched = [...(r.added || []), ...(r.changed || [])].map((id) => items.find((i) => i.id === id)).filter(Boolean);
     $('answer').innerHTML = `<div class="answer"><div class="q">${esc(text)}</div>${r.error ? esc(r.error) : '✦ ' + esc(r.reply)}
       ${touched.length ? `<div class="chips">${touched.map((i) => `<button data-id="${i.id}">${i.kind === 'pack' ? 'packing' : i.kind}: ${esc(i.title.slice(0, 40))}</button>`).join('')}</div>` : ''}
@@ -245,9 +262,9 @@
   };
   window.addEventListener('hashchange', render);
 
-  const itemRow = (i, { tm = i.at, side = '' } = {}) => `<div class="item" data-id="${i.id}">
+  const itemRow = (i, { tm = i.at, side = '', icon = false } = {}) => `<div class="item" data-id="${i.id}">
       ${tm != null ? `<span class="tm">${esc(tm || '')}</span>` : ''}
-      <span class="tx"><b>${esc(i.title)}${i.by_claude ? '<span class="claude" title="Added by Claude">✦</span>' : ''}</b>${i.notes ? `<small>${esc(i.notes)}</small>` : ''}${safeLink(i.link) ? `<a href="${esc(i.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(new URL(i.link).hostname.replace(/^www\./, ''))} ↗</a>` : ''}</span>
+      <span class="tx"><b>${icon && TOPIC[i.topic] ? `<span class="ti" title="${TOPIC[i.topic][1]}">${TOPIC[i.topic][0]}</span>` : ''}${esc(i.title)}${i.by_claude ? '<span class="claude" title="Added by Claude">✦</span>' : ''}</b>${i.notes ? `<small>${esc(i.notes)}</small>` : ''}${safeLink(i.link) ? `<a href="${esc(i.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(new URL(i.link).hostname.replace(/^www\./, ''))} ↗</a>` : ''}</span>
       ${side ? `<span class="side">${side}</span>` : ''}</div>`;
   const wire = () => $('view').querySelectorAll('.item[data-id]').forEach((el) => el.onclick = () => edit(items.find((i) => i.id === el.dataset.id)));
 
@@ -255,10 +272,10 @@
     const ds = days(), list = items.filter((i) => i.kind === 'plan');
     const sec = (d, title, sub) => {
       const its = list.filter((i) => (i.day || null) === d).sort((a, b) => String(a.at || '99').localeCompare(String(b.at || '99')));
-      return `<div class="day"><h3>${title}<small>${sub}</small></h3><div class="list">${its.map((i) => itemRow(i, { side: i.cost ? money(i.cost) : '' })).join('')}</div>
+      return `<div class="day"><h3>${title}<small>${sub}</small></h3><div class="list">${its.map((i) => itemRow(i, { side: i.cost ? money(i.cost) : '', icon: true })).join('')}</div>
         <button class="add" data-day="${d || ''}">＋ Add to ${d ? nice(d, { weekday: 'long' }) : 'any day'}</button></div>`;
     };
-    $('view').innerHTML = (ds.length ? ds.map((d, k) => sec(d, nice(d), `Day ${k + 1}`)).join('') : '<p class="empty">Set the trip dates to get a day for each day.</p>')
+    $('view').innerHTML = (ds.length ? ds.map((d, k) => sec(d, nice(d), `Day ${k + 1}`)).join('') : `<p class="empty">No dates yet. Ask Claude above, e.g. “when should we go?”${PARENT ? ', or set them with Edit' : ''}.</p>`)
       + (list.some((i) => !i.day) || !ds.length ? sec(null, 'Any day', 'not scheduled yet') : '');
     $('view').querySelectorAll('.add').forEach((b) => b.onclick = () => edit({ kind: 'plan', day: b.dataset.day || null }));
     wire();
@@ -268,12 +285,23 @@
     const score = (id) => votes.filter((v) => v.item === id).reduce((s, v) => s + v.value, 0);
     const mine = (id) => votes.find((v) => v.item === id && v.voter === ME.id)?.value || 0;
     const list = items.filter((i) => i.kind === 'idea').sort((a, b) => score(b.id) - score(a.id) || a.created_at.localeCompare(b.created_at));
-    $('view').innerHTML = `<p class="note">Places to go, food to try, things to do. Vote them up or down; the best ones go into the plan.</p>
-      <div class="list">${list.map((i) => `<div style="display:flex;gap:8px;align-items:center">${itemRow(i, { tm: null, side: esc(nameOf(i.created_by)) }).replace('class="item"', 'class="item" style="flex:1"')}
-        <div class="votes"><button data-v="1" data-i="${i.id}" class="${mine(i.id) === 1 ? 'on' : ''}" aria-label="Vote up">👍</button><span class="score">${score(i.id)}</span><button data-v="-1" data-i="${i.id}" class="${mine(i.id) === -1 ? 'on' : ''}" aria-label="Vote down">👎</button></div></div>`).join('')
-      || '<p class="empty">No ideas yet. Add the first one!</p>'}</div>
+    const row = (i) => `<div style="display:flex;gap:8px;align-items:center">${itemRow(i, { tm: null, side: esc(nameOf(i.created_by)) }).replace('class="item"', 'class="item" style="flex:1"')}
+        <div class="votes"><button data-v="1" data-i="${i.id}" class="${mine(i.id) === 1 ? 'on' : ''}" aria-label="Vote up">👍</button><span class="score">${score(i.id)}</span><button data-v="-1" data-i="${i.id}" class="${mine(i.id) === -1 ? 'on' : ''}" aria-label="Vote down">👎</button></div></div>`;
+    // Grouped by what each idea decides, in TOPIC order; ideas with no topic come last.
+    const groups = [...Object.keys(TOPIC), null].map((t) => ({ t, its: list.filter((i) => (TOPIC[i.topic] ? i.topic : null) === t) })).filter((g) => g.its.length);
+    const shown = Object.keys(TOPIC).filter((t) => t !== 'other' && (decided(t) || items.some((i) => i.topic === t)));
+    const needs = shown.length ? `<div class="needs">${shown.map((t) => {
+      const n = list.filter((i) => i.topic === t).length;
+      return `<a href="#ideas" data-topic="${t}" class="${decided(t) ? 'ok' : ''}">${TOPIC[t][0]} ${TOPIC[t][1]} <small>${decided(t) ? '✓ decided' : n ? `${n} option${n === 1 ? '' : 's'}` : 'open'}</small></a>`;
+    }).join('')}</div>` : '';
+    $('view').innerHTML = `<p class="note">Options for each part of the trip, plus places to go and food to try. Vote them up or down; the best ones go into the plan or get booked.</p>
+      ${needs}
+      ${groups.map((g) => `<div class="topic" id="topic-${g.t || 'none'}">${groups.length > 1 || g.t ? `<h3>${g.t ? TOPIC[g.t].join(' ') : 'More ideas'}${g.t && decided(g.t) ? '<small>✓ decided</small>' : ''}</h3>` : ''}
+        <div class="list">${g.its.map(row).join('')}</div></div>`).join('')
+      || `<p class="empty">No ideas yet. Add the first one, or ask Claude to “break the trip down”.</p>`}
       <button class="add" id="addidea">＋ Add an idea</button>`;
     $('addidea').onclick = () => edit({ kind: 'idea' });
+    $('view').querySelectorAll('.needs a').forEach((a) => a.onclick = (e) => { e.preventDefault(); const el = $('topic-' + a.dataset.topic); if (el) el.scrollIntoView({ behavior: 'smooth' }); });
     $('view').querySelectorAll('.votes button').forEach((b) => b.onclick = async () => {
       const item = b.dataset.i, v = +b.dataset.v;
       if (mine(item) === v) await sb.from('trip_votes').delete().eq('item', item).eq('voter', ME.id);
@@ -288,7 +316,7 @@
     const planCost = items.filter((i) => i.kind === 'plan').reduce((s, i) => s + (+i.cost || 0), 0);
     const bookCost = list.reduce((s, i) => s + (+i.cost || 0), 0);
     $('view').innerHTML = `<div class="total"><span>Trip total<br><small class="note">bookings ${money(bookCost)} · planned activities ${money(planCost)}</small></span><b>${money(bookCost + planCost)}</b></div>
-      <div class="list">${list.map((i) => itemRow(i, { tm: i.day ? nice(i.day, { month: 'short', day: 'numeric' }) : '', side: `${i.cost ? money(i.cost) : ''}${i.conf ? `<br><code>${esc(i.conf)}</code>` : ''}` })).join('')
+      <div class="list">${list.map((i) => itemRow(i, { icon: true, tm: i.day ? nice(i.day, { month: 'short', day: 'numeric' }) : '', side: `${i.cost ? money(i.cost) : ''}${i.conf ? `<br><code>${esc(i.conf)}</code>` : ''}` })).join('')
       || '<p class="empty">No bookings yet: flights, hotels, cars, tickets.</p>'}</div>
       ${PARENT ? '<button class="add" id="addbook">＋ Add a booking</button>' : '<p class="note">Dad adds and changes bookings.</p>'}`;
     if ($('addbook')) $('addbook').onclick = () => edit({ kind: 'booking' });
@@ -322,6 +350,7 @@
     $('dform').innerHTML = `<h2>${isNew ? 'New ' + KIND[k].toLowerCase() : KIND[k]}</h2>
       <label>${k === 'booking' ? 'What (flight, hotel, car…)' : 'What'}<input name="title" required maxlength="200" value="${esc(i.title || '')}"></label>
       ${k === 'plan' || k === 'booking' ? `<div class="row"><label>Day<select name="day">${dayOpts}</select></label><label>Time<input name="at" placeholder="9:30" maxlength="20" value="${esc(i.at || '')}"></label></div>` : ''}
+      ${k !== 'pack' ? `<label>Part of the trip<select name="topic"><option value="">—</option>${Object.entries(TOPIC).map(([t, [e, n]]) => `<option value="${t}" ${t === i.topic ? 'selected' : ''}>${e} ${n}</option>`).join('')}</select></label>` : ''}
       <label>Notes<textarea name="notes" maxlength="2000">${esc(i.notes || '')}</textarea></label>
       <label>Link<input name="link" type="url" placeholder="https://" value="${esc(i.link || '')}"></label>
       ${k === 'plan' || k === 'booking' ? `<div class="row"><label>Cost<input name="cost" type="number" step="0.01" min="0" value="${i.cost ?? ''}"></label>${k === 'booking' ? `<label>Confirmation<input name="conf" maxlength="60" value="${esc(i.conf || '')}"></label>` : '<span></span>'}</div>` : ''}
@@ -340,6 +369,7 @@
       const v = { title: f.elements.title.value.trim(), notes: f.elements.notes.value.trim() || null, link: f.elements.link.value.trim() || null, updated_at: new Date().toISOString() };
       if (f.elements.day) { v.day = f.elements.day.value || null; v.at = f.elements.at.value.trim() || null; v.cost = f.elements.cost.value === '' ? null : +f.elements.cost.value; }
       if (f.elements.conf) v.conf = f.elements.conf.value.trim() || null;
+      if (f.elements.topic) v.topic = f.elements.topic.value || null;
       let error;
       if (i._from) ({ error } = await sb.from('trip_items').update({ ...v, kind: 'plan' }).eq('id', i._from));
       else if (isNew) ({ error } = await sb.from('trip_items').insert({ ...v, trip: trip.id, kind: k, created_by: ME.id }));
@@ -353,25 +383,31 @@
   // ---- the trip itself (a parent) ----
   function editTrip(t = {}) {
     $('dform').innerHTML = `<h2>${t.id ? 'Edit trip' : 'New trip'}</h2>
-      <label>Name<input name="name" required maxlength="80" value="${esc(t.name || '')}" placeholder="December trip"></label>
-      <label>Where<input name="place" maxlength="120" value="${esc(t.place || '')}"></label>
+      <label>What's the trip?<textarea name="goal" maxlength="1000" placeholder="Watch the Dodgers play the Yankees in New York">${esc(t.goal || '')}</textarea></label>
+      <label>Name<input name="name" maxlength="80" value="${esc(t.name && t.name !== 'New trip' ? t.name : '')}" placeholder="Optional: Claude can name it"></label>
+      <label>Where<input name="place" maxlength="120" value="${esc(t.place || '')}" placeholder="Optional"></label>
+      <label>Travelling from<input name="origin" maxlength="120" value="${esc(t.origin || '')}" placeholder="City and airport, e.g. Raleigh (RDU)"></label>
       <div class="row"><label>From<input name="starts" type="date" value="${t.starts || ''}"></label><label>To<input name="ends" type="date" value="${t.ends || ''}"></label></div>
       <label>Currency<input name="currency" maxlength="3" value="${esc(t.currency || 'USD')}"></label>
+      <p class="note">Only the goal is needed: Claude works out where and when, then breaks the trip down (dates, flights, tickets, where to stay, getting around). Add where you travel from so flights are priced from home.</p>
       <p class="note" id="derr"></p>
       <div class="acts"><button type="button" class="btn" id="dcancel">Cancel</button><button class="btn p">Save</button></div>`;
     const f = $('dform');
     $('dcancel').onclick = () => $('dlg').close();
     f.onsubmit = async (e) => {
       e.preventDefault();
-      const v = { name: f.elements.name.value.trim(), place: f.elements.place.value.trim() || null, starts: f.elements.starts.value || null, ends: f.elements.ends.value || null, currency: (f.elements.currency.value.trim() || 'USD').toUpperCase() };
+      const v = { goal: f.elements.goal.value.trim() || null, name: f.elements.name.value.trim() || (t.id ? t.name : 'New trip'), place: f.elements.place.value.trim() || null, origin: f.elements.origin.value.trim() || null, starts: f.elements.starts.value || null, ends: f.elements.ends.value || null, currency: (f.elements.currency.value.trim() || 'USD').toUpperCase() };
       const { data, error } = t.id ? await sb.from('trips').update(v).eq('id', t.id).select().single() : await sb.from('trips').insert(v).select().single();
       if (error) { $('derr').textContent = 'Could not save: ' + error.message; return; }
-      $('dlg').close(); history.replaceState(null, '', '?t=' + data.id + (location.hash || '#plan')); load();
+      $('dlg').close(); history.replaceState(null, '', '?t=' + data.id + (location.hash || '#plan')); await load();
+      // A new trip from a goal: Claude starts on it straight away.
+      if (!t.id && v.goal) { $('askq').value = `Help us start planning this trip: ${v.goal}. Work out where and when, then break it down into dates, flights, tickets, where to stay and getting around, with real options for each.`; $('askf').requestSubmit(); }
     };
     $('dlg').showModal();
   }
   $('newtrip').onclick = () => editTrip();
   $('edittrip').onclick = () => editTrip(trip);
+  $('newtrip2').onclick = () => editTrip();
 
   // ---- live: everyone's changes show up as they happen ----
   let tick = 0;
