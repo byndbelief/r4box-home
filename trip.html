@@ -176,6 +176,46 @@
     :is(#sheet, .tripchat) form.say { flex: none; display: flex; gap: 8px; align-items: flex-end; padding: 10px 16px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
     :is(#sheet, .tripchat) form.say textarea { flex: 1; min-height: 44px; max-height: 120px; resize: none; padding: 11px 14px; border-radius: 22px; background: var(--panel); }
     :is(#sheet, .tripchat) form.say button { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--teal); color: var(--teal-ink); font-weight: 900; font-size: 18px; cursor: pointer; }
+    /* flight comparison */
+    #fly { padding: 0; border: 0; width: 100%; max-width: 760px; height: 100dvh; max-height: 100dvh; margin: 0 auto; background: var(--bg); color: var(--ink); }
+    @media (min-width: 800px) { #fly { height: 94dvh; margin-top: 3dvh; border-radius: 22px; border: 1px solid var(--line); } }
+    #fly::backdrop { background: #0B0918dd; }
+    #fly .wrap { display: flex; flex-direction: column; height: 100%; }
+    #fly header.sh { flex: none; display: flex; align-items: center; gap: 10px; padding: max(12px, env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--line); }
+    #fly header.sh b { flex: 1; font: 800 17px/1.2 var(--display); }
+    #fly .filters { flex: none; padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; background: var(--panel-2); }
+    #fly .frow { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    #fly .frow > small { width: 100%; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 700; }
+    #fly .chip { appearance: none; cursor: pointer; padding: 6px 11px; border-radius: 99px; border: 1px solid var(--line); background: #ffffff08; color: var(--muted); font: 700 13px/1 var(--body); }
+    #fly .chip.on { background: var(--teal); border-color: var(--teal); color: var(--teal-ink); }
+    #fly input[type=range] { width: 100%; accent-color: var(--teal); padding: 0; border: 0; background: none; }
+    #fly .rng { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    #fly .rng label { font-size: 12.5px; color: var(--muted); font-weight: 700; display: grid; gap: 2px; }
+    #fly .rng label b { color: var(--ink); }
+    #fly .list { flex: 1; overflow-y: auto; padding: 12px 16px 24px; display: grid; gap: 12px; align-content: start; }
+    .fcard { padding: 14px; border-radius: 18px; background: var(--panel); border: 1.5px solid var(--line); display: grid; gap: 10px; }
+    .fcard.on { border-color: var(--teal); background: color-mix(in srgb, var(--teal) 8%, var(--panel)); }
+    .fcard .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .fcard .pr b { display: block; font: 800 24px/1 var(--display); color: var(--gold); }
+    .fcard .pr small { color: var(--muted); font-size: 12.5px; }
+    .fcard .badges { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .fcard .badge { padding: 3px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 800; background: #ffffff10; }
+    .fcard .badge.cheap { background: #F5C54226; color: var(--gold); } .fcard .badge.fast { background: #3DD6C626; color: var(--teal); }
+    .fcard .al { font-weight: 800; font-size: 15px; } .fcard .al small { display: block; color: var(--faint); font-weight: 600; font-size: 12.5px; margin-top: 2px; }
+    .leg { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; background: #ffffff06; }
+    .leg .lh { display: flex; justify-content: space-between; font-size: 12px; color: var(--faint); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .leg .lt { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+    .leg .lt b { font: 700 16px/1.1 var(--mono); } .leg .lt b small { display: block; font: 600 11.5px/1.2 var(--body); color: var(--muted); }
+    .leg .lt .end { text-align: right; } .leg sup { color: var(--hot); font-size: 10px; }
+    .leg .tl { position: relative; height: 6px; border-radius: 99px; background: #ffffff10; }
+    .leg .tl i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, var(--teal), var(--violet)); }
+    .leg .tl em { position: absolute; top: -3px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--bg); border: 2px solid var(--gold); }
+    .leg .lm { font-size: 13px; color: var(--muted); }
+    .leg .lm b { color: var(--ink); }
+    .fcard .tot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13.5px; color: var(--muted); } .fcard .tot b { color: var(--ink); }
+    .fcard .acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; }
+    .fcard .acts a { text-decoration: none; }
+    #fly .need { padding: 12px 14px; border-radius: 14px; border: 1px dashed #B9A6FF66; color: var(--muted); font-size: 14px; display: grid; gap: 8px; }
     /* polls */
     .poll { flex: 1; min-width: 0; padding: 12px; border-radius: 14px; background: var(--panel); border: 1.5px solid #B9A6FF55; }
     .poll .pq { margin: 0 0 8px; font-weight: 800; font-size: 15.5px; line-height: 1.35; overflow-wrap: anywhere; }
@@ -280,6 +320,7 @@
 
 <dialog id="dlg"><form method="dialog" id="dform"></form></dialog>
 <dialog id="sheet" aria-label="Details"></dialog>
+<dialog id="fly" aria-label="Compare flights"></dialog>
 <input type="file" id="photofile" accept="image/*" hidden>
 
 <script type="module">
@@ -351,6 +392,7 @@
       const b2 = $('sheet').querySelector('.body'); if (b2) b2.scrollTop = atEnd ? b2.scrollHeight : top;
     }
     if (focusKey) (inSheet ? $('sheet') : $('view')).querySelector(`[data-f="${focusKey}"]`)?.focus();
+    if ($('fly').open && document.activeElement?.type !== 'range') renderFlights();   // not mid-drag
   }
 
   function render() {
@@ -528,7 +570,7 @@
           : `<span class="sum">${opts.length} option${opts.length === 1 ? '' : 's'} to choose from</span>`;
         return `<details class="choice fold" id="topic-${t}" data-fold="${t}"${isOpen(t) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC[t][0]} ${TOPIC[t][1]} ${status}</h3>${sum}</span><span class="chev" aria-hidden="true">⌄</span></summary>
           ${bk ? `<div class="booked" data-more="${bk.id}">✓ ${esc(bk.title)}${bk.conf ? ` <code>${esc(bk.conf)}</code>` : ''}</div>`
-            : `<div class="opts" role="radiogroup" aria-label="${TOPIC[t][1]}">${(ch && !showOthers.has(t) ? [ch] : opts).map(opt).join('')}
+            : `<div class="opts" role="radiogroup" aria-label="${TOPIC[t][1]}">${t === 'flights' && opts.length > 1 ? '<button type="button" class="btn p" data-compare="1" style="justify-self:start">✈️ Compare flights side by side</button>' : ''}${(ch && !showOthers.has(t) ? [ch] : opts).map(opt).join('')}
               ${ch && opts.length > 1 ? `<button type="button" class="add" data-others="${t}">${showOthers.has(t) ? 'Hide the other options' : `Show ${opts.length - 1} other option${opts.length === 2 ? '' : 's'}`}</button>` : ''}</div>`}</details>`;
       }).join('')}</div>` : '';
     // Everything else: places to go, food to try, other ideas.
@@ -551,6 +593,7 @@
     }));
     $('addidea').onclick = () => edit({ kind: 'idea' });
     $('view').querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); view(items.find((i) => i.id === b.dataset.more)); });
+    $('view').querySelectorAll('[data-compare]').forEach((b) => b.onclick = () => openFlights());
     $('view').querySelectorAll('[data-others]').forEach((b) => b.onclick = () => { const t = b.dataset.others; showOthers.has(t) ? showOthers.delete(t) : showOthers.add(t); render(); });
     $('view').querySelectorAll('[data-choose]').forEach((el) => {
       const pick = async () => {
@@ -859,6 +902,102 @@
     $('answer').innerHTML = `<div class="answer"><div class="q">After choosing ${esc(i.title)}</div>${r.error ? esc(r.error) : '✦ ' + esc(r.reply)}
       <div style="margin-top:6px"><button class="link quiet" id="ansx">Dismiss</button></div></div>`;
     $('ansx').onclick = () => { $('answer').innerHTML = ''; };
+  }
+
+  // ---- flights, side by side: filter by price, stops, flight time, airline and date; choose from here ----
+  const fs = { max: null, stops: 'any', hours: null, airlines: new Set(), date: '', sort: 'price' };
+  let flyBusy = false;
+  const hm = (min) => (min == null ? '?' : `${Math.floor(min / 60)}h${min % 60 ? ' ' + String(min % 60).padStart(2, '0') + 'm' : ''}`);
+  const toMin = (t) => { const m = String(t || '').match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; };
+  function flightInfo(i) {
+    const f = i.flight || {}, legs = (f.legs || []).filter((l) => l.depart || l.minutes);
+    const n = family.length || 1;
+    const pp = f.price_pp ?? (f.price_total ? f.price_total / n : null) ?? (+(((i.notes || '').match(/\$\s?([\d,]{2,6})/) || [])[1] || '').replace(/,/g, '') || null);
+    const total = f.price_total ?? (pp ? pp * n : null);
+    const minutes = legs.reduce((s, l) => s + (l.minutes || 0), 0) || null;
+    const stops = legs.length ? Math.max(...legs.map((l) => l.stops ?? 0)) : null;
+    const out = legs.find((l) => l.dir !== 'back');
+    return { i, f, legs, pp, total, minutes, stops, date: out?.date || '', departMin: toMin(out?.depart), airlines: f.airlines || [], ok: legs.length > 0 };
+  }
+  function openFlights() { renderFlights(); if (!$('fly').open) $('fly').showModal(); }
+  function renderFlights() {
+    const all = items.filter((i) => i.kind === 'idea' && i.topic === 'flights').map(flightInfo);
+    const good = all.filter((x) => x.ok), need = all.filter((x) => !x.ok);
+    const prices = good.map((x) => x.pp).filter((x) => x != null), mins = good.map((x) => x.minutes).filter((x) => x != null);
+    const pMin = prices.length ? Math.floor(Math.min(...prices)) : 0, pMax = prices.length ? Math.ceil(Math.max(...prices)) : 0;
+    const hMax = mins.length ? Math.ceil(Math.max(...mins) / 60) : 0, hMin = mins.length ? Math.floor(Math.min(...mins) / 60) : 0;
+    if (fs.max == null || fs.max > pMax || fs.max < pMin) fs.max = pMax;
+    if (fs.hours == null || fs.hours > hMax || fs.hours < hMin) fs.hours = hMax;
+    const airlines = [...new Set(good.flatMap((x) => x.airlines))], dates = [...new Set(good.map((x) => x.date).filter(Boolean))].sort();
+    const shown = good.filter((x) => (x.pp == null || x.pp <= fs.max) && (x.minutes == null || x.minutes <= fs.hours * 60)
+      && (fs.stops === 'any' || (x.stops ?? 9) <= +fs.stops) && (!fs.airlines.size || x.airlines.some((a) => fs.airlines.has(a))) && (!fs.date || x.date === fs.date))
+      .sort((a, b) => fs.sort === 'fast' ? (a.minutes ?? 1e9) - (b.minutes ?? 1e9) : fs.sort === 'early' ? (a.departMin ?? 1e9) - (b.departMin ?? 1e9) : (a.pp ?? 1e9) - (b.pp ?? 1e9));
+    const cheapest = Math.min(...good.map((x) => x.pp ?? 1e9)), fastest = Math.min(...good.map((x) => x.minutes ?? 1e9));
+    const mayChoose = canChoose(), n = family.length || 1;
+    const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}>${label}</button>`;
+    const leg = (l) => {
+      // The bar is the leg on a 24-hour day; one that runs past midnight wraps round to the morning.
+      const d = toMin(l.depart), w = Math.min(1440, l.minutes || (toMin(l.arrive) != null && d != null ? (toMin(l.arrive) + (l.arrive_plus || 0) * 1440 - d) : 0));
+      const at = (min) => (((d + min) % 1440) / 1440) * 100;
+      const bars = d == null ? '' : d + w <= 1440 ? `<i style="left:${at(0)}%;width:${Math.max(2, (w / 1440) * 100)}%"></i>`
+        : `<i style="left:${at(0)}%;width:${100 - at(0)}%"></i><i style="left:0;width:${Math.max(1, ((d + w - 1440) / 1440) * 100)}%"></i>`;
+      const dots = d == null ? '' : Array.from({ length: l.stops || 0 }, (_, k) => `<em style="left:${at((w * (k + 1)) / ((l.stops || 0) + 1))}%" title="Change planes${l.via?.[k] ? ' in ' + esc(l.via[k]) : ''}"></em>`).join('');
+      return `<div class="leg"><div class="lh"><span>${l.dir === 'back' ? 'Return' : 'Outbound'}${l.date ? ' · ' + esc(nice(l.date)) : ''}</span><span>${(l.flights || []).map(esc).join(' · ')}</span></div>
+        <div class="lt"><b>${esc(l.depart || '–')}<small>${esc(l.from || '')}</small></b><div class="tl" aria-hidden="true">${bars}${dots}</div>
+          <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div>
+        <div class="lm"><b>${hm(l.minutes)}</b> · ${l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}${l.via?.length ? ' via ' + l.via.map(esc).join(', ') : ''}` : 'Nonstop'}</div></div>`;
+    };
+    const card = (x) => `<div class="fcard${x.i.chosen ? ' on' : ''}">
+        <div class="top"><div class="pr"><b>${x.pp != null ? money(x.pp) : '?'}</b><small>per person${x.total != null ? ` · ${money(x.total)} for ${n}` : ''}${x.f.kind === 'oneway' ? ' · one way' : ' · round trip'}</small></div>
+          <div class="badges">${x.i.chosen ? '<span class="badge fast">✓ Chosen</span>' : ''}${x.pp === cheapest && good.length > 1 ? '<span class="badge cheap">Cheapest</span>' : ''}${x.minutes === fastest && good.length > 1 ? '<span class="badge fast">Fastest</span>' : ''}</div></div>
+        <div class="al">${esc(x.airlines.join(' + ') || x.i.title)}<small>${esc(x.i.title)}</small></div>
+        ${x.legs.map(leg).join('')}
+        <div class="tot"><span>Total flight time <b>${hm(x.minutes)}</b></span><span>${x.stops ? `Up to ${x.stops} stop${x.stops > 1 ? 's' : ''} each way` : 'Nonstop both ways'}</span></div>
+        <div class="acts">${mayChoose ? `<button class="btn${x.i.chosen ? '' : ' p'}" data-fchoose="${x.i.id}">${x.i.chosen ? 'Undo choice' : '✓ Choose this flight'}</button>` : ''}
+          <button class="btn" data-fmore="${x.i.id}">Details</button>${safeLink(x.i.link) ? `<a class="btn" href="${esc(x.i.link)}" target="_blank" rel="noopener noreferrer">Live prices ↗</a>` : ''}</div></div>`;
+    $('fly').innerHTML = `<div class="wrap">
+      <header class="sh"><b>✈️ Compare flights</b><button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
+      ${good.length ? `<div class="filters">
+        <div class="rng"><label>Price per person <b>up to ${money(fs.max)}</b><input type="range" id="fmax" min="${pMin}" max="${pMax}" step="10" value="${fs.max}" ${pMin === pMax ? 'disabled' : ''}></label>
+          <label>Total flight time <b>up to ${fs.hours}h</b><input type="range" id="fhrs" min="${hMin}" max="${hMax}" step="1" value="${fs.hours}" ${hMin === hMax ? 'disabled' : ''}></label></div>
+        <div class="frow"><small>Stops</small>${chip(fs.stops === 'any', 'data-fstops="any"', 'Any')}${chip(fs.stops === '0', 'data-fstops="0"', 'Nonstop')}${chip(fs.stops === '1', 'data-fstops="1"', '1 stop or fewer')}</div>
+        ${airlines.length > 1 ? `<div class="frow"><small>Airlines</small>${airlines.map((a) => chip(fs.airlines.has(a), `data-fair="${esc(a)}"`, esc(a))).join('')}</div>` : ''}
+        ${dates.length > 1 ? `<div class="frow"><small>Leaving</small>${chip(!fs.date, 'data-fdate=""', 'Any day')}${dates.map((d) => chip(fs.date === d, `data-fdate="${d}"`, esc(nice(d)))).join('')}</div>` : ''}
+        <div class="frow"><small>Sort</small>${chip(fs.sort === 'price', 'data-fsort="price"', 'Cheapest')}${chip(fs.sort === 'fast', 'data-fsort="fast"', 'Fastest')}${chip(fs.sort === 'early', 'data-fsort="early"', 'Earliest')}</div>
+      </div>` : ''}
+      <div class="list">
+        ${good.length ? `<p class="note" style="margin:0">${shown.length} of ${good.length} flights · prices are typical fares Claude found, not quotes: “Live prices” shows today’s.</p>` : ''}
+        ${shown.map(card).join('') || (good.length ? '<p class="empty">No flight matches these filters.</p>' : '')}
+        ${need.length ? `<div class="need"><span>${need.length} flight option${need.length > 1 ? 's don’t' : ' doesn’t'} have times and prices to compare yet: ${need.map((x) => esc(x.i.title)).join('; ')}.</span>
+          ${mayChoose || PARENT ? `<button class="btn p" id="ffill" style="justify-self:start" ${flyBusy ? 'disabled' : ''}>${flyBusy ? '✦ Looking up schedules and fares… (about a minute)' : '✦ Fill in details'}</button>` : ''}</div>` : ''}
+      </div></div>`;
+    const F = (id) => $('fly').querySelector('#' + id);
+    F('flyx').onclick = () => $('fly').close();
+    // While dragging only the label follows; letting go applies the filter (rebuilding mid-drag would drop the thumb).
+    if (F('fmax')) { F('fmax').oninput = (e) => { e.target.previousElementSibling.textContent = 'up to ' + money(+e.target.value); }; F('fmax').onchange = (e) => { fs.max = +e.target.value; renderFlights(); }; }
+    if (F('fhrs')) { F('fhrs').oninput = (e) => { e.target.previousElementSibling.textContent = `up to ${e.target.value}h`; }; F('fhrs').onchange = (e) => { fs.hours = +e.target.value; renderFlights(); }; }
+    $('fly').querySelectorAll('[data-fstops]').forEach((b) => b.onclick = () => { fs.stops = b.dataset.fstops; renderFlights(); });
+    $('fly').querySelectorAll('[data-fair]').forEach((b) => b.onclick = () => { const a = b.dataset.fair; fs.airlines.has(a) ? fs.airlines.delete(a) : fs.airlines.add(a); renderFlights(); });
+    $('fly').querySelectorAll('[data-fdate]').forEach((b) => b.onclick = () => { fs.date = b.dataset.fdate; renderFlights(); });
+    $('fly').querySelectorAll('[data-fsort]').forEach((b) => b.onclick = () => { fs.sort = b.dataset.fsort; renderFlights(); });
+    $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => { $('fly').close(); view(items.find((i) => i.id === b.dataset.fmore)); });
+    $('fly').querySelectorAll('[data-fchoose]').forEach((b) => b.onclick = async () => {
+      const i = items.find((x) => x.id === b.dataset.fchoose);
+      const { error } = await sb.rpc('trip_choose', { p_item: i.id, p_on: !i.chosen });
+      if (error) { alert(error.message); return; }
+      if (!i.chosen) { $('fly').close(); reworkBelow(i); }
+      load();
+    });
+    if (F('ffill')) F('ffill').onclick = async () => {
+      flyBusy = true; renderFlights();
+      try {
+        const { data: { session: s } } = await sb.auth.getSession();
+        const r = await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trip: trip.id, text: `Fill in the flight details (each leg's date, real scheduled departure and arrival times, airports, minutes, stops and connection airports, airlines, and the typical fare per person and for the family) for these flight ideas, with update_item: ${need.map((x) => `[${x.i.id.slice(0, 8)}] ${x.i.title}`).join('; ')}. Change nothing else.` }) })).json();
+        if (r.error) alert(r.error);
+      } catch (e) { alert("Couldn't look them up just now."); }
+      flyBusy = false; await load(); if ($('fly').open) renderFlights();
+    };
   }
 
   // ---- edit one item ----
