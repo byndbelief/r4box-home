@@ -44,7 +44,9 @@
     all() { try { const s = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(s)) return s; } catch (e) {} return JSON.parse(JSON.stringify(SEED)); },
     save(list) { localStorage.setItem(KEY, JSON.stringify(list)); },
     of(owner) { return this.all().filter((p) => p.owner === owner); },
-    html(p) { const v = p.versions[p.cur]; return p.kit === 'code' ? codeDoc(v.files) : KITS[p.kit].build(v.params); },
+    // A version with files is code: every project can outgrow its kit (Claude rebuilds it as code).
+    html(p) { const v = p.versions[p.cur]; return v.files || p.kit === 'code' ? codeDoc(v.files || {}) : KITS[p.kit].build(v.params); },
+    isCode(p) { return p.kit === 'code' || !!p.versions[p.cur].files; },
     codeDoc,
     kindOf(p) { return KITS[p.kit].kind; },
   };

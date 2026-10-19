@@ -61,12 +61,13 @@
   addEventListener('message', (e) => { if (!p || !e.data || !e.data.r4log || ![$('pv'), $('pv2')].some((f) => f && f.contentWindow === e.source)) return; logs.push(e.data.r4log); if (logs.length > 80) logs.shift(); paintConsole(); });
   function paintConsole() { const el = $('cons'); if (!el) return; el.innerHTML = logs.length ? logs.map(([l, m]) => `<div class="cl ${l}">${l === 'error' ? '✕' : l === 'warn' ? '!' : '›'} ${esc(m)}</div>`).join('') : '<div class="cl dim">console is empty · ⌘/Ctrl+Enter runs</div>'; el.scrollTop = el.scrollHeight; }
 
-  function open(proj, ctx) {
-    X = ctx; p = proj; file = Object.keys(head().files).includes('main.js') ? 'main.js' : Object.keys(head().files)[0]; tab = 'files'; draft = null; viewV = null;
-    ask = [{ t: X.canEdit(p) ? 'I can read this code. Try: “explain main.js”, “why is it broken?”, “add arrow keys”, “keep a best score”, “add a restart button”, “make it harder”.' : 'Read-only. Remix it to change the code.' }];
+  function open(proj, ctx, intro) {
+    X = ctx; p = proj; file = Object.keys(head().files).includes('main.js') ? 'main.js' : Object.keys(head().files)[0]; tab = p.kit === 'code' ? 'files' : 'claude'; draft = null; viewV = null;
+    ask = [{ t: X.canEdit(p) ? 'I can read this code. Try: “explain main.js”, “why is it broken?”, or tell me anything you want it to do next, even something completely different.' : 'Read-only. Remix it to change the code.' }];
+    if (intro) ask.push({ t: intro, ok: true });
     $('title').textContent = 'code'; $('back').hidden = false; $('mark').hidden = true;
     $('body').innerHTML = `<div class="bench codebench"><div class="bbar"><span class="bname">${esc(p.name)}</span><span class="bver" id="bver"></span><span class="grow"></span><button class="bb" id="crun" title="Run (⌘/Ctrl+Enter)">▶</button><button class="bb" id="cphone" aria-label="Test on phone">📱</button><button class="bb share" id="cshare">↗ Share</button></div>
-      <div class="prev mini"><iframe id="pv" title="Preview" sandbox="allow-scripts allow-modals" tabindex="-1"></iframe><button class="pcover" id="popen" aria-label="Open the preview"><span>⤢ Open preview</span></button><span class="live">● run</span></div><div class="cons" id="cons"></div>
+      <div class="prev mini" hidden><iframe id="pv" title="Preview" sandbox="allow-scripts allow-modals" tabindex="-1"></iframe><button class="pcover" id="popen" aria-label="Open the preview"><span>⤢ Open preview</span></button><span class="live">● run</span></div><div class="cons" id="cons"></div>
       <div class="btabs" id="ctabs"></div><div class="tbody" id="ctb"></div></div>`;
     $('crun').onclick = run; $('popen').onclick = openPanel; X.sw('bench', null, openPanel, true); $('cphone').onclick = () => X.phoneTest(p); $('cshare').onclick = () => X.shareSheet(p); $('cshare').hidden = p.owner !== X.viewer().id;
     paint(); run(); window.scrollTo(0, 0);
@@ -96,19 +97,21 @@
     }
     if (tab === 'claude') {
       el.innerHTML = `<div class="bchat" id="cchat">${ask.map((m) => `<div class="bm${m.me ? ' me' : ''}${m.ok ? ' ok' : ''}">${m.me ? '' : '<i>✦</i>'}<span>${m.html || esc(m.t)}</span></div>`).join('')}</div>
-        ${ed ? `<div class="sugs">${['explain main.js', 'why is it broken?', 'add arrow keys', 'keep a best score', 'add a restart button', 'make it harder'].map((s) => `<button data-s="${s}">${s}</button>`).join('')}</div><form class="bask" id="cask"><input id="cq" placeholder="Ask about the code…" autocomplete="off"><button class="ibtn send" aria-label="Send">↑</button></form><p class="capn">${X.left() === Infinity ? 'No build limit.' : X.left() + ' builds left today · reading and explaining don’t use one'}</p>` : ''}`;
+        ${ed ? `<div class="sugs">${['explain main.js', 'why is it broken?', 'make it look nicer', 'add a sound', 'add a reset button', 'turn it into a game'].map((s) => `<button data-s="${s}">${s}</button>`).join('')}</div><form class="bask" id="cask"><input id="cq" placeholder="Ask about the code…" autocomplete="off"><button class="ibtn send" aria-label="Send">↑</button></form><p class="capn">${X.left() === Infinity ? 'No build limit.' : X.left() + ' builds left today · reading and explaining don’t use one'}</p>` : ''}`;
       const go = (q) => claude(q.trim());
       if (ed) { $('cask').onsubmit = (e) => { e.preventDefault(); go($('cq').value); }; el.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => go(b.dataset.s))); }
       $('cchat').scrollTop = 1e6; return;
     }
     if (tab === 'log') {
       if (viewV != null) {
-        const v = p.versions[viewV], prev = p.versions[viewV - 1], files = [...new Set([...Object.keys(v.files), ...Object.keys((prev || {}).files || {})])];
+        // a version from before it outgrew its kit has no files: show the page the kit built
+        const fo = (x) => (x ? x.files || { 'index.html': PR.KITS[p.kit].build(x.params) } : {});
+        const v = { ...p.versions[viewV], files: fo(p.versions[viewV]) }, pv = p.versions[viewV - 1], prev = pv && { ...pv, files: fo(pv) }, files = [...new Set([...Object.keys(v.files), ...Object.keys((prev || {}).files || {})])];
         el.innerHTML = `<button class="crumb" id="cbk">‹ All commits</button><div class="dh"><b>v${v.v}</b> ${esc(v.note)} <small>${esc((X.byId(v.by || p.owner) || {}).name)} · ${X.ago(v.at)}</small></div>`
           + files.map((f) => { const dd = diff(prev ? prev.files[f] : '', v.files[f]), ch = dd.filter((x) => x[0] !== '=').length; return ch || !prev ? `<div class="df"><div class="dfn">${esc(f)} <small>+${dd.filter((x) => x[0] === '+').length} −${dd.filter((x) => x[0] === '-').length}</small></div><pre class="dfb">${dd.filter((x, i, a) => x[0] !== '=' || a.slice(Math.max(0, i - 2), i + 3).some((y) => y[0] !== '=')).map(([k, l]) => `<span class="d${k === '+' ? 'a' : k === '-' ? 'r' : ''}">${k === '=' ? ' ' : k} ${esc(l)}</span>`).join('\n')}</pre></div>` : ''; }).join('')
           + (ed && viewV !== p.cur ? `<button class="go" id="cco">Check out v${v.v}</button>` : '');
         $('cbk').onclick = () => { viewV = null; paint(); };
-        const co = $('cco'); if (co) co.onclick = () => { p.cur = viewV; draft = null; X.save(); viewV = null; paint(); run(); X.toast('Checked out v' + head().v); };
+        const co = $('cco'); if (co) co.onclick = () => { p.cur = viewV; draft = null; X.save(); viewV = null; X.toast('Checked out v' + head().v); if (!head().files) return X.openBench(p.id); paint(); run(); };
         return;
       }
       el.innerHTML = `<ol class="hist">${p.versions.slice().reverse().map((x) => { const i = p.versions.indexOf(x); return `<li class="${i === p.cur ? 'on' : ''}${i > p.cur ? ' ahead' : ''}"><b>v${x.v}</b><span>${esc(x.note)}<small class="by">${esc((X.byId(x.by || p.owner) || {}).name || '')}</small></span><small>${X.ago(x.at)}</small><button data-v="${i}">diff</button></li>`; }).join('')}</ol>`;
@@ -121,6 +124,7 @@
     try {
       const r = await X.claude(p, q, dirty() ? draft : null, logs);
       ask.pop();
+      if (r.name) p.name = r.name;
       if (r.files) { ask.push({ t: r.say + ' Committed as v' + (head().v + 1) + ': open Commits to read the diff, or check out the one before if you don’t want it.', ok: true }); commit(r.note, r.files, X.viewer().id); run(); }
       else { ask.push({ t: r.say }); paint(); }
     } catch (e) { ask.pop(); ask.push({ t: e.message }); paint(); }

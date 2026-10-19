@@ -30,7 +30,7 @@
   const BUILDER = [['maker', '🧩 Maker', 'Kits, Claude and parts. Tools unlock as the project grows.'], ['developer', '⌨ Developer', 'Everything in Maker, plus code projects: real files, a console, commits and diffs.']];
   const builderOf = (u) => { try { const b = localStorage.getItem('r4.builder.' + u.id); if (b) return b; } catch {} return u.role === 'parent' ? 'developer' : 'maker'; };
   const dev = () => builderOf(viewer) === 'developer';
-  const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs, image) => window.R4Build.ask(p, q, files, logs, image), markUp, withShot, phoneTest, shareSheet });
+  const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs, image) => window.R4Build.ask(p, q, files, logs, image), openBench: (id) => openBench(id), markUp, withShot, phoneTest, shareSheet });
   // Bench ⇄ Preview: one switch, always in reach at the bottom of the screen
   function sw(mode, toBench, toPrev, code) {
     let el = document.getElementById('bsw'); if (!el) { el = document.createElement('div'); el.id = 'bsw'; el.className = 'bswitch'; el.setAttribute('role', 'tablist'); $('app').append(el); }
@@ -103,8 +103,9 @@
     const mk = $('kmk'); if (mk) mk.onclick = () => { if (pn.querySelector('.mk')) return pn.querySelector('[data-mk=off]').click(); mk.classList.add('on');
       markUp(pn, $('kpv'), async (text, image) => {
         const q = cur(), r2 = await window.R4Build.ask(q, text, null, null, image);
-        chat.push({ me: true, t: '✏️ ' + text }, { t: r2.say, ok: !!r2.change });
-        if (r2.change) { commit(q, r2.change, r2.note); show(); }
+        chat.push({ me: true, t: '✏️ ' + text }, { t: r2.say, ok: !!(r2.change || r2.files) });
+        if (r2.files) { q.versions = q.versions.slice(0, q.cur + 1); q.versions.push({ v: q.versions[q.versions.length - 1].v + 1, at: Date.now(), note: r2.note, params: {}, files: r2.files, by: viewer.id }); q.cur = q.versions.length - 1; if (r2.name) q.name = r2.name; save(); show(); openBench(q.id, r2.say); }
+        else if (r2.change) { commit(q, r2.change, r2.note); show(); }
         return r2.say + (r2.change ? ' (v' + q.versions[q.cur].v + ')' : '');
       }); };
     history.pushState({ bench: p.id, pv: 1 }, ''); sw('prev', close, null);
@@ -170,6 +171,12 @@
     try {
       const r = await window.R4Build.ask(p, text);
       chat = chat.filter((m) => !m.wait);
+      if (r.files && open === p.id) {
+        p.versions = p.versions.slice(0, p.cur + 1);
+        p.versions.push({ v: p.versions[p.versions.length - 1].v + 1, at: Date.now(), note: r.note, params: {}, files: r.files, by: viewer.id }); p.cur = p.versions.length - 1;
+        if (r.name) p.name = r.name;
+        save(); toast('✦ It outgrew the kit: it’s real code now. Commits can take it back.'); return openBench(p.id, r.say);
+      }
       if (r.change && open === p.id) {
         chat.push({ t: r.say + ' That’s v' + (p.versions[p.versions.length - 1].v + 1) + '. Undo with ⤺ if you don’t like it.', ok: true });
         commit(p, r.change, r.note);
@@ -179,9 +186,9 @@
   }
 
   // ---------- workbench ----------
-  function openBench(id) {
+  function openBench(id, intro) {
     clearBench(); open = id; tab = 'claude'; const p = list.find((x) => x.id === id);
-    if (p.kit === 'code') { history.pushState({ bench: id }, '', '?open=' + id); return CodeBench.open(p, ctx()); }
+    if (PR.isCode(p)) { history.pushState({ bench: id }, '', '?open=' + id); return CodeBench.open(p, ctx(), intro); }
     chat = [{ t: canEdit(p) ? `${p.owner === viewer.id ? 'This is ' + p.name + '.' : 'You’re helping ' + byId(p.owner).name + ' on ' + p.name + '. Your changes show up for both of you.'} Tell me what to change: “make it faster”, “red background”, “I’m a 🐱 catching 🍩”.` : 'This one isn’t yours. Remix it to change it.' }];
     $('title').textContent = 'workbench'; $('back').hidden = false; $('mark').hidden = true;
     $('body').innerHTML = `<div class="bench"><div class="bbar"><span class="bname" id="bname"></span><span class="bver" id="bver"></span><span class="bteam" id="bteam"></span><span class="blvl" id="blvl"></span><span class="grow"></span><button class="bb" id="undo" aria-label="Undo">⤺</button><button class="bb" id="redo" aria-label="Redo">⤻</button><button class="bb" id="phone" aria-label="Test on phone">📱</button><button class="bb share" id="share">↗ Share</button></div>
@@ -196,7 +203,7 @@
   }
   const cur = () => list.find((x) => x.id === open);
   function paintBench() {
-    const p = cur(); if (!p) return renderHome(); if (p.kit === 'code') return CodeBench.open(p, ctx()); const mine = canEdit(p), own = p.owner === viewer.id, v = p.versions[p.cur];
+    const p = cur(); if (!p) return renderHome(); if (PR.isCode(p)) return CodeBench.open(p, ctx()); const mine = canEdit(p), own = p.owner === viewer.id, v = p.versions[p.cur];
     $('bname').textContent = p.name; $('bver').textContent = 'v' + v.v + (p.cur < p.versions.length - 1 ? ' · ' + (p.versions.length - 1 - p.cur) + ' ahead' : '');
     $('undo').disabled = !mine || p.cur === 0; $('redo').disabled = !mine || p.cur === p.versions.length - 1; $('share').hidden = !own;
     $('bname').title = helpers(p).length ? 'With ' + helpers(p).map((h) => h.name).join(', ') : '';
