@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="robots" content="noindex">
+  <title>projects · r4box</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- Projects + workbench (design system: projects kit). The kit's pages run as they are
+       (projects/projects-*.js); this page gives them the signed-in person, the family's projects
+       (public.projects, 110) and Claude (the project-build function). Everything a project runs is
+       shown in a sandboxed frame: scripts, but no access to r4box.com or your sign-in. -->
+  <style>
+    @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
+    @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
+  </style>
+  <link rel="stylesheet" href="world/world.css">
+  <link rel="stylesheet" href="projects/projects.css">
+  <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }</style>
+</head>
+<body>
+<div id="app">
+<header><button class="back" id="back" hidden aria-label="Back to projects">‹</button><a class="mark" id="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1 id="title">projects</h1><span class="grow"></span><button class="gear" id="gear" aria-label="Settings">⚙</button></header>
+<main class="page" style="padding-top:calc(58px + env(safe-area-inset-top))"><div id="body"><p class="note">Loading…</p></div></main>
+<dialog class="psheet" id="sheet"></dialog>
+</div>
+<script src="world/story-kit.js"></script>
+<script src="projects/projects-data.js"></script>
+<script type="module">
+  import { sb, roleOf } from './auth.js';
+  const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
+  const me = session.user.id;
+  const call = async (fn, payload) => {
+    const { data: { session: s } } = await sb.auth.getSession();
+    const r = await fetch(FN + fn, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Something went wrong. Try again.');
+    return j;
+  };
+
+  const [{ data: fam }, { data: rows, error }, built] = await Promise.all([
+    sb.rpc('r4_family'),
+    sb.from('projects').select('*').order('updated_at', { ascending: false }),
+    call('project-build', {}).catch(() => ({ left: null })),
+  ]);
+  window.FAMILY = (fam || []).map((f) => ({ id: f.id, name: f.username, role: f.role, age: null }));
+  if (!window.FAMILY.some((f) => f.id === me)) window.FAMILY.push({ id: me, name: 'me', role: roleOf(session.user), age: null });
+  window.R4Me = me;
+  if (error) document.getElementById('body').innerHTML = `<p class="note">Projects couldn’t load: ${error.message}</p>`;
+
+  // The kit keeps its list in memory and calls save(list) after every change; here each project
+  // that changed since it was last written is saved: the maker writes the row, a helper saves
+  // through project_save (versions, which one shows, and the name).
+  const fromRow = (r) => ({ id: r.id, owner: r.owner, kit: r.kit, name: r.name, published: r.published, from: r.remix_of || undefined, collab: r.collab || [], requests: r.requests || [], versions: r.versions, cur: r.cur });
+  let list = (rows || []).map(fromRow);
+  const last = new Map(list.map((p) => [p.id, JSON.stringify(p)]));
+  let chain = Promise.resolve();
+  function persist(all) {
+    list = all;
+    for (const p of all) {
+      const now = JSON.stringify(p);
+      if (last.get(p.id) === now) continue;
+      const was = last.get(p.id); last.set(p.id, now);
+      if (p.owner !== me && !(p.collab || []).includes(me)) continue;   // someone else's (asking to help goes through project_ask_help)
+      chain = chain.then(async () => {
+        const { error: e } = p.owner === me
+          ? await sb.from('projects').upsert({ id: p.id, owner: p.owner, kit: p.kit, name: (p.name || 'Untitled').slice(0, 80), published: !!p.published, remix_of: p.from || null,
+              collab: p.collab || [], requests: p.requests || [], versions: p.versions, cur: p.cur, updated_at: new Date().toISOString() })
+          : await sb.rpc('project_save', { p_id: p.id, p_versions: p.versions, p_cur: p.cur, p_name: p.name });
+        if (e) { if (was) last.set(p.id, was); else last.delete(p.id); toastErr('Couldn’t save ' + p.name + ': ' + e.message); }
+      });
+    }
+    return chain;
+  }
+  function toastErr(t) { const el = document.createElement('div'); el.className = 'ctoast'; el.textContent = t; document.body.append(el); setTimeout(() => el.remove(), 4000); }
+  Object.assign(window.R4Projects, { all: () => list, save: persist });
+
+  window.R4Build = {
+    left: built.left,
+    saved: () => chain,
+    // Claude changes (or answers about) a project. Saved first, so it reads what's on screen.
+    async ask(p, ask, files, logs) {
+      await chain;
+      const r = await call('project-build', { project: p.id, ask, files: files || undefined, logs: logs || undefined });
+      if (r.left !== undefined) this.left = r.left;
+      return r;
+    },
+    askHelp: async (id) => { const { error: e } = await sb.rpc('project_ask_help', { p_id: id }); if (e) throw new Error(e.message); },
+    // A line in the family chat with the project's card (family-chat builds the card from the row).
+    post: (text, id) => call('family-chat', { text, ref: { type: 'project', id } }),
+  };
+
+  for (const src of ['projects/projects-code.js', 'projects/projects-app.js']) await new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.body.append(s); });
+  // A helper's changes and new family projects come in when the page comes back.
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) return;
+    const { data } = await sb.from('projects').select('*').order('updated_at', { ascending: false });
+    if (!data) return;
+    for (const r of data) { const p = fromRow(r), i = list.findIndex((x) => x.id === p.id), s = JSON.stringify(p); if (last.get(p.id) !== s && (i < 0 || JSON.stringify(list[i]) === last.get(p.id))) { last.set(p.id, s); i < 0 ? list.push(p) : (list[i] = p); } }
+  });
+</script>
+</body>
+</html>

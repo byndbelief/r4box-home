@@ -279,7 +279,7 @@
     const a = access(p), w = p.world, topics = w.topics, events = w.events;
     applyDensity(p);
     $('title').textContent = SOLO ? SOLO.title : a === 'own' ? 'My diary' : p.name + '’s world'; $('back').hidden = !!SOLO; $('markA').hidden = !SOLO; $('worldBox').classList.add('solo');
-    live = window.mountWorld($('cv'), { topics, events }, { seeds: a === 'own' ? seedsOf(p) : [], onPick: (h) => pickWorld(p, h), onPlant: (at) => plantForm(p, at) });
+    live = window.mountWorld($('cv'), { topics, events, projects: p.world.projects || [] }, { seeds: a === 'own' ? seedsOf(p) : [], onPick: (h) => pickWorld(p, h), onPlant: (at) => plantForm(p, at) });
     $('tools').hidden = false; $('plantBtn').hidden = a !== 'own' || NOSEED;
     $('zIn').onclick = () => live.zoomBy(1.8); $('zOut').onclick = () => live.zoomBy(1 / 1.8); $('zHome').onclick = () => live.reset();
     $('plantBtn').onclick = () => planting(!$('plantBtn').classList.contains('on'));
@@ -347,6 +347,7 @@
 
   const kindWord = { tutor: ['🌳', 'Something to learn', 'grows into a limb on your tree'], chat: ['✿', 'A wonder', 'grows into a flower'], trip: ['✶', 'Somewhere to go', 'hangs in the sky as stars'] };
   function pickWorld(p, h) {
+    if (h.topic && h.topic.project) { location.href = '/projects.html?open=' + encodeURIComponent(h.topic.project); return; }
     const a = access(p);
     if (h.event) {
       live.focus(h);

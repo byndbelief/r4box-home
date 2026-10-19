@@ -5,8 +5,13 @@
 <title>r4box</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#000000;color:#ACA5D6;font:16px system-ui,sans-serif}a{color:#3DD6C6}</style>
 <p>The games moved to <a id="to" href="https://games.r4box.com/">games.r4box.com</a>…</p>
+<script>
+// r4box.com/p/<id>: a project's share link (Projects, Test on phone) opens it in projects.html.
+{ const m = location.pathname.match(/^\/p\/([a-z0-9][a-z0-9-]{2,60})\/?$/); if (m) location.replace('/projects.html?play=' + m[1]); }
+</script>
 <script type="module">
 import { forward } from './door.js';
+if (/^\/p\//.test(location.pathname)) throw 0;   // on its way to projects.html
 document.getElementById('to').href = 'https://games.r4box.com' + location.pathname + location.search + location.hash;
 forward(true);
 </script>

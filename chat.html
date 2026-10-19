@@ -178,6 +178,7 @@
         return `<button class="po${mine === k ? ' mine' : ''}" data-vote="${q.id}:${k}" ${q.closed ? 'disabled' : ''} aria-pressed="${mine === k}"><i style="width:${pct}%"></i><span>${mine === k ? '✓ ' : ''}${esc(o)}</span><span class="pn">${w.length ? `${w.length} · ${w.map((v) => initial(v.voter)).join(' ')}` : '0'}</span></button>`; }).join('')}
         <div class="pf"><span>${vs.length} voted</span><a href="${esc(tripUrl(r))}">Open in the trip ↗</a></div></div>`;
     }
+    if (r.type === 'project') return `<a class="rcard" href="/projects.html?open=${encodeURIComponent(r.id)}"><span class="ri">${esc(r.emoji || '⚒')}</span><span><small>${esc(r.kind || 'Project')} · by ${esc(nameIn(r.owner))} · play ↗</small><b>${esc(r.name)}</b></span></a>`;
     if (r.type === 'story') {
       const u = worldUrl(r.who), tag = u ? 'a' : 'div';
       return `<${tag} class="rstory"${u ? ` href="${esc(u)}"` : ''}><span class="ri">🌳</span><span><small>${esc(nameIn(r.who))} shared ${r.kind === 'entry' ? 'a journal entry' : 'a story'}${u ? ' ↗' : ''}</small><b>${esc(r.title || 'Untitled')}</b>${r.text ? `<em>${esc(r.text)}</em>` : ''}</span></${tag}>`;
@@ -188,11 +189,11 @@
     return `<${tag} class="flower"${u ? ` href="${esc(u)}" title="Open the world"` : ''}><i>✿</i>${r.grew === 'new' ? 'A flower sprouted' : 'Its flower grew ' + esc(r.grew || 'a petal')} in ${esc(nameIn(r.who))}’s world · ${esc(r.title)}</${tag}>`; };
 
   // ---- attachments: a big preview the first time you see one, then a thumbnail ----
-  const MEDIA = ['poll', 'item', 'call', 'story', 'added'];
+  const MEDIA = ['poll', 'item', 'call', 'story', 'added', 'project'];
   const isMedia = (m) => !!(m.image || (m.ref && MEDIA.includes(m.ref.type)));
   const kindOf = (m) => (m.image ? 'photo' : ['item', 'added'].includes(m.ref.type) ? 'place' : m.ref.type);
   // The words the server writes for a card ("📍 Taco stand", "🌳 Shared a story: …") aren't words someone said.
-  const auto = (m) => !!m.ref && (m.ref.type === 'call' || m.ref.type === 'story' || (['item', 'poll'].includes(m.ref.type) && /^(📍|📊) /.test(m.body || '')));
+  const auto = (m) => !!m.ref && (m.ref.type === 'call' || m.ref.type === 'story' || (['item', 'poll', 'project'].includes(m.ref.type) && /^(📍|📊|⚒) /.test(m.body || '')));
   const words = (m) => (auto(m) ? '' : m.body || '');
   const seenKey = 'r4.chat.seen.' + ME.id;
   let seenSet = new Set(); try { seenSet = new Set(JSON.parse(localStorage.getItem(seenKey) || '[]')); } catch {}
@@ -201,7 +202,7 @@
   function thumb(m) {
     const r = m.ref || {};
     if (m.image) return urls.get(m.image) ? `<img src="${esc(urls.get(m.image))}" alt="">` : '📷';
-    return { poll: '📊', item: '📍', added: '✦', call: '📹', story: '🌳' }[r.type] || '◇';
+    return { poll: '📊', item: '📍', added: '✦', call: '📹', story: '🌳', project: esc(r.emoji || '⚒') }[r.type] || '◇';
   }
   function label(m) {
     const r = m.ref || {};
@@ -209,6 +210,7 @@
     if (r.type === 'item') return [r.title, 'Place · ' + (r.trip_name || '')];
     if (r.type === 'added') return [(r.titles || []).join(', '), 'Added to ' + (r.trip_name || 'the trip')];
     if (r.type === 'story') return [r.title || 'Untitled', (r.kind === 'entry' ? 'Journal entry' : 'Story') + ' · ' + nameIn(r.who)];
+    if (r.type === 'project') return [r.name, (r.kind || 'Project') + ' · by ' + nameIn(r.owner)];
     if (r.type === 'call') return [r.to ? 'Called ' + nameIn(r.to) : 'Video call', callIsLive(m) ? 'Live now' : 'Ended'];
     if (r.type === 'poll') {
       const q = pollOf(r.id); if (!q) return [r.question, 'Poll · ' + (r.trip_name || '')];
@@ -445,14 +447,14 @@
   addEventListener('popstate', () => closeSub());
 
   // ---- search: the chat and everything attached, in one place ----
-  const KINDS = [['all', 'All'], ['poll', 'Polls'], ['photo', 'Photos'], ['place', 'Places'], ['call', 'Calls'], ['story', 'Stories']];
+  const KINDS = [['all', 'All'], ['poll', 'Polls'], ['photo', 'Photos'], ['place', 'Places'], ['call', 'Calls'], ['story', 'Stories'], ['project', 'Projects']];
   function openSearch() {
     closeSub(true);
     const o = document.createElement('div'); o.className = 'csearch';
     o.innerHTML = '<div class="bar"><input id="sq" placeholder="Search the chat, polls, photos…" autocomplete="off"><button id="sx">Cancel</button></div><div class="mtabs" id="stabs"></div><div class="res" id="sres"></div>';
     $('app').append(o); const q = $('sq'); let k = 'all'; q.focus();
     $('sx').onclick = () => o.remove();
-    const textOf = (m) => [words(m), who(m), m.ref && (m.ref.title || m.ref.question || m.ref.text || m.ref.trip_name), m.ref?.titles?.join(' '), m.ref?.type === 'poll' && pollOf(m.ref.id)?.options.join(' ')].filter(Boolean).join(' ');
+    const textOf = (m) => [words(m), who(m), m.ref && (m.ref.title || m.ref.question || m.ref.text || m.ref.trip_name || m.ref.name), m.ref?.titles?.join(' '), m.ref?.type === 'poll' && pollOf(m.ref.id)?.options.join(' ')].filter(Boolean).join(' ');
     const paint = () => {
       const s = q.value.trim().toLowerCase(), att = msgs.filter(isMedia);
       const hitsOf = (list) => (s ? list.filter((m) => textOf(m).toLowerCase().includes(s)) : list).sort((x, y) => y.id - x.id);

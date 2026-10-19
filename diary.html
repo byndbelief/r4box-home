@@ -66,15 +66,19 @@
       $('who').innerHTML = kids.map((k) => `<option value="${k.id}" ${k.id === owner.id ? 'selected' : ''}>${esc(k.username)}</option>`).join('');
       $('who').onchange = () => { location.search = '?kid=' + encodeURIComponent($('who').value); };
     }
-    const [{ data: w, error }, { data: shares }, { data: seeds }] = await Promise.all([
+    const [{ data: w, error }, { data: shares }, { data: seeds }, { data: projs }] = await Promise.all([
       sb.rpc('r4_world', { p_kid: owner.id }),
       sb.from('kid_shares').select('*').eq('owner', owner.id),
       owner.id === me.id ? sb.from('kid_seeds').select('*').order('created_at') : { data: [] },
+      // Their projects grow as plants: all of them for their maker, the published ones for anyone else (110).
+      sb.from('projects').select('id, kit, name, published, versions, cur').eq('owner', owner.id).order('created_at'),
     ]);
     if (error) { $('body').innerHTML = `<div class="empty"><b>Can’t open this world</b><p>${esc(error.message)}</p></div>`; return; }
 
     // The world app keys people by username; shares are "entry:<username>:<day>" and "story:<username>:<topic id>".
-    const person = (f, world) => ({ id: f.username, uid: f.id, name: f.username, role: f.role, age: null, world: { topics: world.topics, events: world.events }, entries: world.entries || [] });
+    const person = (f, world) => ({ id: f.username, uid: f.id, name: f.username, role: f.role, age: null, world: { topics: world.topics, events: world.events, projects: world.projects || [] }, entries: world.entries || [] });
+    const KITK = { catch: ['game', '🎮'], timer: ['app', '⏱'], page: ['page', '🌐'], comic: ['story', '📖'], drums: ['toy', '🥁'], code: ['code', '⌨'] };
+    w.projects = (projs || []).map((x) => ({ id: x.id, name: x.name, published: x.published, versions: x.versions.slice(0, x.cur + 1), kind: KITK[x.kit]?.[0] || 'game', em: x.versions[x.cur]?.params?.sprite || KITK[x.kit]?.[1] || '⚒' }));
     const ownerP = person(owner, w), viewerP = owner.id === me.id ? ownerP : person(self, { topics: [], events: [], entries: [] });
     const sharedMap = {};
     for (const s of shares || []) sharedMap[`${s.kind}:${owner.username}:${s.ref}`] = { kind: s.kind, title: s.title, day: s.day, text: s.text, at: String(s.created_at).slice(0, 10) };

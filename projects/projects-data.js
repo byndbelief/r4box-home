@@ -1,0 +1,51 @@
+/* Projects: kits kids start from, the store, and the tiny HTML each kit builds.
+   A project = { id, owner, kit, name, published, from?, versions: [{ v, at, note, params }], cur }.
+   Every kit is a real little page, built from its params, so Claude's changes and the parts shelf
+   are just new params → a new version. R4Projects is shared by the Projects page, the worlds
+   (each project grows as a plant) and the chat (play-test cards). */
+(function () {
+  const J = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
+  const shell = (p, body, css = '', js = '') => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:${p.bg};color:#fff;font:16px/1.4 system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}h1{margin:0;font-size:${20 * p.size}px}b{color:${p.color}}${css}</style></head><body>${body}<script>const P=${J(p)};const AC=window.AudioContext?new AudioContext():null;function tone(f,d){if(!AC)return;AC.resume();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;g.gain.setValueAtTime(.12,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+(d||.15));o.connect(g).connect(AC.destination);o.start();o.stop(AC.currentTime+(d||.15))}${js}<\/script></body></html>`;
+  const KITS = {
+    catch: { kind: 'game', em: '🎮', name: 'Catch game', blurb: 'Move to catch falling things.', defaults: { title: 'Catch!', sprite: '🧺', item: '⭐', color: '#F5C542', bg: '#0B0918', speed: 1, size: 1, sound: true },
+      build: (p) => shell(p, '<canvas id="c" style="display:block;width:100%;height:100%"></canvas><div id="s" style="position:fixed;top:10px;left:12px;font-weight:800"></div>', '#s{color:' + p.color + ';font-size:' + 18 * p.size + 'px}',
+        `const c=document.getElementById('c'),x=c.getContext('2d');let W,H,px,items=[],score=0,t=0;function rs(){W=c.width=innerWidth;H=c.height=innerHeight;if(px==null)px=W/2}rs();onresize=rs;addEventListener('pointermove',e=>px=e.clientX);addEventListener('pointerdown',e=>{px=e.clientX;AC&&AC.resume()});function f(){t++;x.clearRect(0,0,W,H);if(t%Math.max(8,Math.round(40/P.speed))==0)items.push({x:Math.random()*(W-40)+20,y:-20});const sz=28*P.size;x.font=sz+'px serif';x.textAlign='center';items.forEach(i=>{i.y+=2.2*P.speed;x.fillText(P.item,i.x,i.y)});items=items.filter(i=>{if(i.y>H-70&&i.y<H-15&&Math.abs(i.x-px)<sz){score++;if(P.sound)tone(660+score*20,.1);return false}return i.y<H+30});x.font=sz*1.5+'px serif';x.fillText(P.sprite,px,H-28);document.getElementById('s').textContent=P.title+'  ·  '+score;requestAnimationFrame(f)}f()`) },
+    timer: { kind: 'app', em: '⏱', name: 'Timer app', blurb: 'A countdown with a big button.', defaults: { title: 'Focus timer', color: '#3DD6C6', bg: '#06050F', minutes: 5, size: 1, sound: true },
+      build: (p) => shell(p, `<main><h1>${p.title}</h1><div id="t">00:00</div><div class="r"><button id="go">Start</button><button id="rs">Reset</button></div></main>`, `main{height:100%;display:grid;place-content:center;justify-items:center;gap:14px;text-align:center}#t{font:800 ${64 * p.size}px/1 ui-monospace,monospace;color:${p.color}}.r{display:flex;gap:10px}button{font:700 ${16 * p.size}px system-ui;padding:12px 22px;border-radius:14px;border:0;background:${p.color};color:#000}#rs{background:#ffffff1a;color:#fff}`,
+        `let left=P.minutes*60,on=0,iv;const el=document.getElementById('t'),go=document.getElementById('go');const show=()=>el.textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');show();go.onclick=()=>{on=!on;go.textContent=on?'Pause':'Start';clearInterval(iv);if(on)iv=setInterval(()=>{left--;show();if(left<=0){clearInterval(iv);on=0;go.textContent='Start';if(P.sound){tone(880,.3);setTimeout(()=>tone(1100,.4),300)}left=P.minutes*60}},1000)};document.getElementById('rs').onclick=()=>{clearInterval(iv);on=0;go.textContent='Start';left=P.minutes*60;show()}`) },
+    page: { kind: 'page', em: '🌐', name: 'About-me page', blurb: 'A page about you or a thing you love.', defaults: { title: 'About me', sprite: '😎', color: '#B9A6FF', bg: '#0B0918', size: 1, lines: ['I like drawing.', 'I’m learning Spanish.', 'Ask me about deep sea fish.'], sound: false },
+      build: (p) => shell(p, `<main><div class="e">${p.sprite}</div><h1>${p.title}</h1><ul>${p.lines.map((l) => `<li>${l.replace(/</g, '&lt;')}</li>`).join('')}</ul></main>`, `main{height:100%;overflow:auto;padding:28px 22px;box-sizing:border-box;text-align:center}.e{font-size:${64 * p.size}px}h1{color:${p.color};margin:6px 0 14px}ul{list-style:none;padding:0;display:grid;gap:8px;font-size:${16 * p.size}px}li{padding:10px 12px;border-radius:12px;background:#ffffff10;border:1px solid ${p.color}55}`) },
+    comic: { kind: 'story', em: '📖', name: 'Comic strip', blurb: 'Panels with a picture and a line.', defaults: { title: 'The big day', color: '#FF5A4A', bg: '#0B0918', size: 1, panels: [{ e: '🌅', t: 'It started like any morning…' }, { e: '🐉', t: 'Then a dragon knocked.' }, { e: '🍕', t: 'It only wanted pizza.' }], sound: false },
+      build: (p) => shell(p, `<main><h1>${p.title}</h1><div class="g">${p.panels.map((x, i) => `<div class="pn"><span class="n">${i + 1}</span><span class="e">${x.e}</span><span class="t">${x.t.replace(/</g, '&lt;')}</span></div>`).join('')}</div></main>`, `main{height:100%;overflow:auto;padding:18px;box-sizing:border-box}h1{color:${p.color};text-align:center;margin-bottom:12px}.g{display:grid;gap:10px}.pn{position:relative;display:grid;justify-items:center;gap:6px;padding:16px 12px;border-radius:6px;border:3px solid ${p.color};background:#fff;color:#111}.e{font-size:${54 * p.size}px}.t{font:700 ${15 * p.size}px/1.3 'Comic Sans MS',system-ui}.n{position:absolute;top:6px;left:8px;font:800 12px system-ui;color:${p.color}}`) },
+    drums: { kind: 'toy', em: '🥁', name: 'Drum pad', blurb: 'Tap pads to make sounds.', defaults: { title: 'Beat pad', color: '#3DD6C6', bg: '#06050F', pads: 4, size: 1, sound: true },
+      build: (p) => shell(p, `<main><h1>${p.title}</h1><div class="g">${Array.from({ length: p.pads }, (_, i) => `<button data-i="${i}">${['🥁', '🔔', '👏', '🎹', '🎸', '🎺', '🪘', '🎷'][i]}</button>`).join('')}</div></main>`, `main{height:100%;display:grid;place-content:center;gap:14px;padding:16px;box-sizing:border-box;text-align:center}h1{color:${p.color}}.g{display:grid;grid-template-columns:repeat(2,${110 * p.size}px);gap:10px;justify-content:center}button{aspect-ratio:1;border-radius:18px;border:2px solid ${p.color};background:${p.color}22;font-size:${36 * p.size}px}button:active,button.hit{background:${p.color};transform:scale(.96)}`,
+        `const F=[196,262,330,392,440,523,587,659];document.querySelectorAll('button').forEach(b=>b.onpointerdown=()=>{tone(F[+b.dataset.i],.25);b.classList.add('hit');setTimeout(()=>b.classList.remove('hit'),120)})`) },
+  };
+  // Code projects (for builders with developer experience): real files, run in the preview with a console bridge.
+  KITS.code = { kind: 'code', em: '⌨', name: 'Code project', blurb: 'Real HTML, CSS and JavaScript.', defaults: {}, build: () => '' };
+  const BRIDGE = "<script>(function(){const s=(l,a)=>{try{parent.postMessage({r4log:[l,[...a].map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')]},'*')}catch(e){}};['log','warn','error','info'].forEach(l=>{const o=console[l];console[l]=function(){s(l,arguments);o.apply(console,arguments)}});addEventListener('error',e=>s('error',[e.message+(e.lineno?' (main.js line '+(e.lineno)+')':'')]))})()<\/script>";
+  function codeDoc(f) {
+    let h = f['index.html'] || '<!doctype html><html><head></head><body></body></html>';
+    const css = '<style>' + (f['style.css'] || '') + '</style>', js = BRIDGE + '<script>' + (f['main.js'] || '').replace(/<\/script/gi, '<\\/script') + '<\/script>';
+    h = /<\/head>/i.test(h) ? h.replace(/<\/head>/i, css + '</head>') : css + h;
+    h = /<\/body>/i.test(h) ? h.replace(/<\/body>/i, js + '</body>') : h + js;
+    return h;
+  }
+  const KIND = { game: ['🎮', 'Game', '#3DD6C6'], app: ['🧰', 'App', '#F5C542'], page: ['🌐', 'Page', '#B9A6FF'], story: ['📖', 'Story', '#FF5A4A'], toy: ['🎨', 'Art & music toy', '#7DF0C8'], code: ['⌨', 'Code', '#7DF0C8'] };
+  const KEY = 'r4.projects.v2', ago = (m) => Date.now() - m * 60e3;
+  const mk = (id, owner, kit, name, published, steps) => { const d = KITS[kit].defaults; let params = { ...d, title: name }; const versions = steps.map(([m, note, ch], i) => { params = { ...params, ...ch }; return { v: i + 1, at: ago(m), note, params }; }); if (id === 'beat-pad') versions[2].by = 'obanai_rocks'; return { id, owner, kit, name, published, versions, cur: versions.length - 1 }; };
+  const SEED = [
+    mk('deep-sea-catch', 'obanai_rocks', 'catch', 'Deep sea catch', true, [[60 * 72, 'Started from Catch game', {}], [60 * 71, 'Fish basket, catch glowing things', { sprite: '🐟', item: '✨', bg: '#061a33' }], [60 * 50, 'Faster', { speed: 1.4 }], [60 * 3, 'Called it Deep sea catch', { title: 'Deep sea catch' }]]),
+    mk('essay-timer', 'phoenix_lord', 'timer', 'Essay sprint', true, [[60 * 30, 'Started from Timer app', {}], [60 * 29, '25 minutes, red', { minutes: 25, color: '#FF5A4A', title: 'Essay sprint' }], [60 * 5, 'Bigger numbers', { size: 1.25 }]]),
+    Object.assign(mk('beat-pad', 'phoenix_lord', 'drums', 'Beat pad', false, [[200, 'Started from Drum pad', {}], [180, '6 pads', { pads: 6 }], [90, 'Teal pads', { color: '#3DD6C6' }]]), { collab: ['obanai_rocks'] }),
+  ];
+  window.R4Projects = {
+    KITS, KIND,
+    all() { try { const s = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(s)) return s; } catch (e) {} return JSON.parse(JSON.stringify(SEED)); },
+    save(list) { localStorage.setItem(KEY, JSON.stringify(list)); },
+    of(owner) { return this.all().filter((p) => p.owner === owner); },
+    html(p) { const v = p.versions[p.cur]; return p.kit === 'code' ? codeDoc(v.files) : KITS[p.kit].build(v.params); },
+    codeDoc,
+    kindOf(p) { return KITS[p.kit].kind; },
+  };
+})();
