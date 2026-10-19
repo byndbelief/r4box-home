@@ -330,3 +330,4 @@ i.t-attr{font-style:normal;color:#B9A6FF}i.t-prop{font-style:normal;color:#7DF0C
 .glre{all:unset;cursor:pointer;position:absolute;top:6px;right:6px;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:#000b;border:1px solid #ffffff22;color:var(--ink);font-size:14px}
 .gllive{position:absolute;left:8px;top:7px;padding:2px 7px;border-radius:99px;background:#000b;font:700 10px var(--body);color:var(--teal);pointer-events:none}
 .lbox,.glbox{gap:8px}
+button.gllive{all:unset;cursor:pointer;position:absolute;left:8px;top:7px;padding:3px 9px;border-radius:99px;background:#000c;border:1px solid #ffffff1c;font:700 10.5px var(--body);color:var(--teal);pointer-events:auto}

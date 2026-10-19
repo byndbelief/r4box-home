@@ -158,28 +158,86 @@
   const RUNNER = "<script>(function(){var o=function(k,a){parent.postMessage({r4try:[k,[].map.call(a,function(x){try{return typeof x==='object'?JSON.stringify(x):String(x)}catch(e){return String(x)}}).join(' ')]},'*')};['log','info','warn','error'].forEach(function(k){console[k]=function(){o(k,arguments)}});addEventListener('error',function(e){o('error',[e.message])})})()<\/script>";
   // The one code box: coloured, editable, ▶ Run in a sandbox (an example on its own; a line of the file
   // inside the whole project, so it runs for real), and ✓ Apply to put an edited line into the file.
+  // ---------- peek: what one line makes, drawn on its own (a shape, a colour, a list, an element…) ----------
+  // The value is worked out in the sandbox; if the line can't stand alone (it uses other lines, or it
+  // does something rather than make something), the box shows the whole project instead.
+  const balanced = (s) => { let d = 0, q = null; for (let i = 0; i < s.length; i++) { const ch = s[i]; if (q) { if (ch === '\\') i++; else if (ch === q) q = null; continue; } if (`'"\``.includes(ch)) q = ch; else if ('([{'.includes(ch)) d++; else if (')]}'.includes(ch)) d--; if (d < 0) return false; } return d === 0 && !q; };
+  function peekOf(line, lang) {
+    const t = line.trim().replace(/[,;]\s*$/, '');
+    if (!t || t.startsWith('//')) return null;
+    if (lang === 'html') return /^<([\w-]+)[^>]*>.*<\/\1>$|^<(img|input|br|hr)\b[^>]*>$/i.test(t) ? { html: t } : null;
+    if (lang === 'css') { const m = t.match(/^([\w-]+)\s*:\s*(.+)$/); return m ? { css: [m[1], m[2]] } : null; }
+    let m, expr = null, key = null;
+    if ((m = t.match(/^(?:const|let|var)\s+([\w$]+)\s*=\s*([\s\S]+)$/))) { key = m[1]; expr = m[2]; }
+    else if ((m = t.match(/^['"]?([\w$-]+)['"]?\s*:\s*([\s\S]+)$/))) { key = m[1]; expr = m[2]; }
+    else if (/^[[{'"`\d#-]/.test(t)) expr = t;
+    if (!expr || !balanced(expr) || /^(function|\(.*\)\s*=>|async)\b/.test(expr) || /=>/.test(expr)) return null;
+    return { expr, key };
+  }
+  const PEEK = `<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0D0B1F;color:#F3F1FF;font:14px system-ui,sans-serif}
+    .card{display:grid;gap:8px;padding:12px 14px;border-radius:12px;background:#ffffff0a;border:1px solid #ffffff1c;max-width:92vw}.k{color:#ACA5D6;font:600 12px ui-monospace,monospace}
+    .row{display:flex;gap:10px;align-items:center}.sw{width:30px;height:30px;border-radius:8px;border:1px solid #ffffff33}.big{font:800 40px system-ui}.emo{font-size:56px}
+    .grid{display:grid;gap:3px}.cell{width:26px;height:26px;border-radius:4px}.off{background:#ffffff08;border:1px dashed #ffffff18}
+    .bars{display:flex;gap:4px;align-items:flex-end;height:90px}.bar{width:18px;background:#3DD6C6;border-radius:3px 3px 0 0}.chip{padding:3px 9px;border-radius:99px;background:#ffffff12}</style>
+    <script>(function(){
+      var COL=/^(#[0-9a-f]{3,8}|rgba?\\(|hsla?\\()/i, EMO=/^\\p{Extended_Pictographic}/u;
+      function esc(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+      function shape(v){return Array.isArray(v)&&v.length&&v.every(function(r){return Array.isArray(r)&&r.length&&r.every(function(x){return typeof x==='number'||typeof x==='boolean'})})}
+      function grid(v,c){return '<div class="grid" style="grid-template-columns:repeat('+Math.max.apply(0,v.map(function(r){return r.length}))+',26px)">'+v.map(function(r){return r.map(function(x){return x?'<div class="cell" style="background:'+esc(c||'#3DD6C6')+'"></div>':'<div class="cell off"></div>'}).join('')}).join('')+'</div>'}
+      function view(v,key,ctx){
+        if(shape(v))return grid(v,ctx&&ctx.color);
+        if(typeof v==='string'&&COL.test(v))return '<div class="row"><div class="sw" style="background:'+esc(v)+'"></div><code>'+esc(v)+'</code></div>';
+        if(typeof v==='string')return EMO.test(v)&&v.length<=8?'<div class="emo">'+esc(v)+'</div>':'<div>“'+esc(v)+'”</div>';
+        if(typeof v==='number')return '<div class="big">'+v+'</div>';
+        if(typeof v==='boolean')return '<div class="big">'+(v?'✓ true':'✗ false')+'</div>';
+        if(Array.isArray(v)){
+          if(v.length&&v.every(function(x){return typeof x==='number'})){var mx=Math.max.apply(0,v.map(Math.abs))||1;return '<div class="bars">'+v.map(function(x){return '<div class="bar" title="'+x+'" style="height:'+Math.max(4,Math.abs(x)/mx*90)+'px"></div>'}).join('')+'</div>'}
+          if(v.length&&v.every(function(x){return typeof x==='string'&&COL.test(x)}))return '<div class="row">'+v.map(function(x){return '<div class="sw" style="background:'+esc(x)+'"></div>'}).join('')+'</div>';
+          return '<div class="row" style="flex-wrap:wrap">'+v.slice(0,30).map(function(x){return typeof x==='object'&&x?view(x):'<span class="chip">'+esc(typeof x==='string'?x:JSON.stringify(x))+'</span>'}).join('')+'</div>';
+        }
+        if(v&&typeof v==='object'){
+          var keys=Object.keys(v).slice(0,12),sh=keys.filter(function(k){return shape(v[k])});
+          return '<div class="card">'+sh.map(function(k){return grid(v[k],v.color||v.colour)}).join('')+keys.filter(function(k){return sh.indexOf(k)<0}).map(function(k){var x=v[k];return '<div class="row"><span class="k">'+esc(k)+'</span>'+(typeof x==='object'&&x?'<span>'+esc(JSON.stringify(x).slice(0,40))+'</span>':view(x))+'</div>'}).join('')+'</div>';
+        }
+        if(typeof v==='function')return '<div class="k">a function</div>';
+        return '<div class="k">'+esc(String(v))+'</div>';
+      }
+      window.__peek=function(f,key){try{var v=f();document.body.innerHTML=(key?'<div style="display:grid;gap:8px;justify-items:center"><span class="k">'+esc(key)+'</span>':'<div>')+view(v,key)+'</div>';parent.postMessage({r4peek:'ok'},'*')}catch(e){parent.postMessage({r4peek:'fail'},'*')}};
+    })()<\/script>`;
+  function peekDoc(pk) {
+    if (pk.html) { const css = (draft || head().files)['style.css'] || ''; return `<!doctype html><style>body{margin:0;padding:14px;background:#0D0B1F;color:#fff;font:15px system-ui}${css}</style>${pk.html}<script>parent.postMessage({r4peek:'ok'},'*')<\/script>`; }
+    if (pk.css) { const [k, v] = pk.css; return `<!doctype html><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0D0B1F;color:#fff;font:15px system-ui}.s{padding:16px 22px;border-radius:12px;border:1px dashed #ffffff33;${k}:${v.replace(/[<>]/g, '')}}code{display:block;margin-top:8px;color:#ACA5D6;font:12px ui-monospace,monospace;text-align:center}</style><div><div class="s">Aa · sample</div><code>${esc(k)}: ${esc(v)}</code></div><script>parent.postMessage({r4peek:'ok'},'*')<\/script>`; }
+    return `<!doctype html><head>${PEEK}</head><body><script>__peek(function(){return (${pk.expr.replace(/<\/script/gi, '<\\/script')}\n)},${JSON.stringify(pk.key)})<\/script></body>`;
+  }
+
   function codeBox(host, d, { code, lang, line, apply, term }) {
     // the live preview: the project with this line as it is in the box (or the example on its own),
     // redrawn a moment after you stop typing; a JS-only example shows its console here instead
     const page = !!line || lang !== 'js';
-    host.innerHTML = `<div class="glprev"${page ? '' : ' hidden'}><iframe class="glframe" sandbox="allow-scripts allow-modals" title="Live preview"></iframe><button class="glre" aria-label="Start again" title="Start again">↻</button><span class="gllive">● live</span></div><div class="glout"></div>
+    host.innerHTML = `<div class="glprev"${page ? '' : ' hidden'}><iframe class="glframe" sandbox="allow-scripts allow-modals" title="Live preview"></iframe><button class="glre" aria-label="Start again" title="Start again">↻</button><button class="gllive" data-mode title="Switch between this line and the whole project"></button></div><div class="glout"></div>
       <div class="gled"><pre class="glcode" aria-hidden="true">${hl(code, lang).slice(0, -1) || ' '}</pre><textarea class="glcode" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Code">${esc(code)}</textarea></div>
       <div class="glacts"><button class="glaskb" data-askb>✦ Ask</button>${apply ? '<button class="glapply" data-apply disabled>✓ Apply</button>' : ''}<small>${apply ? 'Change it and watch the preview; ✓ puts it in ' + esc(file) + '.' : 'Change it and watch: nothing here touches your project.'}</small></div>`;
     const ta = host.querySelector('textarea'), pre = host.querySelector('pre'), out = host.querySelector('.glout'), fr = host.querySelector('iframe'), ap = host.querySelector('[data-apply]');
-    let lit = null, timer = 0;
+    let lit = null, timer = 0, whole = false, peeked = false;   // whole: the project; else what the line makes, if it can stand alone
     const draw = () => { const v = ta.value, r = lit && spot(v, lit, lang); pre.innerHTML = r ? hl(v.slice(0, r[0]), lang).slice(0, -1) + `<mark>${hl(v.slice(r[0], r[1]), lang).slice(0, -1)}</mark>` + hl(v.slice(r[1]), lang).slice(0, -1) : hl(v, lang).slice(0, -1) || ' '; };
     host.mark = (term) => { lit = term; draw(); };
-    const on = (e) => { if (e.source !== fr.contentWindow || !e.data) return; const m = e.data.r4try || e.data.r4log; if (!m) return; out.insertAdjacentHTML('beforeend', `<div class="cl ${m[0]}">${m[0] === 'error' ? '✕' : '›'} ${esc(m[1])}</div>`); };
+    const mode = host.querySelector('[data-mode]');
+    const label = () => { mode.textContent = peeked && !whole ? '🔍 this line · tap for whole' : '● live · whole project'; mode.hidden = !line; };
+    const on = (e) => { if (e.source !== fr.contentWindow || !e.data) return;
+      if (e.data.r4peek) { if (e.data.r4peek === 'fail' && !whole) { peeked = false; full(); } return; }
+      const m = e.data.r4try || e.data.r4log; if (!m) return; out.insertAdjacentHTML('beforeend', `<div class="cl ${m[0]}">${m[0] === 'error' ? '✕' : '›'} ${esc(m[1])}</div>`); };
     addEventListener('message', on); d.addEventListener('close', () => { removeEventListener('message', on); clearTimeout(timer); }, { once: true });
+    const full = () => { const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L[line - 1] = ta.value; F[file] = L.join('\n'); fr.srcdoc = PR.codeDoc(F); label(); };
     const run = () => {
       out.innerHTML = ''; const v = ta.value;
-      if (line) { const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L[line - 1] = v; F[file] = L.join('\n'); fr.srcdoc = PR.codeDoc(F); }
+      if (line) { const pk = !whole && peekOf(v, lang); peeked = !!pk; if (pk) { fr.srcdoc = peekDoc(pk); label(); } else full(); }
       else fr.srcdoc = lang === 'js' ? `<!doctype html><body>${RUNNER}<script>${v.replace(/<\/script/gi, '<\\/script')}<\/script></body>` : lang === 'css' ? `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}${v}</style><h1>Heading</h1><p class="score">A paragraph</p><button id="go">Button</button>` : `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}</style>${RUNNER}${v}`;
       if (!page) setTimeout(() => { if (!out.children.length) out.innerHTML = '<div class="cl dim">nothing logged · add console.log(…) to see a value</div>'; }, 900);
     };
     ta.oninput = () => { draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); timer = setTimeout(run, 700); };
     ta.onkeydown = (e) => { if (line && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); clearTimeout(timer); run(); } };
     host.querySelector('.glre').onclick = run;
+    mode.onclick = () => { whole = !whole; run(); };
     run();
     // ✦ Ask: Claude, in the Claude tab, about this line (and the word whose card is open), or this word
     host.querySelector('[data-askb]').onclick = () => {
