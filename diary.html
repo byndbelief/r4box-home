@@ -78,7 +78,8 @@
     const ownerP = person(owner, w), viewerP = owner.id === me.id ? ownerP : person(self, { topics: [], events: [], entries: [] });
     const sharedMap = {};
     for (const s of shares || []) sharedMap[`${s.kind}:${owner.username}:${s.ref}`] = { kind: s.kind, title: s.title, day: s.day, text: s.text, at: String(s.created_at).slice(0, 10) };
-    let mySeeds = (seeds || []).map((s) => ({ id: s.id, title: s.title, kind: s.kind, x: s.x, y: s.y, day: s.day }));
+    // A seed planted from the home has no spot yet (x < 0): the world finds it one beside the tree.
+    let mySeeds = (seeds || []).map((s) => ({ id: s.id, title: s.title, kind: s.kind, x: s.x < 0 ? null : s.x, y: s.x < 0 ? null : s.y, day: s.day }));
     const say = (t) => { const p = $('pick'); p.hidden = false; p.innerHTML = `<p>${esc(t)}</p>`; };
 
     window.R4Store = {

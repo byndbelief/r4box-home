@@ -179,6 +179,15 @@
     .hdock.big a { min-height: 120px; align-content: center; border-width: 2px; border-radius: 24px; }
     .hdock.big .g { width: 64px; height: 64px; font-size: 28px; border-radius: 18px; } .hdock.big .g.emoji { font-size: 32px; }
     .hdock.big b { font: 800 17px/1 var(--display); }
+    .hchat { display: grid; gap: 6px; padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--glow); color: inherit; text-decoration: none; }
+    .hchat .l { display: flex; gap: 8px; min-width: 0; font-size: 13px; line-height: 1.35; } .hchat .l b { flex: none; color: var(--violet); font-size: 12px; } .hchat .l.c b { color: var(--gold); }
+    .hchat .l span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+    .hchat .go { display: flex; justify-content: space-between; align-items: baseline; padding-top: 6px; border-top: 1px solid var(--line); font-size: 12.5px; font-weight: 700; color: var(--teal); } .hchat .go small { font-weight: 600; color: var(--faint); font-size: 11px; }
+    .hgo .hacts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+    .hgo .hacts button { all: unset; cursor: pointer; text-align: center; padding: 8px 10px; border-radius: 11px; font-size: 13px; font-weight: 700; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--glow); }
+    .hgo .hclaude { color: var(--gold) !important; border-color: #F5C54255 !important; background: #F5C54212 !important; } .hgo .hseed { color: var(--teal) !important; border-color: #3DD6C655 !important; background: #3DD6C610 !important; }
+    .hgo .hmsg { margin: 6px 0 0; font-size: 12px; color: var(--teal); }
+    .hhead h2 .hname { color: var(--faint); font: 400 12.5px/1 var(--mono); letter-spacing: normal; }
     .hrecent { display: grid; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
     .hrecent a { box-sizing: border-box; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-top: 1px solid #ffffff0a; min-height: 42px; color: inherit; text-decoration: none; }
     .hrecent a:first-child { border-top: 0; } .hrecent a:hover { background: #ffffff08; }
@@ -514,7 +523,7 @@
         sb.rpc('r4_family_world'), sb.rpc('r4_home'),
         parent ? sb.from('box_status').select('*') : { data: [] },
         sb.from('chat_reads').select('read_at').eq('user_id', ME.id).maybeSingle(),
-        sb.from('chat_messages').select('id, author, is_claude, body, image, created_at').order('id', { ascending: false }).limit(30),
+        sb.from('chat_messages').select('id, author, is_claude, body, image, ref, reply_to, created_at').order('id', { ascending: false }).limit(30),
         sb.from('chaos_events').select('icon, message, game_kind, game_id, created_at').eq('player', ME.id).order('id', { ascending: false }).limit(6),
         sb.from('trip_items').select('id, trip, title, created_by, by_claude, created_at').gte('created_at', since).neq('created_by', ME.id).order('created_at', { ascending: false }).limit(6),
         sb.from('kid_events').select('topic, day, kind, summary, created_at').eq('kid', ME.id).order('day', { ascending: false }).limit(8),
@@ -624,12 +633,17 @@
       const hr = new Date().getHours(), hi = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
       const cur = DENSITY.find((d) => d.id === dens);
       const glyph = (a) => `<span class="g${a.emoji ? ' emoji' : ''}">${a.g}</span>`;
-      $('htop').innerHTML = `<div class="hhead"><div><h2>${play ? 'Hi!' : hi + ','}</h2><p>${esc(ME.name)}</p></div>
+      // The family chat: the last few messages (not thread replies), straight into the chat.
+      const line = (m) => (m.ref && ({ poll: '📊 Poll', item: '📍 Trip place', call: '📹 Video call', story: '🌳 Shared a story', added: '✦ Added to a trip' }[m.ref.type])) || m.body || (m.image ? '📷 Photo' : '');
+      const chatTop = H.msgs.filter((m) => !m.reply_to).slice(0, tight ? 4 : 3).reverse();
+      const chatCard = play || !chatTop.length ? '' : `<h3 class="k">Family chat</h3><a class="hchat" href="/chat.html">${chatTop.map((m) => `<span class="l${m.is_claude ? ' c' : ''}"><b>${esc(m.is_claude ? 'Claude' : nm(m.author))}</b><span>${esc(line(m))}</span></span>`).join('')}<span class="go">Open the chat ›<small>${H.unread ? H.unread + ' new' : 'all caught up'}</small></span></a>`;
+      $('htop').innerHTML = `<div class="hhead"><div><h2>${play ? 'Hi!' : hi + ','} <span class="hname">${esc(ME.name)}</span></h2></div>
           <div class="vpick"><button class="vbtn" id="vbtn" aria-haspopup="menu" aria-expanded="false" aria-label="View: ${cur.name}"><span>${cur.em}</span>${cur.name}<i>▾</i></button>
           <div class="vmenu" id="vmenu" role="menu" hidden><p>View</p>${DENSITY.map((d) => `<button role="menuitemradio" aria-checked="${d.id === dens}" data-dens="${d.id}" class="${d.id === dens ? 'on' : ''}"><span>${d.em}</span><b>${d.name}</b><em>${d.blurb}</em></button>`).join('')}</div></div></div>
-        ${play ? '' : `<div class="hcmd"><input id="q" placeholder="${parent ? 'Where to? os, diary, battleship…' : 'Where to? Or ask anything…'}" autocomplete="off" aria-label="Where to?"><div class="hres" id="hits" hidden></div></div>`}
+        ${play ? '' : `<form class="hcmd hgo" id="hgo"><input id="q" placeholder="${parent ? 'Where to? Or what should Claude do?' : 'Where to? Ask Claude, or name a seed…'}" autocomplete="off" aria-label="Where to, or start Claude"><div class="hres" id="hits" hidden></div>
+          <div class="hacts"${parent ? ' style="grid-template-columns:1fr"' : ''}><button type="submit" class="hclaude">✦ Start Claude</button>${parent ? '' : '<button type="button" class="hseed" id="hsd">🌱 Plant seed</button>'}</div><p class="hmsg" id="hmsg" hidden></p></form>`}
         ${play ? '' : `<div class="htoday">${today.map((t) => `<a href="${t.href}" style="--c:${t.c}"><span class="g">${t.g}</span><span><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span></a>`).join('')}</div>`}`;
-      $('hrest').innerHTML = `<h3 class="k">Apps</h3>
+      $('hrest').innerHTML = `${chatCard}<h3 class="k">Apps</h3>
         <div class="hdock${play ? ' big' : ''}">${(play ? PLAY : APPS).map((a) => `<a href="${a.href}" style="--c:${a.c}"${a.ask ? ' data-ask="1"' : ''}>${glyph(a)}<b>${a.k}</b>${play ? '' : `<small class="${a.hot ? 'hot' : ''}">${esc(a.s)}</small>`}${a.badge ? `<span class="badge">${a.badge > 99 ? '99+' : a.badge}</span>` : ''}</a>`).join('')}</div>
         ${play ? '' : `<h3 class="k">Recent</h3><div class="hrecent">${recent.length ? recent.map((r) => `<a href="${r.href}"><span class="g" style="color:${r.c}">${r.g}</span><span class="t">${esc(r.t)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span><span class="a">${agoOf(r.at)}</span></a>`).join('') : '<div class="hempty">Nothing new this week.</div>'}</div>`}
         ${familyCard()}`;
@@ -664,6 +678,24 @@
       }));
       fc.querySelectorAll('[data-p]').forEach((a) => (a.onclick = (e) => { e.preventDefault(); pickWorld({ person: person(a.dataset.p) }); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
       const q = $('q'); if (!q) return;
+      // ✦ Start Claude: a parent's words become an os task (os.r4box.com fills them in); a kid's, an
+      // @claude question in the family chat. 🌱 Plant seed: a kid's words, planted on their ground.
+      const hmsg = (t) => { $('hmsg').hidden = false; $('hmsg').textContent = t; };
+      $('hgo').onsubmit = (e) => {
+        e.preventDefault();
+        if (!$('hits').hidden && $('hits').querySelector('a.on')) return;   // Enter on a match goes there (below)
+        const t = q.value.trim(); if (!t) { q.focus(); return; }
+        if (ME.role === 'parent') { location.href = 'https://os.r4box.com/?task=' + encodeURIComponent(t); return; }
+        try { sessionStorage.setItem('r4.claude.draft', t); } catch {}
+        location.href = '/chat.html';
+      };
+      $('hgo').querySelector('.hclaude').onclick = (e) => { e.preventDefault(); $('hits').hidden = true; $('hgo').requestSubmit(); };
+      $('hsd')?.addEventListener('click', async () => {
+        const t = q.value.trim(); if (!t) { q.focus(); hmsg('Name the seed first: something you want to grow.'); return; }
+        const { error } = await sb.from('kid_seeds').insert({ title: t.slice(0, 60), kind: 'tutor', x: -1, y: -1 });
+        if (error) { hmsg("Couldn't plant it: " + error.message); return; }
+        q.value = ''; $('hits').hidden = true; hmsg('🌱 Planted “' + t.slice(0, 40) + '” in your world.');
+      });
       // Where to? Apps, places, worlds, your own topics, the trips. Kids: anything else asks the tutor.
       const pool = [
         ...APPS.filter((a) => !a.ask).map((a) => ({ g: a.g, c: a.c, t: a.k, s: (a.k === 'diary' && ME.role === 'parent' ? 'Clearing · ' : '') + (a.href.startsWith('http') ? new URL(a.href).hostname : 'r4box.com' + a.href.split('?')[0].replace('.html', '')), href: a.href })),

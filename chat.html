@@ -9,132 +9,40 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
+  <!-- The family chat, around the family world (design system: chat kit). world/world.css is the
+       shared look (header, sub-pages, settings rows, view picker); chat.css is the kit's chat. -->
   <style>
     @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
-    :root {
-      color-scheme: dark;
-      --bg: #000000; --panel: #0D0B1F; --glow: 0 0 0 1px #B9A6FF0d, 0 0 18px -6px #7B6BFF40; --panel-2: #141130; --line: #251F48; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
-      --teal: #3DD6C6; --teal-ink: #062A26; --gold: #F5C542; --gold-ink: #2A2100; --hot: #FF5A4A; --hot-soft: #4A2230; --violet: #B9A6FF;
-      --display: "Unbounded", "Arial Black", Impact, sans-serif;
-      --body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
-      --mono: ui-monospace, "SF Mono", Menlo, monospace;
-      --grad-mark: conic-gradient(from 210deg, var(--teal), var(--violet), var(--gold), var(--hot), var(--teal));
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); }
-    body { font: 16px/1.45 var(--body); -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; height: 100dvh;
-      background: var(--bg); }
-    :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  </style>
+  <link rel="stylesheet" href="world/world.css">
+  <link rel="stylesheet" href="chat.css">
+  <style>
+    :root { --teal-ink: #062A26; --hot-soft: #4A2230; --panel-2: #141130; }
     [hidden] { display: none !important; }
-    button, input, textarea { font: inherit; color: inherit; }
-    .wrap { width: 100%; max-width: 760px; margin: 0 auto; padding-inline: 16px; }
-    header { flex: none; border-bottom: 1px solid var(--line); background: #000000d9; backdrop-filter: blur(8px); }
-    header .wrap { display: flex; align-items: center; gap: 12px; padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: 12px; }
-    .mark { display: inline-flex; align-items: center; gap: 10px; font: 800 18px/1 var(--display); letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
-    .mark i { width: 1.05em; height: 1.05em; border-radius: 22%; background: var(--grad-mark); box-shadow: inset 0 0 0 .18em var(--bg), 0 0 18px #3DD6C666; }
-    header h1 { font: 800 18px/1 var(--display); margin: 0; letter-spacing: -.02em; }
-    header .sep { color: var(--faint); }
-    header .grow { flex: 1; }
-    .pill { appearance: none; cursor: pointer; border: 1px solid var(--line); background: #ffffff0a; border-radius: 99px; padding: 7px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; }
-    .pill:hover { background: #ffffff16; }
-    .pill.on { color: var(--teal); border-color: #3DD6C655; cursor: default; }
-
-    #log { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
-    #log .wrap { display: flex; flex-direction: column; gap: 2px; padding-top: 14px; padding-bottom: 14px; }
-    .day { align-self: center; margin: 14px 0 8px; font: 700 11px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
-    .msg { display: flex; gap: 8px; align-items: flex-end; max-width: 86%; margin-top: 2px; }
-    .msg.first { margin-top: 10px; }
-    .msg.me { align-self: flex-end; flex-direction: row-reverse; }
-    .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 800 13px/1 var(--display); background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; }
-    .av img { width: 100%; height: 100%; object-fit: cover; }
-    .av.claude { background: #F5C5421f; border-color: #F5C54266; color: var(--gold); font-size: 15px; }
-    .msg:not(.last) .av { visibility: hidden; }
-    .msg.me .av { display: none; }
-    .bub { min-width: 0; padding: 8px 12px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); overflow-wrap: anywhere; cursor: default; }
-    .msg.me .bub { background: color-mix(in srgb, var(--teal) 16%, var(--panel)); border-color: #3DD6C640; }
-    .msg.claude .bub { background: color-mix(in srgb, var(--gold) 8%, var(--panel)); border-color: #F5C54240; }
-    .msg.mine .bub { cursor: pointer; }
-    .bub .who { display: block; font-size: 12px; font-weight: 800; color: var(--violet); margin-bottom: 2px; }
-    .msg.claude .who { color: var(--gold); }
-    .bub .tx { white-space: pre-wrap; }
-    .bub .tx a { color: var(--teal); }
-    .bub .tx .at { color: var(--gold); font-weight: 700; }
-    /* things from the trip planner, as cards in the chat */
-    .rcard { display: flex; gap: 10px; align-items: center; margin: 4px 0 2px; padding: 8px; border-radius: 12px; background: #00000066; border: 1px solid #ffffff1c; color: inherit; text-decoration: none; min-width: min(250px, 62vw); }
-    .rcard img { flex: none; width: 56px; height: 56px; border-radius: 9px; object-fit: cover; background: #141130; }
-    .rcard .ri { flex: none; width: 56px; height: 56px; border-radius: 9px; display: grid; place-items: center; background: #141130; font-size: 24px; }
-    .rcard small { display: block; color: var(--teal); font-weight: 700; font-size: 11.5px; }
-    .rcard b { display: block; font-size: 14.5px; line-height: 1.3; overflow-wrap: anywhere; }
-    .rcard ul { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--muted); }
-    .rpoll { margin: 4px 0 2px; min-width: min(260px, 64vw); }
-    .rpoll .q { font-weight: 800; margin-bottom: 4px; } .rpoll .q small { display: block; color: var(--teal); font-size: 11.5px; font-weight: 700; }
-    .rpoll .po { position: relative; display: flex; justify-content: space-between; gap: 8px; width: 100%; margin-top: 6px; padding: 9px 11px; border-radius: 11px; border: 1.5px solid #ffffff22; background: #00000055; color: var(--ink); font: inherit; text-align: left; cursor: pointer; overflow: hidden; isolation: isolate; }
-    .rpoll .po i { position: absolute; inset: 0 auto 0 0; z-index: -1; background: #B9A6FF33; transition: width .3s; }
-    .rpoll .po.mine { border-color: var(--teal); } .rpoll .po.mine i { background: #3DD6C644; }
-    .rpoll .po .pn { flex: none; color: var(--muted); font-size: 12.5px; font-weight: 700; }
-    .rpoll .po:disabled { cursor: default; }
-    .rpoll .pf { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12px; color: var(--faint); }
-    .rpoll .pf a { color: var(--teal); text-decoration: none; font-weight: 700; }
-    .bub img.ph { display: block; max-width: min(280px, 100%); max-height: 340px; border-radius: 12px; margin: 2px 0 4px; cursor: zoom-in; background: var(--panel-2); }
-    .bub .tm { display: block; text-align: right; font-size: 11px; color: var(--faint); margin-top: 2px; }
-    .think { align-self: flex-start; color: var(--gold); font-size: 14px; margin: 10px 0 0 38px; animation: pulse 1.4s ease-in-out infinite; }
-    @keyframes pulse { 50% { opacity: .45; } }
-    @media (prefers-reduced-motion: reduce) { .think { animation: none; } }
-    .empty { margin: auto; text-align: center; color: var(--muted); padding: 40px 0; }
-    .empty b { display: block; font: 800 22px/1.2 var(--display); color: var(--ink); margin-bottom: 6px; }
-
-    footer { flex: none; border-top: 1px solid var(--line); background: #000000e6; }
-    footer .wrap { padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
-    .tools { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
-    .chip { appearance: none; cursor: pointer; border: 1px solid #F5C54255; background: #F5C54214; color: var(--gold); border-radius: 99px; padding: 5px 11px; font-size: 13px; font-weight: 700; }
-    .note { color: var(--muted); font-size: 12px; margin-left: auto; }
-    .preview { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-    .preview img { height: 56px; border-radius: 10px; border: 1px solid var(--line); }
-    form { display: flex; gap: 8px; align-items: flex-end; }
-    textarea { flex: 1; resize: none; max-height: 140px; min-height: 44px; padding: 11px 14px; border-radius: 22px; border: 1.5px solid var(--line); background: var(--panel); font-size: 16px; line-height: 1.35; }
-    .icon { appearance: none; cursor: pointer; flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--line); background: #ffffff0a; font-size: 19px; display: grid; place-items: center; }
-    .icon.send { background: var(--teal); border-color: var(--teal); color: var(--teal-ink); font-weight: 800; }
-    .icon:disabled { opacity: .5; cursor: default; }
-    #toast { position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5; max-width: calc(100% - 32px); padding: 10px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); box-shadow: 0 10px 24px #0008; font-size: 14px; }
-    #toast.bad { border-color: #FF5A4A88; }
-    dialog { border: 1px solid var(--line); border-radius: 20px; background: var(--panel-2); color: var(--ink); padding: 18px; width: min(360px, calc(100% - 32px)); }
-    dialog::backdrop { background: #000000cc; }
-    dialog .acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
-    .btn { appearance: none; cursor: pointer; border: 1.5px solid #ffffff22; background: #ffffff0e; border-radius: 12px; padding: 8px 14px; font-weight: 700; }
-    .btn.bad { background: var(--hot-soft); border-color: transparent; }
-    #viewer { position: fixed; inset: 0; z-index: 6; background: #000e; display: grid; place-items: center; padding: 16px; cursor: zoom-out; }
+    #app { max-width: 760px; margin: 0 auto; }
+    .rcard img { flex: none; width: 48px; height: 48px; border-radius: 9px; object-fit: cover; background: #141130; }
+    .rcard ul { margin: 3px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+    .rstory { cursor: default; } a.rstory { cursor: pointer; }
+    .preview { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+    .preview img { height: 52px; border-radius: 10px; border: 1px solid var(--line); }
+    .preview button { all: unset; cursor: pointer; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line); font-size: 13px; font-weight: 700; }
+    .phimg { cursor: zoom-in; }
+    #viewer { position: fixed; inset: 0; z-index: 45; background: #000e; display: grid; place-items: center; padding: 16px; cursor: zoom-out; }
     #viewer img { max-width: 100%; max-height: 100%; border-radius: 8px; }
-
-    /* video calls */
-    .pill.callb { padding: 7px 10px; }
-    header .wrap { min-width: 0; } header h1 { min-width: 0; }
-    @media (max-width: 460px) { #alerts .lbl { display: none; } }
-    .pill.callb.live { color: var(--teal-ink); background: var(--teal); border-color: var(--teal); animation: glow 1.6s ease-in-out infinite; }
-    @keyframes glow { 50% { box-shadow: 0 0 0 6px #3DD6C633; } }
-    .rcall { display: flex; gap: 10px; align-items: center; margin: 4px 0 2px; padding: 8px; border-radius: 12px; background: #00000066; border: 1px solid #ffffff1c; min-width: min(250px, 62vw); }
-    .rcall .ri { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: #141130; font-size: 20px; }
-    .rcall.live .ri { background: #3DD6C626; box-shadow: 0 0 0 1px #3DD6C688; }
-    .rcall span:nth-child(2) { flex: 1; min-width: 0; }
-    .rcall b { display: block; font-size: 14.5px; }
-    .rcall small { display: block; color: var(--muted); font-size: 12px; }
-    .rcall.live small { color: var(--teal); font-weight: 700; }
-    .rcall button { flex: none; appearance: none; cursor: pointer; border: 0; border-radius: 99px; padding: 8px 14px; background: var(--teal); color: var(--teal-ink); font-weight: 800; }
-    .picks { display: grid; gap: 8px; margin-top: 12px; }
-    .picks button { appearance: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; border: 1.5px solid #ffffff22; background: #ffffff0a; font-weight: 700; text-align: left; }
-    .picks button:hover { border-color: var(--teal); }
-    .picks .av { width: 34px; height: 34px; }
-    #call { position: fixed; inset: 0; z-index: 8; display: flex; flex-direction: column; background: radial-gradient(700px 500px at 50% 30%, #141130, var(--bg) 70%); color: var(--ink); }
-    #call .stage { position: relative; flex: 1; min-height: 0; display: grid; gap: 6px; padding: max(8px, env(safe-area-inset-top)) 8px 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); grid-auto-rows: minmax(0, 1fr); }
-    .tile { position: relative; min-height: 0; border-radius: 18px; overflow: hidden; background: #120F27; border: 1px solid var(--line); }
-    .tile video { width: 100%; height: 100%; object-fit: cover; display: block; background: #120F27; }
-    .tile .nm small { font-weight: 600; color: var(--teal); }
-    .tile .nm { position: absolute; left: 10px; bottom: 10px; padding: 4px 10px; border-radius: 99px; background: #000000b3; font-size: 13px; font-weight: 700; }
-    .tile .off { position: absolute; inset: 0; display: grid; place-items: center; background: #120F27; }
-    .tile .off b { width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center; font: 800 34px/1 var(--display); color: var(--violet); box-shadow: 0 0 0 1px #B9A6FF55, 0 0 0 10px #B9A6FF12, 0 0 0 22px #B9A6FF0a; overflow: hidden; }
-    .tile .off b img { width: 100%; height: 100%; object-fit: cover; }
-    .tile .flag { position: absolute; top: 10px; right: 10px; font-size: 13px; padding: 3px 8px; border-radius: 99px; background: #000000b3; }
-    #self { position: absolute; z-index: 2; right: 14px; bottom: 14px; width: 104px; aspect-ratio: 3 / 4; border-radius: 14px; overflow: hidden; border: 1.5px solid #ffffff33; box-shadow: 0 8px 22px #0009; background: #120F27; }
+    .ibtn:disabled { opacity: .5; cursor: default; }
+    #callbtn.incall { color: var(--teal); border-color: #3DD6C655; }
+    .alertsrow small a { color: var(--teal); }
+    .vset { display: grid; gap: 6px; }
+    /* the call (kept from before: a tile per person with their video, you in the corner) */
+    #call .tile { display: block; background: #08061A; }
+    #call .tile video { width: 100%; height: 100%; object-fit: cover; display: block; background: #08061A; }
+    #call .tile .nm small { font-weight: 600; color: var(--teal); }
+    #call .tile .off { position: absolute; inset: 0; display: grid; place-items: center; background: #08061A; }
+    #call .tile .off b { width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center; font: 800 34px/1 var(--display); color: var(--violet); box-shadow: 0 0 0 1px #B9A6FF55, 0 0 0 10px #B9A6FF12, 0 0 0 22px #B9A6FF0a; overflow: hidden; }
+    #call .tile .off b img { width: 100%; height: 100%; object-fit: cover; }
+    #call .tile .flag { position: absolute; top: 10px; right: 10px; font-size: 13px; padding: 3px 8px; border-radius: 99px; background: #000000b3; }
+    #self { position: absolute; z-index: 2; right: 14px; bottom: 14px; width: 104px; aspect-ratio: 3 / 4; border-radius: 14px; overflow: hidden; border: 1.5px solid #ffffff33; box-shadow: 0 8px 22px #0009; background: #08061A; }
     #self video { width: 100%; height: 100%; object-fit: cover; }
     #self.mirror video { transform: scaleX(-1); }
     #self.camoff video { visibility: hidden; }
@@ -142,72 +50,65 @@
     .waiting svg { width: 150px; height: 150px; animation: turn 24s linear infinite; }
     .waiting b { display: block; font: 800 20px/1.2 var(--display); color: var(--ink); margin-bottom: 4px; }
     @keyframes turn { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) { .waiting svg, .pill.callb.live { animation: none; } }
-    #call .bar { flex: none; display: flex; justify-content: center; gap: 14px; padding: 12px 16px max(14px, env(safe-area-inset-bottom)); }
-    #call .bar button { appearance: none; cursor: pointer; width: 56px; height: 56px; border-radius: 50%; border: 1.5px solid #ffffff2a; background: #ffffff12; font-size: 22px; display: grid; place-items: center; }
-    #call .bar button[aria-pressed="true"] { background: #F3F1FF; color: #000000; }
-    #call .bar .end { background: var(--hot); border-color: var(--hot); width: 68px; }
+    @media (prefers-reduced-motion: reduce) { .waiting svg { animation: none; } }
+    .picks .av { width: 34px; height: 34px; } .picks .av img { width: 30px; height: 30px; }
   </style>
 </head>
 <body>
-  <header><div class="wrap">
-    <a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1>Family</h1>
-    <span class="grow"></span>
-    <button class="pill" id="alerts" hidden>🔔 Turn on alerts</button>
-    <button class="pill callb" id="callbtn" aria-label="Start a video call">📹</button>
-  </div></header>
-
-  <main id="log" aria-live="polite"><div class="wrap" id="msgs"><p class="empty">Loading…</p></div></main>
-
-  <footer><div class="wrap">
-    <div class="preview" id="preview" hidden><img id="previewimg" alt="Photo to send"><button class="btn" id="unphoto">Remove</button></div>
-    <div class="tools"><button class="chip" id="atclaude" type="button">✦ @claude</button><span class="note" id="hint">Write @claude to ask Claude</span></div>
-    <form id="send">
-      <button class="icon" type="button" id="photo" aria-label="Add a photo">📷</button>
-      <input type="file" id="file" accept="image/*" hidden>
-      <textarea id="text" rows="1" placeholder="Message the family…" maxlength="4000" aria-label="Message"></textarea>
-      <button class="icon send" id="go" aria-label="Send">↑</button>
-    </form>
-  </div></footer>
-
-  <div id="toast" hidden></div>
-  <div id="viewer" hidden><img id="viewimg" alt=""></div>
-  <div id="call" hidden role="dialog" aria-label="Video call">
-    <div class="stage" id="stage"></div>
-    <div class="bar">
-      <button id="mic" aria-pressed="false" aria-label="Mute">🎤</button>
-      <button id="cam" aria-pressed="false" aria-label="Turn camera off">📷</button>
-      <button id="flip" aria-label="Switch camera" hidden>🔄</button>
-      <button id="hang" class="end" aria-label="Leave the call">✕</button>
-    </div>
-  </div>
-  <dialog id="pick"><b>📹 Call who?</b><div class="picks" id="picks"></div>
-    <div class="acts"><button class="btn" id="pickno">Cancel</button></div></dialog>
-  <dialog id="ring"><b id="ringwho">📹 Video call</b><div class="note" style="margin:6px 0 0" id="ringnote">The family is on a call.</div>
-    <div class="acts"><button class="btn" id="ringno">Not now</button><button class="btn" id="ringyes" style="background:var(--teal);color:var(--teal-ink);border-color:var(--teal)">Join</button></div></dialog>
-  <dialog id="del"><b>Delete this message?</b><div class="note" style="margin:6px 0 0">It goes for everyone.</div>
-    <div class="acts"><button class="btn" id="delno">Cancel</button><button class="btn bad" id="delyes">Delete</button></div></dialog>
-
+<div id="app">
+<header><a class="back" href="/" aria-label="Home">‹</a><a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1>Family</h1><span class="grow"></span><button class="hbtn" id="srch" aria-label="Search the chat and everything attached">⌕</button><button class="hbtn" id="pinsbtn" aria-label="Pinned: trip and polls" aria-expanded="false">📌<i class="badge" id="pinsn" hidden></i></button><button class="hbtn" id="callbtn" aria-label="Start a video call">📹</button><button class="gear" id="gear" aria-label="Settings">⚙</button></header>
+<div class="pins" id="pins"></div>
+<div class="devs" id="devs"></div>
+<button class="filt" id="gfilt" hidden></button>
+<main id="log" aria-live="polite"><div id="msgs"><p class="empty">Loading…</p></div></main>
+<div class="comp">
+<div class="quick" id="quick"><button type="button">👍</button><button type="button">❤️</button><button type="button">😂</button><button type="button">🎉</button></div>
+<div class="preview" id="preview" hidden><img id="previewimg" alt="Photo to send"><button id="unphoto" type="button">Remove</button></div>
+<div class="row1"><button class="chipc" id="atclaude" type="button">✦ @claude</button><span class="left" id="left">Write @claude to ask Claude</span></div>
+<form id="send"><button class="ibtn" type="button" id="photo" aria-label="Add a photo">📷</button><input type="file" id="file" accept="image/*" hidden><textarea id="text" rows="1" placeholder="Message the family…" maxlength="4000" aria-label="Message"></textarea><button class="ibtn send" id="go" aria-label="Send">↑</button></form>
+</div>
+<div id="call" hidden role="dialog" aria-label="Video call"><div class="stage" id="stage"></div><div class="bar"><button id="callmin" aria-label="Back to the chat">⌄</button><button id="mic" aria-pressed="false" aria-label="Mute">🎤</button><button id="cam" aria-pressed="false" aria-label="Turn camera off">📷</button><button id="flip" aria-label="Switch camera" hidden>🔄</button><button id="hang" class="end" aria-label="Leave the call">✕</button></div></div>
+<dialog class="cdlg" id="pick"><b>📹 Call who?</b><div class="picks" id="picks"></div><div class="row"><button id="pickno">Cancel</button></div></dialog>
+<dialog class="cdlg" id="ring"><b id="ringwho">📹 Video call</b><div style="color:var(--muted);font-size:13px;margin-top:6px" id="ringnote">The family is on a call.</div><div class="row"><button id="ringno">Not now</button><button id="ringyes" style="background:var(--teal);color:var(--teal-ink);border-color:var(--teal)">Join</button></div></dialog>
+<dialog class="cdlg" id="del"><b>Delete this message?</b><div style="color:var(--muted);font-size:13px;margin-top:6px">It goes for everyone, with its replies.</div><div class="row"><button id="delno">Cancel</button><button class="bad" id="delyes">Delete</button></div></dialog>
+<div id="viewer" hidden><img id="viewimg" alt=""></div>
+</div>
 <script type="module">
   import { sb, FAMILY, roleOf } from './auth.js';
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/family-chat';
   const VAPID = 'BAOMU69cDpXXI0RZl3fTA4hkgIZgztF6BXOoWHXo4A48LT7nubbHVOqq6UfkOzLm28ViX16ZQI6osf_FhVGCjwQ';
+  const REACT = ['❤️', '😂', '👍', '😮', '🔥', '🎉'];
 
   const { data: { session } } = await sb.auth.getSession();
   if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
   const ME = { id: session?.user.id, role: roleOf(session?.user) };
 
-  let family = [], msgs = [], thinking = 0;
-  const urls = new Map();   // image path -> signed URL
+  // msgs: every loaded message, replies too (reply_to set), oldest first.
+  let family = [], msgs = [], thinking = 0, filter = null, sub = null, left = null;
+  const reacts = new Map();   // message id -> { emoji: [user ids] }
+  const urls = new Map();     // image path -> signed URL
   const member = (id) => family.find((f) => f.id === id);
   const avatar = (name) => FAMILY.find((f) => f.name === name)?.avatar;
+  const at = (m) => Date.parse(m.created_at);
+  const who = (m) => (m.is_claude ? 'Claude' : member(m.author)?.username || 'someone');
+  const nameIn = (id) => member(id)?.username || 'someone';
+  const tops = () => msgs.filter((m) => !m.reply_to);
+  const replies = (id) => msgs.filter((m) => m.reply_to === id);
+  const canDel = (m) => !m.is_claude && (m.author === ME.id || ME.role === 'parent');
 
-  function toast(text, bad) {
-    const t = $('toast'); t.textContent = text; t.className = bad ? 'bad' : ''; t.hidden = false;
-    clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 4000);
-  }
+  function toast(t) { const el = document.createElement('div'); el.className = 'ctoast'; el.textContent = t; document.body.append(el); setTimeout(() => el.remove(), 3200); }
+
+  // ---- view (the shared density: r4.density.<id>, the same picker as the home) ----
+  const DENSITY = [
+    { id: 'play', name: 'Play', em: '🧸', blurb: 'Big text and a quick emoji row' },
+    { id: 'explore', name: 'Explore', em: '🧭', blurb: 'Roomy, the main things' },
+    { id: 'pilot', name: 'Pilot', em: '✈️', blurb: 'Tight: more of the chat on screen' },
+    ...(ME.role === 'parent' ? [{ id: 'dev', name: 'Developer', em: '⌘', blurb: 'Pilot, plus per-message details and counts' }] : []),
+  ];
+  const dens = () => { try { const v = localStorage.getItem('r4.density.' + ME.id); if (DENSITY.some((d) => d.id === v)) return v; } catch {} return ME.role === 'parent' ? 'pilot' : 'explore'; };
+  function applyDensity() { const d = dens(); document.body.classList.remove('dens-play', 'dens-explore', 'dens-pilot', 'dens-dev'); document.body.classList.add('dens-' + d); if (d === 'dev') document.body.classList.add('dens-pilot'); }
 
   // ---- reading ----
   async function sign(paths) {
@@ -219,77 +120,181 @@
   async function load() {
     const [{ data: f }, { data: m }] = await Promise.all([
       family.length ? { data: family } : sb.rpc('r4_family'),
-      sb.from('chat_messages').select('*').order('id', { ascending: false }).limit(200),
+      sb.from('chat_messages').select('*').order('id', { ascending: false }).limit(400),
     ]);
     family = f || []; msgs = (m || []).reverse();
-    await Promise.all([sign(msgs.map((x) => x.image)), loadPolls()]);
+    await Promise.all([sign(msgs.map((x) => x.image)), loadPolls(), loadReacts(), loadTrip()]);
     render(true); seen(true);
   }
+  async function loadReacts() {
+    const ids = msgs.map((x) => x.id); reacts.clear();
+    if (!ids.length) return;
+    const { data } = await sb.from('chat_reactions').select('message, user_id, emoji').gte('message', ids[0]);
+    for (const r of data || []) addReact(r);
+  }
+  function addReact(r) { const o = reacts.get(r.message) || {}; (o[r.emoji] = o[r.emoji] || []).includes(r.user_id) || o[r.emoji].push(r.user_id); reacts.set(r.message, o); }
+  function dropReact(r) { const o = reacts.get(r.message); if (o && o[r.emoji]) o[r.emoji] = o[r.emoji].filter((u) => u !== r.user_id); }
 
-  // Trip polls shared into the chat, voted on right here (the same votes the trip page shows).
+  // Trip polls: the ones shared into the chat (voted on right here) and every open one (pinned).
   let polls = [], votes = [];
   async function loadPolls() {
     const ids = [...new Set(msgs.filter((x) => x.ref?.type === 'poll').map((x) => x.ref.id))];
-    if (!ids.length) { polls = []; votes = []; return; }
-    const [{ data: p }, { data: v }] = await Promise.all([sb.from('trip_polls').select('*').in('id', ids), sb.from('trip_poll_votes').select('poll, voter, choice').in('poll', ids)]);
-    polls = p || []; votes = v || [];
+    const { data: p } = await sb.from('trip_polls').select('*, trips(name)').or(`closed.eq.false${ids.length ? `,id.in.(${ids.join(',')})` : ''}`);
+    polls = p || [];
+    const { data: v } = polls.length ? await sb.from('trip_poll_votes').select('poll, voter, choice').in('poll', polls.map((x) => x.id)) : { data: [] };
+    votes = v || [];
   }
+  // The pinned trip: the next one that hasn't ended.
+  let trip = null;
+  async function loadTrip() {
+    const { data } = await sb.from('trips').select('id, name, place, starts, ends').or(`ends.gte.${new Date().toISOString().slice(0, 10)},ends.is.null`).order('starts', { ascending: true, nullsFirst: false }).limit(1);
+    trip = data?.[0] || null;
+  }
+
   // Where a card goes: the item itself (a shared item, a poll on an item, what Claude added), else the trip's Ideas or Chat.
   const tripUrl = (r) => {
     const item = r.type === 'item' ? r.id : r.type === 'poll' ? r.item : r.type === 'added' ? r.ids?.[0] : null;
     return `/trip.html?t=${encodeURIComponent(r.trip)}${item ? '&i=' + encodeURIComponent(item) : r.type === 'poll' ? '#chat' : '#ideas'}`;
   };
+  // A world opens for its owner and a parent (r4_world says the same).
+  const worldUrl = (kid) => (kid === ME.id || ME.role === 'parent' ? `/diary.html?kid=${encodeURIComponent(kid)}` : null);
   const initial = (id) => (member(id)?.username || '?')[0].toUpperCase();
+  const pollOf = (id) => polls.find((x) => x.id === id);
+  const votesOf = (id) => votes.filter((v) => v.poll === id);
+  const callIsLive = (m) => m && m.id === lastCallId() && callLive().length > 0;
+
   function refHTML(r, m) {
     if (r.type === 'call') {
-      const live = callLive(), latest = m && m.id === lastCallId();
-      return `<div class="rcall${latest && live.length ? ' live' : ''}"><span class="ri">📹</span><span><b>${r.to ? `Called ${esc(nameIn(r.to))}` : 'Video call'}</b><small>${latest && live.length ? `Live now · ${esc(live.map((x) => member(x.user)?.username || 'someone').join(', '))}` : 'Ended'}</small></span>${latest && live.length && !inCall ? '<button data-join>Join</button>' : ''}</div>`;
+      const live = callLive(), on = callIsLive(m);
+      return `<div class="rcall${on ? ' live' : ''}"><span class="ri">📹</span><span><b>${r.to ? `Called ${esc(nameIn(r.to))}` : 'Video call'}</b><small>${on ? `Live now · ${esc(live.map((x) => nameIn(x.user)).filter((v, k, a) => a.indexOf(v) === k).join(', '))}` : 'Ended'}</small></span>${on && !inCall ? '<button data-join>Join</button>' : ''}</div>`;
     }
     if (r.type === 'item') return `<a class="rcard" href="${esc(tripUrl(r))}">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="ri">📍</span>'}<span><small>${esc(r.trip_name)} ↗</small><b>${esc(r.title)}</b></span></a>`;
     if (r.type === 'added') return `<a class="rcard" href="${esc(tripUrl(r))}"><span class="ri">✦</span><span><small>Added to ${esc(r.trip_name)} ↗</small><ul>${(r.titles || []).map((t) => `<li>${esc(t)}</li>`).join('')}</ul></span></a>`;
     if (r.type === 'poll') {
-      const q = polls.find((x) => x.id === r.id);
+      const q = pollOf(r.id);
       if (!q) return `<a class="rcard" href="${esc(tripUrl(r))}"><span class="ri">📊</span><span><small>${esc(r.trip_name)} ↗</small><b>${esc(r.question)}</b></span></a>`;
-      const vs = votes.filter((v) => v.poll === q.id), mine = vs.find((v) => v.voter === ME.id)?.choice;
-      return `<div class="rpoll"><div class="q"><small>📊 Poll · ${esc(r.trip_name)}${q.closed ? ' · closed' : ''}</small>${esc(q.question)}</div>
-        ${q.options.map((o, k) => { const w = vs.filter((v) => v.choice === k), pct = vs.length ? Math.round((w.length / vs.length) * 100) : 0;
-          return `<button class="po${mine === k ? ' mine' : ''}" data-vote="${q.id}:${k}" ${q.closed ? 'disabled' : ''} aria-pressed="${mine === k}"><i style="width:${pct}%"></i><span>${mine === k ? '✓ ' : ''}${esc(o)}</span><span class="pn">${w.length ? `${w.length} · ${w.map((v) => initial(v.voter)).join(' ')}` : '0'}</span></button>`; }).join('')}
+      const vs = votesOf(q.id), mine = vs.find((v) => v.voter === ME.id)?.choice;
+      return `<div class="rpoll"><div class="q"><small>📊 Poll · ${esc(r.trip_name)}${q.closed ? ' · closed' : ''}</small>${esc(q.question)}</div>${q.options.map((o, k) => { const w = vs.filter((v) => v.choice === k), pct = vs.length ? Math.round((w.length / vs.length) * 100) : 0;
+        return `<button class="po${mine === k ? ' mine' : ''}" data-vote="${q.id}:${k}" ${q.closed ? 'disabled' : ''} aria-pressed="${mine === k}"><i style="width:${pct}%"></i><span>${mine === k ? '✓ ' : ''}${esc(o)}</span><span class="pn">${w.length ? `${w.length} · ${w.map((v) => initial(v.voter)).join(' ')}` : '0'}</span></button>`; }).join('')}
         <div class="pf"><span>${vs.length} voted</span><a href="${esc(tripUrl(r))}">Open in the trip ↗</a></div></div>`;
+    }
+    if (r.type === 'story') {
+      const u = worldUrl(r.who), tag = u ? 'a' : 'div';
+      return `<${tag} class="rstory"${u ? ` href="${esc(u)}"` : ''}><span class="ri">🌳</span><span><small>${esc(nameIn(r.who))} shared ${r.kind === 'entry' ? 'a journal entry' : 'a story'}${u ? ' ↗' : ''}</small><b>${esc(r.title || 'Untitled')}</b>${r.text ? `<em>${esc(r.text)}</em>` : ''}</span></${tag}>`;
     }
     return '';
   }
-  const day = (d) => d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
-  const time = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  // Links and @claude, in text that has already been escaped.
-  const rich = (t) => esc(t).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`)
-    .replace(/(^|[^\w@])(@claude)\b/gi, '$1<span class="at">$2</span>');
+  const flowerHTML = (r) => { const u = worldUrl(r.who), tag = u ? 'a' : 'span';
+    return `<${tag} class="flower"${u ? ` href="${esc(u)}" title="Open the world"` : ''}><i>✿</i>${r.grew === 'new' ? 'A flower sprouted' : 'Its flower grew ' + esc(r.grew || 'a petal')} in ${esc(nameIn(r.who))}’s world · ${esc(r.title)}</${tag}>`; };
 
+  // ---- attachments: a big preview the first time you see one, then a thumbnail ----
+  const MEDIA = ['poll', 'item', 'call', 'story', 'added'];
+  const isMedia = (m) => !!(m.image || (m.ref && MEDIA.includes(m.ref.type)));
+  const kindOf = (m) => (m.image ? 'photo' : ['item', 'added'].includes(m.ref.type) ? 'place' : m.ref.type);
+  // The words the server writes for a card ("📍 Taco stand", "🌳 Shared a story: …") aren't words someone said.
+  const auto = (m) => !!m.ref && (m.ref.type === 'call' || m.ref.type === 'story' || (['item', 'poll'].includes(m.ref.type) && /^(📍|📊) /.test(m.body || '')));
+  const words = (m) => (auto(m) ? '' : m.body || '');
+  const seenKey = 'r4.chat.seen.' + ME.id;
+  let seenSet = new Set(); try { seenSet = new Set(JSON.parse(localStorage.getItem(seenKey) || '[]')); } catch {}
+  const bigNow = new Set(), opened = new Set(), fullC = new Set();
+  const markSeen = (id) => { if (seenSet.has(id)) return; seenSet.add(id); bigNow.add(id); try { localStorage.setItem(seenKey, JSON.stringify([...seenSet].slice(-600))); } catch {} };
+  function thumb(m) {
+    const r = m.ref || {};
+    if (m.image) return urls.get(m.image) ? `<img src="${esc(urls.get(m.image))}" alt="">` : '📷';
+    return { poll: '📊', item: '📍', added: '✦', call: '📹', story: '🌳' }[r.type] || '◇';
+  }
+  function label(m) {
+    const r = m.ref || {};
+    if (m.image) return ['Photo', 'Photo · ' + who(m)];
+    if (r.type === 'item') return [r.title, 'Place · ' + (r.trip_name || '')];
+    if (r.type === 'added') return [(r.titles || []).join(', '), 'Added to ' + (r.trip_name || 'the trip')];
+    if (r.type === 'story') return [r.title || 'Untitled', (r.kind === 'entry' ? 'Journal entry' : 'Story') + ' · ' + nameIn(r.who)];
+    if (r.type === 'call') return [r.to ? 'Called ' + nameIn(r.to) : 'Video call', callIsLive(m) ? 'Live now' : 'Ended'];
+    if (r.type === 'poll') {
+      const q = pollOf(r.id); if (!q) return [r.question, 'Poll · ' + (r.trip_name || '')];
+      const vs = votesOf(q.id), c = q.options.map((_, k) => vs.filter((v) => v.choice === k).length), top = Math.max(0, ...c);
+      return [q.question, 'Poll · ' + vs.length + ' voted' + (top ? ' · ' + q.options[c.indexOf(top)] + ' leads' : '') + (!vs.some((v) => v.voter === ME.id) && !q.closed ? ' · you haven’t voted' : '')];
+    }
+    return ['', ''];
+  }
+  const miniHTML = (m, open, cls = 'mini') => { const [b, s] = label(m); return `<button class="${cls}" data-open="${m.id}"><span class="th">${thumb(m)}</span><span class="ml"><b>${esc(b)}</b><small>${esc(s)}</small></span><span class="ex">${open ? '⌃' : '⌄'}</span></button>`; };
+  function bigHTML(m) {
+    if (m.image) return `<img src="${esc(urls.get(m.image) || '')}" alt="Photo from ${esc(who(m))}" class="phimg" loading="lazy">`;
+    return refHTML(m.ref, m);
+  }
+  // Big: the first time, when opened, and a live call (its Join button).
+  const big = (m) => opened.has(m.id) || bigNow.has(m.id) || !seenSet.has(m.id) || callIsLive(m);
+  const io = new IntersectionObserver((es) => es.forEach((e) => { const id = +e.target.dataset.big; if (e.isIntersecting) e.target._t = setTimeout(() => { markSeen(id); io.unobserve(e.target); }, 900); else clearTimeout(e.target._t); }), { threshold: 0.6 });
+  const watchBig = (root) => root.querySelectorAll('[data-big]').forEach((el) => { if (!seenSet.has(+el.dataset.big)) io.observe(el); });
+
+  const time = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const dayLabel = (t) => { const d = new Date(t), td = new Date(), y = new Date(td); y.setDate(td.getDate() - 1); return d.toDateString() === td.toDateString() ? 'Today' : d.toDateString() === y.toDateString() ? 'Yesterday' : d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }); };
+  // Links and @claude (and a search's matches), in text that has already been escaped.
+  const rich = (t, q) => { let s = esc(t).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`).replace(/(^|[^\w@])(@claude)\b/gi, '$1<span class="at">$2</span>');
+    if (q) s = s.replace(new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark>$1</mark>'); return s; };
+  const avHTML = (m) => { const w = who(m), a = avatar(w); return m.is_claude ? '<span class="av claude">✦</span>' : a ? `<span class="av" title="Only ${esc(w)}"><img src="${a}" alt=""></span>` : `<span class="av" title="Only ${esc(w)}">${esc(w[0].toUpperCase())}</span>`; };
+  const reactsHTML = (m) => { const rs = Object.entries(reacts.get(m.id) || {}).filter(([, u]) => u.length);
+    return rs.length ? `<div class="reacts">${rs.map(([e, u]) => `<button data-react="${m.id}:${e}" class="${u.includes(ME.id) ? 'mine' : ''}" title="${esc(u.map(nameIn).join(', '))}">${e} ${u.length}</button>`).join('')}</div>` : ''; };
+  const thrHTML = (rs) => (rs.length ? `<button class="thr" data-thread="${rs[0].reply_to}">↳ ${rs.length} repl${rs.length === 1 ? 'y' : 'ies'} · ${esc(who(rs[rs.length - 1]))}</button>` : '');
+
+  function msgHTML(m, prev, next, opts = {}) {
+    const key = (x) => (x.is_claude ? 'claude' : x.author);
+    const near = (a, b) => a && b && key(a) === key(b) && Math.abs(at(a) - at(b)) < 5 * 60e3 && new Date(at(a)).toDateString() === new Date(at(b)).toDateString();
+    const first = !near(prev, m), last = !near(m, next), mine = m.author === ME.id && !m.is_claude;
+    const r = m.ref || {}, rs = opts.thread ? [] : replies(m.id), body = words(m);
+    const pc = 'p-' + (m.is_claude ? 'claude' : who(m));
+    const outside = isMedia(m) && !big(m);
+    const meta = `<span class="meta">#${m.id} · ${esc(m.created_at)}${m.asks_claude ? ' · asks' : ''}${r.type ? ' · ' + esc(r.type) : ''}${m.reply_to ? ' · in #' + m.reply_to : ''}</span>`;
+    const tx = body ? `<span class="tx">${rich(body, opts.q)}</span>${m.is_claude && body.length > 150 && !fullC.has(m.id) ? `<button class="more" data-more="${m.id}">More</button>` : ''}` : '';
+    // An attachment with no words: just the thumbnail, with who and when inside it.
+    if (outside && !body) {
+      const [lb, ls] = label(m), sm = (first && !mine ? who(m) + ' · ' : '') + ls.replace(' · ' + who(m), '') + (last ? ' · ' + time(at(m)) : '');
+      return `<div class="msg ${pc}${mine ? ' me' : ''}${first ? ' first' : ''}${last ? ' last' : ''} solo" data-id="${m.id}">${avHTML(m)}<div class="att" data-b="${m.id}"><button class="mini" data-open="${m.id}"><span class="th">${thumb(m)}</span><span class="ml"><b>${esc(lb)}</b><small>${esc(sm)}</small></span><span class="ex">⌄</span></button>${reactsHTML(m)}${thrHTML(rs)}</div></div>`;
+    }
+    const media = isMedia(m) && !outside ? `<div class="big" data-big="${m.id}">${bigHTML(m)}</div>` : '';
+    return `<div class="msg ${pc}${mine ? ' me' : ''}${m.is_claude ? ' claude' : ''}${fullC.has(m.id) ? ' full' : ''}${first ? ' first' : ''}${last ? ' last' : ''}" data-id="${m.id}"><span class="avc">${avHTML(m)}${last && !mine ? `<span class="tm">${time(at(m))}</span>` : ''}</span>
+      <div class="bub" data-b="${m.id}">${last && mine ? `<span class="tm">${time(at(m))}</span>` : ''}${first && !mine ? `<span class="who">${esc(who(m))}</span>` : ''}${m.image ? media : ''}${tx}${r.type && !m.image ? media : ''}${r.type === 'flower' ? flowerHTML(r) : ''}${outside && m.is_claude ? miniHTML(m, false) : ''}${reactsHTML(m)}${thrHTML(rs)}${meta}</div>${outside && !m.is_claude ? miniHTML(m, false, 'mini side') : ''}${isMedia(m) && !outside && seenSet.has(m.id) && !callIsLive(m) ? `<button class="shrinkg" data-shrink="${m.id}" aria-label="Make it small" title="Make it small">⤡</button>` : ''}</div>`;
+  }
+  function listHTML(list, opts) {
+    let out = '', lastDay = '';
+    list.forEach((m, i) => { const dk = new Date(at(m)).toDateString(); if (dk !== lastDay && !opts.thread) { out += `<div class="cday">${dayLabel(at(m))}</div>`; lastDay = dk; } out += msgHTML(m, list[i - 1], list[i + 1], opts); });
+    return out;
+  }
+
+  // ---- render ----
   function render(toBottom) {
     const log = $('log'), atEnd = toBottom || log.scrollHeight - log.scrollTop - log.clientHeight < 80;
-    if (!msgs.length) {
-      $('msgs').innerHTML = `<div class="empty"><b>Say hi 👋</b>Everyone in the family sees this chat.<br>Write @claude to bring Claude in.</div>`;
-    } else {
-      let out = '', lastDay = '';
-      msgs.forEach((m, i) => {
-        const d = new Date(m.created_at), dk = d.toDateString();
-        if (dk !== lastDay) { out += `<div class="day">${dk === new Date().toDateString() ? 'Today' : day(d)}</div>`; lastDay = dk; }
-        const key = (x) => (x.is_claude ? 'claude' : x.author);
-        const prev = msgs[i - 1], next = msgs[i + 1];
-        const near = (a, b) => a && b && key(a) === key(b) && Math.abs(new Date(a.created_at) - new Date(b.created_at)) < 5 * 60e3 && new Date(a.created_at).toDateString() === new Date(b.created_at).toDateString();
-        const first = !near(prev, m), last = !near(m, next);
-        const mine = m.author === ME.id && !m.is_claude, who = m.is_claude ? 'Claude' : member(m.author)?.username || 'someone';
-        const canDel = !m.is_claude && (mine || ME.role === 'parent');
-        const av = m.is_claude ? '<span class="av claude">✦</span>' : avatar(who) ? `<span class="av"><img src="${avatar(who)}" alt=""></span>` : `<span class="av">${esc(who[0].toUpperCase())}</span>`;
-        out += `<div class="msg${mine ? ' me' : ''}${m.is_claude ? ' claude' : ''}${canDel ? ' mine' : ''}${first ? ' first' : ''}${last ? ' last' : ''}" data-id="${m.id}">${av}
-          <div class="bub">${first && !mine ? `<span class="who">${esc(who)}</span>` : ''}${m.image ? `<img class="ph" src="${esc(urls.get(m.image) || '')}" alt="Photo from ${esc(who)}" loading="lazy">` : ''}${m.body && m.ref?.type !== 'call' && !(m.ref && ['item', 'poll'].includes(m.ref.type) && /^(📍|📊) /.test(m.body)) ? `<span class="tx">${rich(m.body)}</span>` : ''}${m.ref ? refHTML(m.ref, m) : ''}${last ? `<span class="tm">${time(d)}</span>` : ''}</div></div>`;
-      });
-      if (thinking) out += '<div class="think">✦ Claude is thinking…</div>';
-      $('msgs').innerHTML = out;
-    }
-    if (atEnd) log.scrollTop = log.scrollHeight;
+    let list = tops();
+    if (filter) list = list.filter((m) => m.author === filter || (m.is_claude && m.ref?.who === filter) || replies(m.id).some((r) => r.author === filter));
+    $('msgs').innerHTML = list.length ? listHTML(list, {}) + (thinking && !thinking.thread ? '<div class="think">✦ Claude is thinking…</div>' : '')
+      : msgs.length ? '<div class="empty">Nothing from them yet.</div>' : `<div class="empty"><b>Say hi 👋</b>Everyone in the family sees this chat.<br>Write @claude to bring Claude in.</div>`;
+    $('gfilt').hidden = !filter; if (filter) $('gfilt').innerHTML = `Only <b>${esc(nameIn(filter))}</b> · show everyone ✕`;
+    pins(); devStrip(); watchBig($('msgs'));
+    if (atEnd) { log.scrollTop = log.scrollHeight; requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; }); }
+    if (sub?.root) renderThread();
   }
   // Pictures load after the layout: keep the view pinned to the bottom when they do.
   $('msgs').addEventListener('load', (e) => { if (e.target.tagName === 'IMG') { const log = $('log'); if (log.scrollHeight - log.scrollTop - log.clientHeight < 400) log.scrollTop = log.scrollHeight; } }, true);
+
+  function pins() {
+    const open = polls.filter((p) => !p.closed);
+    const fmt = (d) => new Date(d + 'T12:00').toLocaleDateString([], { month: 'short', day: 'numeric' });
+    $('pins').innerHTML = (trip ? `<button class="pin" data-pin="trip"><span class="ri">🧳</span><span><small>📌 Trip ↗</small><b>${esc(trip.name)}</b><small style="color:var(--muted);font-weight:600">${[trip.starts ? fmt(trip.starts) + (trip.ends && trip.ends !== trip.starts ? '–' + fmt(trip.ends) : '') : '', trip.place].filter(Boolean).map(esc).join(' · ')}</small></span></button>` : '')
+      + open.map((p) => { const vs = votesOf(p.id), counts = p.options.map((_, k) => vs.filter((v) => v.choice === k).length), top = Math.max(...counts);
+        return `<button class="pin" data-pin="${p.id}"><span class="ri">📊</span><span><small>Poll · ${vs.length} voted${vs.some((v) => v.voter === ME.id) ? '' : ' · vote'}</small><b>${esc(p.question)}</b><span class="bars">${counts.map((c) => `<i class="${c === top && c ? 'lead' : ''}" style="width:${8 + c * 14}px"></i>`).join('')}</span></span></button>`; }).join('')
+      || '<p style="margin:4px;color:var(--faint);font-size:12.5px">Nothing pinned: no trip coming up, no open polls.</p>';
+    const todo = open.filter((p) => !votesOf(p.id).some((v) => v.voter === ME.id)).length;
+    $('pinsn').hidden = !todo; $('pinsn').textContent = todo;
+  }
+  function devStrip() {
+    if (dens() !== 'dev') { $('devs').innerHTML = ''; return; }
+    const rx = [...reacts.values()].reduce((s, o) => s + Object.values(o).reduce((a, u) => a + u.length, 0), 0), att = msgs.filter(isMedia), sn = att.filter((m) => seenSet.has(m.id)).length;
+    const cell = (v, l, c) => `<span class="dc"><b${c ? ` style="color:${c}"` : ''}>${v}</b><small>${l}</small></span>`;
+    $('devs').innerHTML = `<div class="dstats">${cell(msgs.length, 'msgs')}${cell(msgs.filter((m) => m.asks_claude).length, 'asks', '#F5C542')}${cell(msgs.filter((m) => m.ref?.type === 'flower').length, 'flowers', '#B9A6FF')}${cell(rx, 'reacts')}${cell(msgs.filter((m) => m.reply_to).length, 'replies', '#3DD6C6')}${cell(sn + '/' + att.length, 'seen')}</div><div class="dacts"><button id="dexp" title="Download the loaded chat as JSON">⇩ json</button><button id="dseen" title="Show big previews again">◌ seen</button></div>`;
+    $('dexp').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ messages: msgs, reactions: Object.fromEntries(reacts) }, null, 2)], { type: 'application/json' })); a.download = 'family-chat.json'; a.click(); };
+    $('dseen').onclick = () => { try { localStorage.removeItem(seenKey); } catch {} seenSet = new Set(); bigNow.clear(); opened.clear(); render(false); };
+  }
+  function composer() { $('left').textContent = ME.role !== 'parent' && left != null ? `${Math.max(0, left)} Claude asks left today` : 'Write @claude to ask Claude'; }
 
   // ---- live ----
   sb.channel('family-chat')
@@ -300,13 +305,15 @@
       if (m.ref?.type === 'poll') await loadPolls();
       if (m.is_claude && thinking) { thinking = 0; clearTimeout(thinkTimer); }
       if (m.ref?.type === 'call' && m.author !== ME.id && !inCall && (!m.ref.to || m.ref.to === ME.id)) ring(m.author);
-      render(m.author === ME.id); seen(true);
+      render(m.author === ME.id && !m.reply_to); seen(true);
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, ({ old }) => {
-      msgs = msgs.filter((x) => x.id !== old.id); render(false);
+      msgs = msgs.filter((x) => x.id !== old.id && x.reply_to !== old.id); render(false);
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_poll_votes' }, () => { if (polls.length) loadPolls().then(() => render(false)); })
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trip_polls' }, () => { if (polls.length) loadPolls().then(() => render(false)); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_reactions' }, ({ new: r }) => { addReact(r); render(false); })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_reactions' }, ({ old }) => { if (old.emoji) { dropReact(old); render(false); } else loadReacts().then(() => render(false)); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_poll_votes' }, () => loadPolls().then(() => render(false)))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_polls' }, () => loadPolls().then(() => render(false)))
     .subscribe((st) => { if (st === 'SUBSCRIBED' && family.length) load(); });   // caught up after a reconnect
 
   // Read marker and "looking at it now" (so nobody is pushed for a chat they are reading).
@@ -319,13 +326,48 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 
   // ---- writing ----
+  let thinkTimer = 0, sending = false, photo = null;   // photo: { blob, url }
+  async function post(payload) {
+    const { data: { session: s } } = await sb.auth.getSession();
+    const r = await fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Couldn't send. Try again.");
+    return j;
+  }
+  // Sends text (and the photo waiting in the composer, unless it's a thread reply). true when it went.
+  async function send(body, opts = {}) {
+    body = String(body || '').trim();
+    const pic = opts.reply ? null : photo;
+    if ((!body && !pic) || sending) return false;
+    sending = true; $('go').disabled = true;
+    try {
+      let image = null;
+      if (pic) {
+        image = `${ME.id}/${crypto.randomUUID()}.jpg`;
+        const { error } = await sb.storage.from('family-chat').upload(image, pic.blob, { contentType: 'image/jpeg' });
+        if (error) throw new Error("The photo didn't upload. Try again.");
+      }
+      const j = await post({ text: body, image, reply: opts.reply ?? null });
+      if (pic) $('unphoto').click();
+      if (j.claude === 'asked') {
+        thinking = { id: j.id, thread: opts.reply ?? null }; render(!opts.reply);
+        clearTimeout(thinkTimer); thinkTimer = setTimeout(() => { thinking = 0; render(false); }, 90000);
+      } else if (j.claude === 'closed') toast("Claude isn't open right now: your message went to the family.");
+      else if (j.claude === 'limit') toast("That's all the Claude questions for today: your message went to the family.");
+      if (j.left != null) { left = j.left; composer(); }
+      // Live updates normally bring it in; if they are slow, fetch it.
+      setTimeout(() => { if (!msgs.some((x) => x.id === j.id)) load(); }, 2500);
+      return true;
+    } catch (err) { toast(err.message); return false; }
+    finally { sending = false; $('go').disabled = false; }
+  }
   const text = $('text');
-  const grow = () => { text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight, 140) + 'px'; };
-  text.addEventListener('input', grow);
+  const grow = (t) => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 130) + 'px'; };
+  text.addEventListener('input', () => grow(text));
   text.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(pointer: fine)').matches) { e.preventDefault(); $('send').requestSubmit(); } });
-  $('atclaude').onclick = () => { if (!/@claude\b/i.test(text.value)) text.value = '@claude ' + text.value.trimStart(); text.focus(); grow(); };
-
-  let photo = null;   // { blob, url }
+  $('send').onsubmit = async (e) => { e.preventDefault(); if (await send(text.value)) { text.value = ''; grow(text); } text.focus(); };
+  $('atclaude').onclick = () => { if (!/@claude\b/i.test(text.value)) text.value = '@claude ' + text.value.trimStart(); text.focus(); grow(text); };
+  $('quick').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send(b.textContent); });
   $('photo').onclick = () => $('file').click();
   $('file').onchange = async () => {
     const f = $('file').files[0]; $('file').value = '';
@@ -340,68 +382,153 @@
       if (photo) URL.revokeObjectURL(photo.url);
       photo = { blob, url: URL.createObjectURL(blob) };
       $('previewimg').src = photo.url; $('preview').hidden = false;
-    } catch { toast("That photo couldn't be opened.", true); }
+    } catch { toast("That photo couldn't be opened."); }
   };
   $('unphoto').onclick = () => { if (photo) URL.revokeObjectURL(photo.url); photo = null; $('preview').hidden = true; };
 
-  let thinkTimer = 0, sending = false;
-  $('send').onsubmit = async (e) => {
-    e.preventDefault();
-    const body = text.value.trim();
-    if ((!body && !photo) || sending) return;
-    sending = true; $('go').disabled = true;
-    try {
-      let image = null;
-      if (photo) {
-        image = `${ME.id}/${crypto.randomUUID()}.jpg`;
-        const { error } = await sb.storage.from('family-chat').upload(image, photo.blob, { contentType: 'image/jpeg' });
-        if (error) throw new Error("The photo didn't upload. Try again.");
-      }
-      const { data: { session: s } } = await sb.auth.getSession();
-      const r = await fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ text: body, image }) });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || "Couldn't send. Try again.");
-      text.value = ''; grow(); $('unphoto').click();
-      if (j.claude === 'asked') {
-        thinking = j.id; render(true);
-        clearTimeout(thinkTimer); thinkTimer = setTimeout(() => { thinking = 0; render(false); }, 90000);
-        if (j.left != null && j.left < 10) toast(`${j.left} Claude questions left today`);
-      } else if (j.claude === 'closed') toast("Claude isn't open right now: your message went to the family.");
-      else if (j.claude === 'limit') toast("That's all the Claude questions for today: your message went to the family.");
-      // Live updates normally bring it in; if they are slow, fetch it.
-      setTimeout(() => { if (!msgs.some((x) => x.id === j.id)) load(); }, 2500);
-    } catch (err) { toast(err.message, true); }
-    sending = false; $('go').disabled = false; text.focus();
-  };
-
-  // ---- photos full size, deleting ----
+  // ---- bubble actions: react, reply, make small, delete ----
+  function closeActs() { document.querySelector('.acts')?.remove(); }
+  function openActs(id, el) {
+    closeActs(); const m = msgs.find((x) => x.id === id); if (!m) return;
+    const a = document.createElement('div'); a.className = 'acts';
+    a.innerHTML = REACT.map((e) => `<button data-r="${e}" aria-label="React ${e}">${e}</button>`).join('') + (isMedia(m) && seenSet.has(m.id) && (opened.has(m.id) || bigNow.has(m.id)) ? '<button class="t" data-a="small">Make small</button>' : '') + (m.reply_to ? '' : '<button class="t" data-a="reply">Reply</button>') + (canDel(m) ? '<button class="t bad" data-a="del">Delete</button>' : '');
+    document.body.append(a);
+    const r = el.getBoundingClientRect(), w = a.offsetWidth;
+    a.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px'; a.style.top = Math.max(8, r.top - a.offsetHeight - 6) + 'px';
+    a.onclick = (e) => { e.stopPropagation(); const b = e.target.closest('button'); if (!b) return; closeActs();
+      if (b.dataset.r) return react(id, b.dataset.r);
+      if (b.dataset.a === 'small') { opened.delete(id); bigNow.delete(id); return render(false); }
+      if (b.dataset.a === 'reply') return openThread(id);
+      if (b.dataset.a === 'del') return askDelete(id); };
+    setTimeout(() => document.addEventListener('click', closeActs, { once: true }), 0);
+  }
+  async function react(id, e) {
+    const mine = (reacts.get(id)?.[e] || []).includes(ME.id), row = { message: id, user_id: ME.id, emoji: e };
+    mine ? dropReact(row) : addReact(row); render(false);
+    const { error } = mine ? await sb.from('chat_reactions').delete().match(row) : await sb.from('chat_reactions').insert(row);
+    if (error && !/duplicate/.test(error.message)) { toast("Couldn't react: " + error.message); mine ? addReact(row) : dropReact(row); render(false); }
+  }
   let delId = null;
-  $('msgs').addEventListener('click', async (e) => {
-    const vb = e.target.closest('[data-vote]');
-    if (vb) {
-      const [pid, n] = vb.dataset.vote.split(':').map(Number), mine = votes.find((v) => v.poll === pid && v.voter === ME.id);
-      const { error } = mine && mine.choice === n ? await sb.from('trip_poll_votes').delete().eq('poll', pid).eq('voter', ME.id)
-        : await sb.from('trip_poll_votes').upsert({ poll: pid, voter: ME.id, choice: n });
-      if (error) toast('Could not vote: ' + error.message, true); else { await loadPolls(); render(false); }
-      return;
-    }
-    if (e.target.closest('[data-join]')) { joinCall(); return; }
-    if (e.target.closest('.rcard, .rpoll, .rcall')) return;
-    const ph = e.target.closest('img.ph');
-    if (ph) { $('viewimg').src = ph.src; $('viewer').hidden = false; return; }
-    const m = e.target.closest('.msg.mine');
-    if (m && !e.target.closest('a')) { delId = +m.dataset.id; $('del').showModal(); }
-  });
-  $('viewer').onclick = () => { $('viewer').hidden = true; };
+  function askDelete(id) { delId = id; $('del').showModal(); }
   $('delno').onclick = () => $('del').close();
   $('delyes').onclick = async () => {
     $('del').close();
     const m = msgs.find((x) => x.id === delId);
     const { error } = await sb.from('chat_messages').delete().eq('id', delId);
-    if (error) { toast("Couldn't delete it.", true); return; }
+    if (error) { toast("Couldn't delete it."); return; }
     if (m?.image && m.author === ME.id) sb.storage.from('family-chat').remove([m.image]);
-    msgs = msgs.filter((x) => x.id !== delId); render(false);
+    msgs = msgs.filter((x) => x.id !== delId && x.reply_to !== delId); render(false); toast('Deleted for everyone.');
   };
+
+  // ---- threads (their own page) ----
+  function openThread(id) {
+    closeSub(true);
+    const pg = document.createElement('section'); pg.className = 'subpage thread';
+    pg.innerHTML = `<header><button class="sb" aria-label="Back">‹</button><span><b>Thread</b><small id="tsum"></small></span></header><div class="subb"><div class="tlog" id="tlog"></div><div class="comp"><form id="tsend"><textarea id="ttext" rows="1" placeholder="Reply…" maxlength="4000" aria-label="Reply"></textarea><button class="ibtn send" aria-label="Send">↑</button></form></div></div>`;
+    $('app').append(pg); sub = { pg, root: id }; history.pushState({ sub: 1 }, '');
+    pg.querySelector('.sb').onclick = () => history.back();
+    const t = $('ttext');
+    t.addEventListener('input', () => grow(t));
+    $('tsend').onsubmit = async (e) => { e.preventDefault(); if (await send(t.value, { reply: id })) { t.value = ''; grow(t); } };
+    t.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(pointer: fine)').matches) { e.preventDefault(); $('tsend').requestSubmit(); } };
+    renderThread(); setTimeout(() => t.focus(), 50);
+  }
+  function renderThread() {
+    const root = msgs.find((m) => m.id === sub.root); if (!root) return closeSub();
+    const rs = replies(root.id);
+    $('tsum').textContent = `${rs.length} repl${rs.length === 1 ? 'y' : 'ies'} · started by ${who(root)}`;
+    $('tlog').innerHTML = `<div class="troot">${msgHTML(root, null, null, { thread: true })}</div>` + listHTML(rs, { thread: true }) + (thinking && thinking.thread === root.id ? '<div class="think">✦ Claude is thinking…</div>' : '');
+    watchBig($('tlog'));
+    sub.pg.scrollTop = sub.pg.scrollHeight;
+  }
+  function closeSub(silent) { if (!sub) return; sub.pg.remove(); sub = null; if (!silent) render(false); }
+  addEventListener('popstate', () => closeSub());
+
+  // ---- search: the chat and everything attached, in one place ----
+  const KINDS = [['all', 'All'], ['poll', 'Polls'], ['photo', 'Photos'], ['place', 'Places'], ['call', 'Calls'], ['story', 'Stories']];
+  function openSearch() {
+    closeSub(true);
+    const o = document.createElement('div'); o.className = 'csearch';
+    o.innerHTML = '<div class="bar"><input id="sq" placeholder="Search the chat, polls, photos…" autocomplete="off"><button id="sx">Cancel</button></div><div class="mtabs" id="stabs"></div><div class="res" id="sres"></div>';
+    $('app').append(o); const q = $('sq'); let k = 'all'; q.focus();
+    $('sx').onclick = () => o.remove();
+    const textOf = (m) => [words(m), who(m), m.ref && (m.ref.title || m.ref.question || m.ref.text || m.ref.trip_name), m.ref?.titles?.join(' '), m.ref?.type === 'poll' && pollOf(m.ref.id)?.options.join(' ')].filter(Boolean).join(' ');
+    const paint = () => {
+      const s = q.value.trim().toLowerCase(), att = msgs.filter(isMedia);
+      const hitsOf = (list) => (s ? list.filter((m) => textOf(m).toLowerCase().includes(s)) : list).sort((x, y) => y.id - x.id);
+      $('stabs').innerHTML = KINDS.map(([id, l]) => { const n = id === 'all' ? (s ? hitsOf(msgs).length : att.length) : hitsOf(att.filter((m) => kindOf(m) === id)).length; return n || id === 'all' || id === k ? `<button data-k="${id}" class="${id === k ? 'on' : ''}">${id === 'all' && !s ? 'Attached' : l} <small>${n}</small></button>` : ''; }).join('');
+      const list = k === 'all' ? hitsOf(s ? msgs : att) : hitsOf(att.filter((m) => kindOf(m) === k));
+      $('sres').innerHTML = list.length ? list.slice(0, 60).map((m) => isMedia(m) && !words(m)
+        ? (() => { const [b, sm] = label(m); return `<button class="mini wide" data-go="${m.id}"><span class="th">${thumb(m)}</span><span class="ml"><b>${s ? rich(b, s) : esc(b)}</b><small>${esc(sm)} · ${esc(dayLabel(at(m)))}</small></span><span class="ex">›</span></button>`; })()
+        : `<button data-go="${m.id}"><small>${esc(who(m))} · ${esc(dayLabel(at(m)))} ${time(at(m))}${m.reply_to ? ' · in a thread' : ''}</small><span>${rich(textOf(m).slice(0, 180), s)}</span></button>`).join('')
+        : `<p class="hintq">${s ? 'Nothing matches “' + esc(q.value) + '”.' : 'Nothing attached here yet.'}</p>`;
+      $('stabs').querySelectorAll('[data-k]').forEach((b) => (b.onclick = () => { k = b.dataset.k; paint(); }));
+      $('sres').querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => { const id = +b.dataset.go; o.remove(); if (isMedia(msgs.find((x) => x.id === id) || {})) opened.add(id); jump(id); }));
+    };
+    q.oninput = paint; paint();
+  }
+  function jump(id) {
+    const m = msgs.find((x) => x.id === id); if (!m) return;
+    if (m.reply_to) return openThread(m.reply_to);
+    filter = null; render(false);
+    const el = document.querySelector(`#msgs [data-id="${id}"]`); if (!el) return;
+    const log = $('log'); log.scrollTop += el.getBoundingClientRect().top - log.getBoundingClientRect().top - log.clientHeight / 2 + el.offsetHeight / 2;
+    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1500);
+  }
+
+  // ---- taps in the log and the thread ----
+  async function vote(v) {
+    const [pid, n] = v.dataset.vote.split(':').map(Number), mine = votes.find((x) => x.poll === pid && x.voter === ME.id);
+    const { error } = mine && mine.choice === n ? await sb.from('trip_poll_votes').delete().eq('poll', pid).eq('voter', ME.id)
+      : await sb.from('trip_poll_votes').upsert({ poll: pid, voter: ME.id, choice: n });
+    if (error) toast('Could not vote: ' + error.message); else { await loadPolls(); render(false); }
+  }
+  function tap(e) {
+    const t = e.target;
+    const v = t.closest('[data-vote]'); if (v) { e.stopPropagation(); vote(v); return; }
+    if (t.closest('[data-join]')) { e.stopPropagation(); joinCall(); return; }
+    const rx = t.closest('[data-react]'); if (rx) { e.stopPropagation(); const [id, em] = rx.dataset.react.split(':'); react(+id, em); return; }
+    const th = t.closest('[data-thread]'); if (th) { e.stopPropagation(); openThread(+th.dataset.thread); return; }
+    const mo = t.closest('[data-more]'); if (mo) { e.stopPropagation(); fullC.add(+mo.dataset.more); render(false); return; }
+    const o = t.closest('[data-open]'); if (o) { e.stopPropagation(); const id = +o.dataset.open; opened.has(id) ? opened.delete(id) : opened.add(id); render(false); return; }
+    const sh = t.closest('[data-shrink]'); if (sh) { e.stopPropagation(); const id = +sh.dataset.shrink; opened.delete(id); bigNow.delete(id); markSeen(id); bigNow.delete(id); render(false); return; }
+    const ph = t.closest('img.phimg'); if (ph) { e.stopPropagation(); $('viewimg').src = ph.src; $('viewer').hidden = false; return; }
+    if (t.closest('a, .rpoll, .rcall')) return;
+    const av = t.closest('.av'); if (av && !t.closest('.thread')) { e.stopPropagation(); const m = msgs.find((x) => x.id === +av.closest('.msg').dataset.id); if (m && !m.is_claude) { filter = filter === m.author ? null : m.author; render(true); } return; }
+    const b = t.closest('[data-b]'); if (b) { e.stopPropagation(); openActs(+b.dataset.b, b); }
+  }
+  $('msgs').addEventListener('click', tap);
+  $('app').addEventListener('click', (e) => { if (e.target.closest('.thread .tlog')) tap(e); });
+  $('viewer').onclick = () => { $('viewer').hidden = true; };
+  $('gfilt').onclick = () => { filter = null; render(true); };
+
+  // ---- pinned: the trip and its open polls, behind 📌 ----
+  const pinsOpen = (on) => { $('pins').classList.toggle('open', on); $('pinsbtn').setAttribute('aria-expanded', on); $('pinsbtn').classList.toggle('on', on); };
+  $('pinsbtn').onclick = (e) => { e.stopPropagation(); const on = !$('pins').classList.contains('open'); pinsOpen(on); if (on) setTimeout(() => document.addEventListener('click', function off(ev) { if (!ev.target.closest('#pins')) { pinsOpen(false); document.removeEventListener('click', off); } }), 0); };
+  $('pins').addEventListener('click', (e) => { const p = e.target.closest('[data-pin]'); if (!p) return; pinsOpen(false);
+    if (p.dataset.pin === 'trip') { location.href = '/trip.html?t=' + encodeURIComponent(trip.id); return; }
+    const m = [...msgs].reverse().find((x) => x.ref?.type === 'poll' && x.ref.id === +p.dataset.pin);
+    if (m) jump(m.id); else { const q = pollOf(+p.dataset.pin); location.href = `/trip.html?t=${encodeURIComponent(q.trip)}#chat`; } });
+  $('srch').onclick = () => openSearch();
+
+  // ---- settings: the view, and alerts ----
+  function openSettings() {
+    closeSub(true);
+    const pg = document.createElement('section'); pg.className = 'subpage settingsp';
+    pg.innerHTML = '<header><button class="sb" aria-label="Back">‹</button><span><b>Settings</b><small>View · alerts</small></span></header><div class="subb" id="sbody"></div>';
+    $('app').append(pg); sub = { pg }; history.pushState({ sub: 1 }, '');
+    pg.querySelector('.sb').onclick = () => history.back();
+    paintSettings();
+  }
+  async function paintSettings() {
+    const el = $('sbody'); if (!el) return;
+    const d = dens(), al = await alertsState();
+    el.innerHTML = `<h3 class="k">View</h3><div class="vset">${DENSITY.map((x) => `<button class="vopt${x.id === d ? ' on' : ''}" data-view="${x.id}" aria-pressed="${x.id === d}"><span class="em">${x.em}</span><b>${x.name}</b><em>${x.blurb}</em></button>`).join('')}</div><p class="note" style="margin:6px 0 0">The same view as your home page.</p>
+      <h3 class="k">Chat</h3><section class="sset"><div class="srow alertsrow"><div><b>Alerts</b><small>${al.why}</small></div>${al.can ? `<button class="tog${al.on ? ' on' : ''}" id="alTog" role="switch" aria-checked="${al.on}"${al.on ? ' disabled' : ''}><i></i></button>` : ''}</div></section>`;
+    el.querySelectorAll('[data-view]').forEach((b) => (b.onclick = () => { try { localStorage.setItem('r4.density.' + ME.id, b.dataset.view); } catch {} applyDensity(); render(false); paintSettings(); }));
+    $('alTog')?.addEventListener('click', async () => { await turnOnAlerts(); paintSettings(); });
+  }
+  $('gear').onclick = openSettings;
 
   // ---- video calls ----
   // Browsers connect straight to each other (WebRTC), each to each (fine up to about 4).
@@ -430,7 +557,6 @@
   const room = () => Object.entries(callCh.presenceState()).map(([peer, v]) => ({ peer, user: v[0]?.user })).filter((x) => x.user);
   const callLive = () => room().filter((x) => x.peer !== PEER);
   const lastCallId = () => [...msgs].reverse().find((x) => x.ref?.type === 'call')?.id;
-  const nameIn = (id) => member(id)?.username || 'someone';
   callCh.on('presence', { event: 'sync' }, syncCall)
     .on('broadcast', { event: 'sig' }, ({ payload }) => { if (payload.to === PEER || payload.to === '*') onSignal(payload); })
     .subscribe(onCallState);
@@ -642,38 +768,44 @@
     for (const ms of [1500, 4000]) setTimeout(() => ring([...msgs].reverse().find((x) => x.ref?.type === 'call')?.author), ms);
   }
 
+  // The call shrinks to the chat (⌄) and comes back from 📹.
+  $('callmin').onclick = () => { $('call').hidden = true; $('callbtn').classList.add('incall'); };
+  const startTap = $('callbtn').onclick;
+  $('callbtn').onclick = (e) => { if (inCall) { $('call').hidden = false; $('callbtn').classList.remove('incall'); return; } startTap(e); };
+  $('hang').addEventListener('click', () => $('callbtn').classList.remove('incall'));
+
   // ---- alerts: a push for new messages when the chat isn't open ----
   const b64 = (s) => Uint8Array.from(atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
   async function alertsState() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       // iPhone: push only reaches a web app added to the Home Screen.
-      if (/iPhone|iPad/.test(navigator.userAgent) && !navigator.standalone) { $('alerts').hidden = false; $('alerts').dataset.ios = '1'; }
-      return;
+      return { can: false, on: false, why: /iPhone|iPad/.test(navigator.userAgent) ? 'On iPhone: Share → Add to Home Screen, open r4box from there, then turn alerts on here.' : 'This browser can’t show alerts.' };
     }
     const reg = await navigator.serviceWorker.getRegistration('/');
     const sub = reg && Notification.permission === 'granted' ? await reg.pushManager.getSubscription() : null;
-    $('alerts').hidden = false;
-    $('alerts').classList.toggle('on', !!sub);
-    $('alerts').innerHTML = sub ? '🔔<span class="lbl"> Alerts on</span>' : '🔔<span class="lbl"> Turn on alerts</span>';
-    $('alerts').setAttribute('aria-label', sub ? 'Alerts on' : 'Turn on alerts');
+    if (Notification.permission === 'denied') return { can: false, on: false, why: 'Alerts are blocked for r4box in this browser’s settings.' };
+    return { can: true, on: !!sub, why: sub ? 'On: a notification when someone writes and you’re not looking at the chat.' : 'A notification when someone writes and you’re not looking at the chat.' };
   }
-  $('alerts').onclick = async () => {
-    if ($('alerts').dataset.ios) { toast('On iPhone: Share → Add to Home Screen, open r4box from there, then turn on alerts.'); return; }
-    if ($('alerts').classList.contains('on')) return;
+  async function turnOnAlerts() {
     try {
-      if (await Notification.requestPermission() !== 'granted') { toast('Alerts are blocked for r4box in this browser’s settings.', true); return; }
+      if (await Notification.requestPermission() !== 'granted') { toast('Alerts are blocked for r4box in this browser’s settings.'); return; }
       const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
-      const j = sub.toJSON();
+      const s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
+      const j = s.toJSON();
       const { error } = await sb.from('push_subscriptions').upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
       if (error) throw error;
       toast('Alerts on: you’ll get a notification for new messages.');
-    } catch (err) { toast("Couldn't turn on alerts: " + (err.message || err), true); }
-    alertsState();
-  };
+    } catch (err) { toast("Couldn't turn on alerts: " + (err.message || err)); }
+  }
+  // Alerts off on this device: the gear says so once, with a dot.
+  alertsState().then((a) => { if (a.can && !a.on) $('gear').insertAdjacentHTML('beforeend', '<i class="badge" style="position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:99px;background:var(--hot)"></i>'); }).catch(() => {});
+  $('gear').style.position = 'relative';
 
-  if (session) { load(); alertsState(); text.focus({ preventScroll: true }); }
+  // From the home's ✦ Start Claude: the words wait in the composer as an @claude question.
+  try { const d = sessionStorage.getItem('r4.claude.draft'); if (d) { sessionStorage.removeItem('r4.claude.draft'); text.value = '@claude ' + d; grow(text); setTimeout(() => text.focus(), 0); } } catch {}
+  applyDensity();
+  if (session) { load(); if (matchMedia('(pointer: fine)').matches) text.focus({ preventScroll: true }); }
 </script>
 </body>
 </html>

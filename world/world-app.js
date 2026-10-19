@@ -321,7 +321,7 @@
     if ($('playSeed')) $('playSeed').onclick = () => { full(true); planting(true); };
     $('body').querySelectorAll('[data-ctxt]').forEach((b) => (b.onclick = () => { const s = b.parentElement, on = !s.classList.contains('open'); s.classList.toggle('open', on); b.setAttribute('aria-expanded', on); }));
     wireJournal(p, p.entries, tById, events);
-    $('body').querySelectorAll('[data-seed]').forEach((b) => (b.onclick = () => { const s = seeds.find((x) => x.id === b.dataset.seed); full(true); pickWorld(p, { seed: s, obj: { hit: { x: s.x, y: s.y - 14 } } }); }));
+    $('body').querySelectorAll('[data-seed]').forEach((b) => (b.onclick = () => { const s = seeds.find((x) => x.id === b.dataset.seed); full(true); pickWorld(p, s.x == null ? { seed: s } : { seed: s, obj: { hit: { x: s.x, y: s.y - 14 } } }); }));
     if ($('addSeed')) $('addSeed').onclick = () => { full(true); planting(true); };
   }
 
@@ -359,7 +359,7 @@
       return;
     }
     if (h.seed) {
-      live.focus(h);
+      if (h.obj) live.focus(h);
       const s = h.seed, [em, word, grows] = kindWord[s.kind];
       $('pick').hidden = false;
       $('pick').innerHTML = `<h2>🌱 ${esc(s.title)} <small>${em} ${word} · planted ${esc(short(s.day))}</small></h2><p>Waiting for its first moment. When you start on it, it ${grows}.</p><div class="row"><button class="ghost" id="dig">Dig it up</button></div>`;
