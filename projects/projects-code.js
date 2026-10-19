@@ -31,13 +31,20 @@
   const dirty = () => draft && Object.keys(draft).some((k) => draft[k] !== (head().files[k] ?? null)) || (draft && Object.keys(head().files).some((k) => !(k in draft)));
   // the preview opens as its own panel: big, with its own run button and the console under it
   let panel = null;
-  function run() { logs = []; paintConsole(); const doc = PR.codeDoc(draft || head().files); if (panel) { $('pv2').srcdoc = doc; $('pv').srcdoc = ''; } else $('pv').srcdoc = doc; }
+  function run() { logs = []; paintConsole(); const doc = PR.codeDoc(draft || head().files); if (panel) { $('pv2').srcdoc = X.withShot(doc); $('pv').srcdoc = ''; } else $('pv').srcdoc = doc; }
   function openPanel() {
     panel = document.createElement('section'); panel.className = 'pvpanel'; panel.setAttribute('aria-label', 'Preview');
-    panel.innerHTML = `<header><button class="sb" id="pclose" aria-label="Back to the code">‹</button><span><b>${esc(p.name)}</b><small>v${head().v}${dirty() ? ' · unsaved changes' : ''}</small></span><span class="grow"></span><button class="bb" id="prun" title="Run again">▶</button><button class="bb" id="pphone" aria-label="Test on phone">📱</button></header><iframe id="pv2" title="Preview" sandbox="allow-scripts allow-modals"></iframe><div class="cons big" id="cons"></div>`;
+    panel.innerHTML = `<header><button class="sb" id="pclose" aria-label="Back to the code">‹</button><span><b>${esc(p.name)}</b><small>v${head().v}${dirty() ? ' · unsaved changes' : ''}</small></span><span class="grow"></span>${X.canEdit(p) ? '<button class="bb" id="pmk" title="Mark it up and ask Claude">✏️ Mark</button>' : ''}<button class="bb" id="prun" title="Run again">▶</button><button class="bb" id="pphone" aria-label="Test on phone">📱</button></header><iframe id="pv2" title="Preview" sandbox="allow-scripts allow-modals"></iframe><div class="cons big" id="cons"></div>`;
     $('app').append(panel); $('cons') && null;
     document.querySelectorAll('.codebench .cons').forEach((c) => (c.id = 'cons-inline'));
-    $('pclose').onclick = closePanel; $('prun').onclick = run; $('pphone').onclick = () => X.phoneTest(p);
+    $('pclose').onclick = closePanel; $('prun').onclick = run;
+    const mk = $('pmk'); if (mk) mk.onclick = () => { if (panel.querySelector('.mk')) return panel.querySelector('[data-mk=off]').click(); mk.classList.add('on');
+      X.markUp(panel, $('pv2'), async (text, image) => {
+        const r = await X.claude(p, text, dirty() ? draft : null, logs, image);
+        ask.push({ me: true, t: '✏️ ' + text }, { t: r.say, ok: !!r.files });
+        if (r.files) { commit(r.note, r.files, X.viewer().id); run(); }
+        return r.say + (r.files ? ' (v' + head().v + ')' : '');
+      }); }; $('pphone').onclick = () => X.phoneTest(p);
     history.pushState({ pv: 1 }, ''); run(); X.sw('prev', () => closePanel(), null, true);
   }
   function closePanel(fromPop) {

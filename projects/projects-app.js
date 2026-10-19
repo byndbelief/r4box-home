@@ -30,7 +30,7 @@
   const BUILDER = [['maker', '🧩 Maker', 'Kits, Claude and parts. Tools unlock as the project grows.'], ['developer', '⌨ Developer', 'Everything in Maker, plus code projects: real files, a console, commits and diffs.']];
   const builderOf = (u) => { try { const b = localStorage.getItem('r4.builder.' + u.id); if (b) return b; } catch {} return u.role === 'parent' ? 'developer' : 'maker'; };
   const dev = () => builderOf(viewer) === 'developer';
-  const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs) => window.R4Build.ask(p, q, files, logs), phoneTest, shareSheet });
+  const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs, image) => window.R4Build.ask(p, q, files, logs, image), markUp, withShot, phoneTest, shareSheet });
   // Bench ⇄ Preview: one switch, always in reach at the bottom of the screen
   function sw(mode, toBench, toPrev, code) {
     let el = document.getElementById('bsw'); if (!el) { el = document.createElement('div'); el.id = 'bsw'; el.className = 'bswitch'; el.setAttribute('role', 'tablist'); $('app').append(el); }
@@ -39,12 +39,74 @@
     el.querySelector('[data-sw=prev]').onclick = () => mode === 'bench' && toPrev && toPrev();
   }
   const clearBench = () => document.querySelectorAll('.bswitch,.pvpanel').forEach((e) => e.remove());
+  // ---------- mark up the preview and send it to Claude ----------
+  // The preview is a sandboxed frame, so the page can't photograph it (and html2canvas can't run in
+  // one): a small script added to the preview's own copy draws itself when asked (its page as an SVG
+  // picture, canvases as images) and posts the picture back. The marks are drawn over it here, and
+  // both go to Claude as one picture with what to change.
+  const SHOT = "<script>addEventListener('message',function(e){if(!e.data||!e.data.r4shot)return;var back=function(u){parent.postMessage({r4shotback:u||null},'*')};try{var W=innerWidth,H=innerHeight,d=document.documentElement.cloneNode(true);var src=document.querySelectorAll('canvas'),cl=d.querySelectorAll('canvas');for(var i=0;i<src.length;i++){try{var im=document.createElement('img');im.src=src[i].toDataURL();im.setAttribute('style',src[i].getAttribute('style')||'');im.style.width=src[i].clientWidth+'px';im.style.height=src[i].clientHeight+'px';cl[i].replaceWith(im)}catch(x){}}d.querySelectorAll('script').forEach(function(s){s.remove()});var b=d.querySelector('body');if(b){b.style.transform='translate('+(-scrollX)+'px,'+(-scrollY)+'px)';}var xml=new XMLSerializer().serializeToString(d);var svg='<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"'+W+'\" height=\"'+H+'\"><foreignObject width=\"100%\" height=\"100%\">'+xml+'</foreignObject></svg>';var img=new Image();img.onload=function(){try{var c=document.createElement('canvas');c.width=W;c.height=H;var g=c.getContext('2d');g.fillStyle=getComputedStyle(document.body).backgroundColor||'#000';g.fillRect(0,0,W,H);g.drawImage(img,0,0);back(c.toDataURL('image/jpeg',.85))}catch(x){back()}};img.onerror=function(){back()};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)}catch(x){back()}})</script>";
+  const withShot = (html) => { const i = html.toLowerCase().lastIndexOf('</body>'); return i < 0 ? html + SHOT : html.slice(0, i) + SHOT + html.slice(i); };
+  function shoot(frame) {
+    return new Promise((ok) => {
+      const t = setTimeout(() => { removeEventListener('message', on); ok(null); }, 6000);
+      function on(e) { if (e.source !== frame.contentWindow || !e.data || !('r4shotback' in e.data)) return; clearTimeout(t); removeEventListener('message', on); ok(e.data.r4shotback); }
+      addEventListener('message', on); frame.contentWindow.postMessage({ r4shot: 1 }, '*');
+    });
+  }
+  // send(text, image) asks Claude and makes the change; it returns Claude's reply.
+  function markUp(pn, frame, send) {
+    if (pn.querySelector('.mk')) return;
+    const bar = document.createElement('form'); bar.className = 'mk';
+    bar.innerHTML = `<p class="mksay" hidden></p><div class="mkrow"><button type="button" class="bb" data-mk="clear" title="Clear the marks">↺</button><input placeholder="What should change where you marked?" autocomplete="off" aria-label="What to change"><button class="go mkgo">✦ Send</button><button type="button" class="bb" data-mk="off" aria-label="Stop marking">✕</button></div><small class="mkhint">Draw on the preview to point at what you mean.</small>`;
+    pn.append(bar);   // first: the bar takes its room, then the marks cover what's left of the preview
+    const r = frame.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    const cv = document.createElement('canvas'); cv.className = 'mkc';
+    Object.assign(cv.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', zIndex: 36, touchAction: 'none', cursor: 'crosshair' });
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    const g = cv.getContext('2d'); g.scale(dpr, dpr); g.lineCap = g.lineJoin = 'round'; g.lineWidth = 4; g.strokeStyle = '#FF3B30';
+    let down = false, marks = 0;
+    cv.onpointerdown = (e) => { down = true; cv.setPointerCapture(e.pointerId); g.beginPath(); g.moveTo(e.offsetX, e.offsetY); };
+    cv.onpointermove = (e) => { if (!down) return; g.lineTo(e.offsetX, e.offsetY); g.stroke(); marks++; };
+    cv.onpointerup = cv.onpointercancel = () => { down = false; };
+    pn.append(cv);
+    const say = (t) => { const p = bar.querySelector('.mksay'); p.hidden = !t; p.textContent = t || ''; };
+    const stop = () => { cv.remove(); bar.remove(); pn.querySelector('#kmk, #pmk')?.classList.remove('on'); };
+    bar.querySelector('[data-mk=clear]').onclick = () => { g.clearRect(0, 0, cv.width, cv.height); marks = 0; };
+    bar.querySelector('[data-mk=off]').onclick = stop;
+    bar.onsubmit = async (e) => {
+      e.preventDefault();
+      const input = bar.querySelector('input'), text = input.value.trim();
+      if (!text && !marks) { say('Draw on the preview or say what to change.'); return; }
+      const btn = bar.querySelector('.mkgo'); btn.disabled = true; say('Looking at your marks…');
+      try {
+        // the preview's picture, the marks over it, at most 1000 px wide
+        const shot = await shoot(frame), k = Math.min(1, 1000 / r.width), out = document.createElement('canvas');
+        out.width = Math.round(r.width * k); out.height = Math.round(r.height * k);
+        const o = out.getContext('2d'); o.fillStyle = '#000'; o.fillRect(0, 0, out.width, out.height);
+        if (shot) { const im = new Image(); await new Promise((ok) => { im.onload = ok; im.onerror = ok; im.src = shot; }); o.drawImage(im, 0, 0, out.width, out.height); }
+        o.drawImage(cv, 0, 0, out.width, out.height);
+        const reply = await send((text || 'Change what I marked.') + (shot ? '' : ' (The preview couldn’t be pictured: only my marks are in the image.)'), out.toDataURL('image/jpeg', 0.82));
+        input.value = ''; g.clearRect(0, 0, cv.width, cv.height); marks = 0; say('✦ ' + reply);
+      } catch (err) { say(err.message); }
+      btn.disabled = false;
+    };
+    setTimeout(() => bar.querySelector('input').focus(), 50);
+  }
   function openKitPanel(p) {
     const pn = document.createElement('section'); pn.className = 'pvpanel';
-    pn.innerHTML = `<header><button class="sb" id="kclose" aria-label="Back to the bench">‹</button><span><b>${esc(p.name)}</b><small>v${p.versions[p.cur].v}</small></span><span class="grow"></span><button class="bb" id="kre" title="Start again">↻</button><button class="bb" id="kph" aria-label="Test on phone">📱</button></header><iframe id="kpv" title="Preview" sandbox="allow-scripts"></iframe>`;
-    $('app').append(pn); $('kpv').srcdoc = PR.html(p);
+    pn.innerHTML = `<header><button class="sb" id="kclose" aria-label="Back to the bench">‹</button><span><b>${esc(p.name)}</b><small id="kver">v${p.versions[p.cur].v}</small></span><span class="grow"></span>${canEdit(p) ? '<button class="bb" id="kmk" title="Mark it up and ask Claude">✏️ Mark</button>' : ''}<button class="bb" id="kre" title="Start again">↻</button><button class="bb" id="kph" aria-label="Test on phone">📱</button></header><iframe id="kpv" title="Preview" sandbox="allow-scripts"></iframe>`;
+    $('app').append(pn);
+    const show = () => { const q = cur() || p; $('kpv').srcdoc = withShot(PR.html(q)); $('kver').textContent = 'v' + q.versions[q.cur].v; };
+    show();
     const close = () => history.back();
-    $('kclose').onclick = close; $('kre').onclick = () => ($('kpv').srcdoc = PR.html(p)); $('kph').onclick = () => phoneTest(p);
+    $('kclose').onclick = close; $('kre').onclick = show; $('kph').onclick = () => phoneTest(cur() || p);
+    const mk = $('kmk'); if (mk) mk.onclick = () => { if (pn.querySelector('.mk')) return pn.querySelector('[data-mk=off]').click(); mk.classList.add('on');
+      markUp(pn, $('kpv'), async (text, image) => {
+        const q = cur(), r2 = await window.R4Build.ask(q, text, null, null, image);
+        chat.push({ me: true, t: '✏️ ' + text }, { t: r2.say, ok: !!r2.change });
+        if (r2.change) { commit(q, r2.change, r2.note); show(); }
+        return r2.say + (r2.change ? ' (v' + q.versions[q.cur].v + ')' : '');
+      }); };
     history.pushState({ bench: p.id, pv: 1 }, ''); sw('prev', close, null);
   }
   const codeOK = () => dens === 'pilot' || dens === 'dev';
@@ -124,14 +186,13 @@
     $('title').textContent = 'workbench'; $('back').hidden = false; $('mark').hidden = true;
     $('body').innerHTML = `<div class="bench"><div class="bbar"><span class="bname" id="bname"></span><span class="bver" id="bver"></span><span class="bteam" id="bteam"></span><span class="blvl" id="blvl"></span><span class="grow"></span><button class="bb" id="undo" aria-label="Undo">⤺</button><button class="bb" id="redo" aria-label="Redo">⤻</button><button class="bb" id="phone" aria-label="Test on phone">📱</button><button class="bb share" id="share">↗ Share</button></div>
       <div class="bdev" id="bdev"></div>
-      <div class="prev"><iframe id="pv" title="Live preview" sandbox="allow-scripts"></iframe><span class="live">● live</span></div>
       <div class="btabs" id="btabs"></div><div class="tbody" id="tbody"></div></div>`;
     $('undo').onclick = () => { const p = cur(); if (p.cur > 0) { p.cur--; save(); paintBench(); toast('⤺ Back to v' + p.versions[p.cur].v); } };
     $('redo').onclick = () => { const p = cur(); if (p.cur < p.versions.length - 1) { p.cur++; save(); paintBench(); } };
     $('phone').onclick = () => phoneTest(cur()); $('share').onclick = () => shareSheet(cur());
     paintBench(); window.scrollTo(0, 0); history.pushState({ bench: id }, '', '?open=' + id);
     sw('bench', null, () => openKitPanel(cur()));
-    $('pv').closest('.prev').insertAdjacentHTML('beforeend', '<button class="pcover tap" id="kopen" aria-label="Open the preview"><span>⤢</span></button>'); $('kopen').onclick = () => openKitPanel(cur());
+
   }
   const cur = () => list.find((x) => x.id === open);
   function paintBench() {
@@ -140,7 +201,6 @@
     $('undo').disabled = !mine || p.cur === 0; $('redo').disabled = !mine || p.cur === p.versions.length - 1; $('share').hidden = !own;
     $('bname').title = helpers(p).length ? 'With ' + helpers(p).map((h) => h.name).join(', ') : '';
     $('bteam').innerHTML = [p.owner, ...(p.collab || [])].map((u) => `<i title="${esc(byId(u).name)}${u === p.owner ? ' (owner)' : ''}">${esc(byId(u).name[0].toUpperCase())}</i>`).join('');
-    $('pv').srcdoc = PR.html(p);
     { const L0 = level(p), html = PR.html(p); $('bdev').innerHTML = [['id', p.id], ['kit', p.kit], ['v', v.v + '/' + p.versions.length], ['score', L0.score], ['params', Object.keys(v.params).length], ['html', (html.length / 1024).toFixed(1) + 'k'], ['team', 1 + (p.collab || []).length]].map(([k, x]) => `<span><small>${k}</small>${esc(x)}</span>`).join(''); }
     const L = level(p), kind = PR.kindOf(p);
     $('blvl').innerHTML = `Lv ${L.n} · ${L.name}${L.next ? `<small>${L.next} to go</small>` : ''}`; $('blvl').title = L.next ? L.next + ' more changes unlock ' + ['the ' + TYPE_TAB[kind].slice(2) + ' editor and history', 'the code view', 'editing the code'][L.n - 1] : 'Everything is unlocked';

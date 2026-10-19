@@ -84,9 +84,9 @@
     left: built.left,
     saved: () => chain,
     // Claude changes (or answers about) a project. Saved first, so it reads what's on screen.
-    async ask(p, ask, files, logs) {
+    async ask(p, ask, files, logs, image) {
       await chain;
-      const r = await call('project-build', { project: p.id, ask, files: files || undefined, logs: logs || undefined });
+      const r = await call('project-build', { project: p.id, ask, files: files || undefined, logs: logs || undefined, image: image || undefined });
       if (r.left !== undefined) this.left = r.left;
       return r;
     },

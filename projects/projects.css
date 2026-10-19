@@ -172,3 +172,15 @@ dialog.psheet{max-height:calc(100dvh - 20px - env(safe-area-inset-top) - env(saf
 .pvpanel{padding-bottom:calc(58px + env(safe-area-inset-bottom))}.pvpanel .cons.big{padding-bottom:8px}
 .pcover.tap{place-items:start end;padding:6px;background:none}.pcover.tap span{width:28px;height:28px;padding:0;display:grid;place-items:center;font-size:13px}
 .bench{padding-bottom:56px}
+
+/* marking up the full-screen preview for Claude */
+.pvpanel .bb.on{background:#FF3B3022;border-color:#FF3B3088;color:#FF8A80}
+.pvpanel .mk{position:relative;z-index:37;flex:none;display:grid;gap:5px;padding:8px max(10px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));border-top:1px solid var(--line);background:#000}
+.pvpanel .mkrow{display:flex;gap:6px;align-items:center}
+.pvpanel .mk input{flex:1;min-width:0;min-height:40px;padding:0 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);font:400 15px var(--body);outline:none}
+.pvpanel .mk .mkgo{flex:none;width:auto;margin:0;padding:0 14px;min-height:40px}
+.pvpanel .mksay{margin:0;font-size:13px;line-height:1.4;color:var(--ink)}
+.pvpanel .mkhint{font-size:11px;color:var(--faint)}
+/* the panel header buttons are .bb (all:unset), which made them inherit the header's pointer-events:none */
+.pvpanel>header>*{pointer-events:auto}
+body:has(.pvpanel .mk) #bsw{display:none}
