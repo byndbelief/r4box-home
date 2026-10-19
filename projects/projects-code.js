@@ -177,7 +177,7 @@
   const PEEK = `<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0D0B1F;color:#F3F1FF;font:14px system-ui,sans-serif}
     .card{display:grid;gap:8px;padding:12px 14px;border-radius:12px;background:#ffffff0a;border:1px solid #ffffff1c;max-width:92vw}.k{color:#ACA5D6;font:600 12px ui-monospace,monospace}
     .row{display:flex;gap:10px;align-items:center}.sw{position:relative;width:30px;height:30px;border-radius:8px;border:1px solid #ffffff33}.sw.pick{cursor:pointer;width:40px;height:40px;box-shadow:0 0 0 2px #ffffff22}.sw.pick:hover{box-shadow:0 0 0 2px #F5C542}.sw input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:0;padding:0}.big{font:800 40px system-ui}.emo{font-size:56px}
-    .grid{display:grid;gap:3px}.cell{width:26px;height:26px;border-radius:4px}.off{background:#ffffff08;border:1px dashed #ffffff18}
+    .grid{display:grid;gap:3px}.cell{all:unset;box-sizing:border-box;cursor:pointer;width:26px;height:26px;border-radius:4px;display:grid;place-items:center;font:700 11px ui-monospace,monospace;color:#00000088}.cell.off{background:#ffffff08;border:1px dashed #ffffff22;color:#ffffff44}.cell:hover{outline:2px solid #F5C542}
     .bars{display:flex;gap:4px;align-items:flex-end;height:90px}.bar{width:18px;background:#3DD6C6;border-radius:3px 3px 0 0}.chip{padding:3px 9px;border-radius:99px;background:#ffffff12}</style>
     <script>(function(){
       var COL=/^(#[0-9a-f]{3,8}|rgba?\\(|hsla?\\()/i, EMO=/^\\p{Extended_Pictographic}/u;
@@ -187,7 +187,10 @@
       document.addEventListener('input',function(e){if(e.target.dataset.c)e.target.parentNode.style.background=e.target.value});
       document.addEventListener('change',function(e){var t=e.target;if(t.dataset.c)parent.postMessage({r4color:[t.dataset.c,t.value.toUpperCase(),+t.dataset.k]},'*')});
       function shape(v){return Array.isArray(v)&&v.length&&v.every(function(r){return Array.isArray(r)&&r.length&&r.every(function(x){return typeof x==='number'||typeof x==='boolean'})})}
-      function grid(v,c){return '<div class="grid" style="grid-template-columns:repeat('+Math.max.apply(0,v.map(function(r){return r.length}))+',26px)">'+v.map(function(r){return r.map(function(x){return x?'<div class="cell" style="background:'+esc(c||'#3DD6C6')+'"></div>':'<div class="cell off"></div>'}).join('')}).join('')+'</div>'}
+      // a shape: each cell shows its value in the code (1 / 0); tap one to flip it, and the line follows
+      var grids=[];
+      function grid(v,c){var gi=grids.push(v)-1;return '<div class="grid" data-g="'+gi+'" style="grid-template-columns:repeat('+Math.max.apply(0,v.map(function(r){return r.length}))+',26px)">'+v.map(function(r,ri){return r.map(function(x,ci){return '<button class="cell'+(x?'':' off')+'" data-r="'+ri+'" data-c="'+ci+'" style="'+(x?'background:'+esc(c||'#3DD6C6'):'')+'">'+(typeof x==='boolean'?(x?'true':'false'):x)+'</button>'}).join('')}).join('')+'</div>'}
+      document.addEventListener('click',function(e){var b=e.target.closest('.cell');if(!b)return;var g=b.closest('.grid'),gi=+g.dataset.g,v=grids[gi].map(function(r){return r.slice()}),r=+b.dataset.r,cc=+b.dataset.c,x=v[r][cc];v[r][cc]=typeof x==='boolean'?!x:(x?0:1);parent.postMessage({r4grid:[gi,v]},'*')});
       function view(v,key,ctx){
         if(shape(v))return grid(v,ctx&&ctx.color);
         if(typeof v==='string'&&COL.test(v))return '<div class="row">'+sw(v)+'<code>'+esc(v)+'</code></div>';
@@ -228,6 +231,12 @@
     const mode = host.querySelector('[data-mode]');
     const label = () => { mode.textContent = peeked && !whole ? '🔍 this line · tap for whole' : '● live · whole project'; mode.hidden = !line; };
     const on = (e) => { if (e.source !== fr.contentWindow || !e.data) return;
+      if (e.data.r4grid) {
+        const [gi, v] = e.data.r4grid, row = '\\[\\s*(?:-?\\d+|true|false)(?:\\s*,\\s*(?:-?\\d+|true|false))*\\s*\\]';
+        const re = new RegExp('\\[\\s*' + row + '(?:\\s*,\\s*' + row + ')*\\s*\\]', 'g');
+        let i = -1; ta.value = ta.value.replace(re, (m) => (++i === gi ? '[' + v.map((r) => '[' + r.join(',') + ']').join(',') + ']' : m));
+        draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); run(); return;
+      }
       if (e.data.r4color) {
         const [old, nw, k] = e.data.r4color, src = ta.value, re = new RegExp(old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
         let i = -1, out2 = src.replace(re, (m) => (++i === k ? nw : m));
