@@ -18,7 +18,7 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
   <link rel="stylesheet" href="world/world.css">
-  <link rel="stylesheet" href="projects/projects.css">
+  <link rel="stylesheet" href="projects/projects.css?v=3">
   <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }</style>
 </head>
 <body>
@@ -28,7 +28,7 @@
 <dialog class="psheet" id="sheet"></dialog>
 </div>
 <script src="world/story-kit.js"></script>
-<script src="projects/projects-data.js"></script>
+<script src="projects/projects-data.js?v=3"></script>
 <script type="module">
   import { sb, roleOf } from './auth.js';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
@@ -95,7 +95,9 @@
     post: (text, id) => call('family-chat', { text, ref: { type: 'project', id } }),
   };
 
-  for (const src of ['projects/projects-code.js', 'projects/projects-app.js']) await new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.body.append(s); });
+  // ?v= changes with each update, so a phone never runs a stale bench (Pages lets browsers keep files 10 minutes).
+  const V = document.querySelector('link[href*="projects.css"]').href.split('?v=')[1];
+  for (const src of ['projects/projects-code.js?v=' + V, 'projects/projects-app.js?v=' + V]) await new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.body.append(s); });
   // A helper's changes and new family projects come in when the page comes back.
   document.addEventListener('visibilitychange', async () => {
     if (document.hidden) return;
