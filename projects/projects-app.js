@@ -301,7 +301,7 @@
     { const L0 = level(p), html = PR.html(p); $('bdev').innerHTML = [['id', p.id], ['kit', p.kit], ['v', v.v + '/' + p.versions.length], ['score', L0.score], ['params', Object.keys(v.params).length], ['html', (html.length / 1024).toFixed(1) + 'k'], ['team', 1 + (p.collab || []).length]].map(([k, x]) => `<span><small>${k}</small>${esc(x)}</span>`).join(''); }
     const L = level(p), kind = PR.kindOf(p);
     $('blvl').innerHTML = `Lv ${L.n} · ${L.name}${L.next ? `<small>${L.next} to go</small>` : ''}`; $('blvl').title = L.next ? L.next + ' more changes unlock ' + ['the ' + TYPE_TAB[kind].slice(2) + ' editor and history', 'the code view', 'editing the code'][L.n - 1] : 'Everything is unlocked';
-    const T = [['claude', mine ? '✦ Claude' : '✦ About'], ['parts', '🧩 Parts'], ...(L.n >= 2 ? [['type', TYPE_TAB[kind]], ['hist', '🕘 History']] : []), ...(L.n >= 3 || dev() ? [['code', '&lt;/&gt; Code']] : [])];
+    const T = [['claude', mine ? '✦ Vibes' : '✦ About'], ['parts', '🧩 Parts'], ...(L.n >= 2 ? [['type', TYPE_TAB[kind]], ['hist', '🕘 History']] : []), ...(L.n >= 3 || dev() ? [['code', '&lt;/&gt; Code']] : [])];
     if (!T.some(([k]) => k === tab)) tab = 'claude';
     $('btabs').innerHTML = T.map(([k, l]) => `<button data-t="${k}" class="${k === tab ? 'on' : ''}">${l}</button>`).join('');
     $('btabs').querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { tab = b.dataset.t; paintBench(); }));

@@ -457,7 +457,7 @@
   const gutter = () => curLines().map((_, i) => blockAt(i + 1) ? `<b class="gb">${i + 1}</b>` : i + 1).join('\n');
   function paint() {
     $('bver').textContent = 'v' + head().v + (dirty() ? ' · unsaved' : '');
-    const T = [['files', '📄 Files'], ['claude', '✦ Claude'], ['log', '⎇ Commits']];
+    const T = [['files', '📄 Files'], ['claude', '✦ Vibes'], ['log', '⎇ Commits']];
     $('ctabs').innerHTML = T.map(([k, l]) => `<button data-t="${k}" class="${k === tab ? 'on' : ''}">${l}</button>`).join('');
     $('ctabs').querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { tab = b.dataset.t; viewV = null; paint(); }));
     const el = $('ctb'), ed = X.canEdit(p), F = draft || head().files;
