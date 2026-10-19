@@ -286,3 +286,8 @@ i.t-attr{font-style:normal;color:#B9A6FF}i.t-prop{font-style:normal;color:#7DF0C
 .glbox{display:grid;gap:6px}
 /* the part of the line a word card is about */
 .gled mark{background:#F5C54233;color:inherit;border-radius:3px;box-shadow:0 0 0 1px #F5C54288}
+/* While you type in a panel's code box, you see the real text (the coloured copy can wrap a little
+   differently, which put the caret and new letters off from what you saw); colours return on blur. */
+.gled:focus-within>pre.glcode{visibility:hidden}
+.gled:focus-within>textarea.glcode{color:#E6E1FF!important;-webkit-text-fill-color:#E6E1FF}
+.gled>.glcode{word-break:normal;overflow-wrap:anywhere;tab-size:2}
