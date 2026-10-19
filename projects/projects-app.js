@@ -151,15 +151,15 @@
   function renderLibrary() {
     clearBench(); open = null; $('title').textContent = 'library'; $('back').hidden = false; $('mark').hidden = true;
     const mine = list.filter((p) => p.owner === viewer.id || (p.collab || []).includes(viewer.id));
-    const kindOf = (p) => (PR.isCode(p) ? 'code' : PR.kindOf(p));
-    const F = [['all', 'All'], ['game', '🎮 Games'], ['app', '🧰 Apps'], ['page', '🌐 Pages'], ['story', '📖 Stories'], ['toy', '🎨 Toys'], ['code', '⌨ Code'], ['published', 'Published'], ['draft', 'Drafts'], ['archived', '🗄 Put away']];
+    const kindOf = (p) => PR.kindOf(p);   // every project is code now, so the chips sort by what it is
+    const F = [['all', 'All'], ['game', '🎮 Games'], ['app', '🧰 Apps'], ['page', '🌐 Pages'], ['story', '📖 Stories'], ['toy', '🎨 Toys'], ['published', 'Published'], ['draft', 'Drafts'], ['archived', '🗄 Put away']];
     const pass = (p) => libF === 'archived' ? p.archived : !p.archived && (libF === 'all' || (libF === 'published' ? p.published : libF === 'draft' ? !p.published : kindOf(p) === libF));
     const q = libQ.trim().toLowerCase();
     const shown = mine.filter((p) => pass(p) && (!q || (p.name + ' ' + PR.KITS[p.kit].name + ' ' + p.versions.map((v) => v.note).join(' ')).toLowerCase().includes(q)))
       .sort((a, b) => libS === 'name' ? a.name.localeCompare(b.name) : libS === 'oldest' ? a.versions[0].at - b.versions[0].at : lastAt(b) - lastAt(a));
     const count = (id) => mine.filter((p) => (id === 'archived' ? p.archived : !p.archived && (id === 'all' || (id === 'published' ? p.published : id === 'draft' ? !p.published : kindOf(p) === id)))).length;
     const row = (p) => { const k = PR.KIND[PR.kindOf(p)], v = p.versions[p.cur], own = p.owner === viewer.id;
-      return `<div class="pcard lrow${p.archived ? ' arch' : ''}" style="--kc:${k[2]}"><button class="pmain" data-open="${p.id}"><span class="pe">${v.params.sprite || PR.KITS[p.kit].em}</span><span class="pt"><b>${esc(p.name)}</b><small>${PR.isCode(p) ? '⌨ Code' : k[1]} · v${v.v} · ${p.versions.length} version${p.versions.length === 1 ? '' : 's'} · ${ago(lastAt(p))} · ${own ? (p.published ? '<i class="pub">published</i>' : 'draft') : 'with ' + esc(byId(p.owner).name)}</small></span></button>${own ? `<button class="pmore" data-menu="${p.id}" aria-label="More for ${esc(p.name)}">⋯</button>` : ''}</div>`; };
+      return `<div class="pcard lrow${p.archived ? ' arch' : ''}" style="--kc:${k[2]}"><button class="pmain" data-open="${p.id}"><span class="pe">${v.params.sprite || PR.KITS[p.kit].em}</span><span class="pt"><b>${esc(p.name)}</b><small>${k[1]} · v${v.v} · ${p.versions.length} version${p.versions.length === 1 ? '' : 's'} · ${ago(lastAt(p))} · ${own ? (p.published ? '<i class="pub">published</i>' : 'draft') : 'with ' + esc(byId(p.owner).name)}</small></span></button>${own ? `<button class="pmore" data-menu="${p.id}" aria-label="More for ${esc(p.name)}">⋯</button>` : ''}</div>`; };
     $('body').innerHTML = `<div class="who"><h2>All your projects</h2><p>${mine.length} in all${count('archived') ? ` · ${count('archived')} put away` : ''}.</p></div>
       <div class="lbar"><input id="lq" placeholder="Search names and changes…" value="${esc(libQ)}" autocomplete="off" aria-label="Search projects"><select id="ls" aria-label="Sort"><option value="recent">Recent</option><option value="name">A–Z</option><option value="oldest">Oldest</option></select></div>
       <div class="lchips">${F.filter(([id]) => id === 'all' || id === libF || count(id)).map(([id, l]) => `<button data-f="${id}" class="${id === libF ? 'on' : ''}">${l} <small>${count(id)}</small></button>`).join('')}</div>
