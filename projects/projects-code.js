@@ -442,7 +442,7 @@
 
   function open(proj, ctx, intro, autoAsk) {
     X = ctx; p = proj; file = Object.keys(head().files).includes('main.js') ? 'main.js' : Object.keys(head().files)[0]; tab = p.kit === 'code' ? 'files' : 'claude'; draft = null; viewV = null;
-    ask = [{ t: X.canEdit(p) ? 'I can read this code. Try: “explain main.js”, “why is it broken?”, or tell me anything you want it to do next, even something completely different.' : 'Read-only. Remix it to change the code.' }];
+    ask = [{ t: X.canEdit(p) ? 'What should we work on?' : 'Read-only. Remix it to change the code.' }];
     if (intro) ask.push({ t: intro, ok: true });
     $('title').textContent = 'code'; $('back').hidden = false; $('mark').hidden = true;
     $('body').innerHTML = `<div class="bench codebench"><div class="bbar"><span class="bname">${esc(p.name)}</span><span class="bver" id="bver"></span><span class="grow"></span><button class="bb" id="crun" title="Run (⌘/Ctrl+Enter)">▶</button><button class="bb" id="cphone" aria-label="Test on phone">📱</button><button class="bb share" id="cshare">↗ Share</button></div>
