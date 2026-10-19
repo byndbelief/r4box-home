@@ -125,7 +125,24 @@
     .gmenu button, .gmenu a { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: block; padding: 10px 12px; border-radius: 11px; font-size: 14px; font-weight: 700; }
     .gmenu button:hover, .gmenu a:hover { background: #ffffff0c; }
     .gmenu small { display: block; font-weight: 600; font-size: 11.5px; color: var(--faint); }
-    .world { position: relative; overflow: hidden; height: min(64dvh, 560px); min-height: 360px; border-bottom: 1px solid var(--line); }
+    /* the first screen: the world, then Claude and four apps; the rest is a swipe up */
+    .hero { display: flex; flex-direction: column; height: 100dvh; min-height: 520px; }
+    .world { position: relative; overflow: hidden; flex: 1; min-height: 240px; }
+    .world .pick { position: absolute; z-index: 3; left: 12px; right: 12px; bottom: 12px; margin: 0; max-height: 70%; overflow: auto; }
+    .hquick { padding: 0 16px; }
+    .hquick .hcmd { margin-top: 0; }
+    .hquick .hres { top: auto; bottom: calc(100% + 6px); }
+    .hquick .hdock { margin-top: 12px; }
+    .hquick .hgo input { padding-right: 52px; } .hquick .hgo:has(#hsd) input { padding-right: 96px; }
+    .hquick .hgo .hacts { position: absolute; right: 6px; top: 0; height: 46px; margin: 0; display: flex; align-items: center; gap: 4px; }
+    .hquick .hgo .hacts button { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 10px; font-size: 16px; }
+    .hmore { all: unset; cursor: pointer; display: grid; place-items: center; height: calc(34px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+    .hmore i { width: 40px; height: 5px; border-radius: 9px; background: var(--faint); opacity: .6; animation: hmore 2.4s ease-in-out infinite; }
+    @keyframes hmore { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+    @media (prefers-reduced-motion: reduce) { .hmore i { animation: none; } }
+    .hpage { border-top: 1px solid var(--line); }
+    .hpage .vpick { display: flex; justify-content: flex-end; }
+    .dens-pilot .hquick .hgo .hacts { height: 38px; } .dens-pilot .hquick .hgo .hacts button { width: 30px; height: 30px; }
     .world canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
     .legend { position: absolute; z-index: 2; left: 16px; right: 16px; bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
     .legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; line-height: 1.2; padding: 4px 10px; border-radius: 99px; background: #000000b3; border: 1px solid #ffffff1a; font-size: 12px; font-weight: 700; backdrop-filter: blur(4px); }
@@ -266,15 +283,18 @@
     </div>
   </main>
 
-  <!-- signed in: the home (design system: r4box home). The family world on top, then
-       greeting, Where to?, today, apps with live status, recent, and the family. -->
+  <!-- signed in: the home (design system: r4box home). The first screen is only the family world,
+       Claude (Where to?) and four apps; swiping up reveals today, the chat, all apps, recent, the family. -->
   <div id="home" hidden>
     <header><a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1>home</h1>
       <button class="gear" id="gear" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">⚙</button></header>
     <div class="gmenu" id="gmenu" role="menu" hidden></div>
-    <div class="world" id="worldBox"><canvas id="cv" aria-label="The family world: everyone's tree on one ground"></canvas><div class="legend" id="legend"></div></div>
-    <main class="hpage">
-      <div class="pick" id="pick" hidden></div>
+    <div class="hero">
+      <div class="world" id="worldBox"><canvas id="cv" aria-label="The family world: everyone's tree on one ground"></canvas><div class="pick" id="pick" hidden></div></div>
+      <div class="hquick" id="hquick"></div>
+      <button class="hmore" id="hmore" aria-label="More: today, chat, apps, the family"><i></i></button>
+    </div>
+    <main class="hpage" id="hpage">
       <div id="htop"></div>
       <div class="card flags" id="flags" hidden></div>
       <div class="card offer" id="offer" hidden>
@@ -558,7 +578,6 @@
       }
       if (live) live.destroy();
       live = window.mountTogether($('cv'), ground, { onPick: pickWorld });
-      $('legend').innerHTML = fam().map((p) => `<span><i style="background:${p.dot}"></i>${esc(p.name)}</span>`).join('');
     }
     function worldLink(p) {
       if (p.id === ME.id) return ME.role === 'parent' ? 'https://diary.r4box.com/' : '/diary.html';
@@ -632,21 +651,23 @@
         ...H.mine.filter((e) => e.summary).slice(0, 4).map((e) => ({ g: parent ? '✎' : '🌳', c: '#B9A6FF', t: e.summary, sub: titleOf[e.topic], at: e.day + 'T20:00:00', href: parent ? 'https://diary.r4box.com/' : '/diary.html' })),
       ].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, tight ? 9 : 6);
 
-      const hr = new Date().getHours(), hi = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
       const cur = DENSITY.find((d) => d.id === dens);
       const glyph = (a) => `<span class="g${a.emoji ? ' emoji' : ''}">${a.g}</span>`;
       // The family chat: the last few messages (not thread replies), straight into the chat.
       const line = (m) => (m.ref && ({ poll: '📊 Poll', item: '📍 Trip place', call: '📹 Video call', story: '🌳 Shared a story', added: '✦ Added to a trip', project: '⚒ ' + (m.ref.name || 'A project') }[m.ref.type])) || m.body || (m.image ? '📷 Photo' : '');
       const chatTop = H.msgs.filter((m) => !m.reply_to).slice(0, tight ? 4 : 3).reverse();
       const chatCard = play || !chatTop.length ? '' : `<h3 class="k">Family chat</h3><a class="hchat" href="/chat.html">${chatTop.map((m) => `<span class="l${m.is_claude ? ' c' : ''}"><b>${esc(m.is_claude ? 'Claude' : nm(m.author))}</b><span>${esc(line(m))}</span></span>`).join('')}<span class="go">Open the chat ›<small>${H.unread ? H.unread + ' new' : 'all caught up'}</small></span></a>`;
-      $('htop').innerHTML = `<div class="hhead"><div><h2>${play ? 'Hi!' : hi + ','} <span class="hname">${esc(ME.name)}</span></h2></div>
-          <div class="vpick"><button class="vbtn" id="vbtn" aria-haspopup="menu" aria-expanded="false" aria-label="View: ${cur.name}"><span>${cur.em}</span>${cur.name}<i>▾</i></button>
-          <div class="vmenu" id="vmenu" role="menu" hidden><p>View</p>${DENSITY.map((d) => `<button role="menuitemradio" aria-checked="${d.id === dens}" data-dens="${d.id}" class="${d.id === dens ? 'on' : ''}"><span>${d.em}</span><b>${d.name}</b><em>${d.blurb}</em></button>`).join('')}</div></div></div>
-        ${play ? '' : `<form class="hcmd hgo" id="hgo"><input id="q" placeholder="${parent ? 'Where to? Or what should Claude do?' : 'Where to? Ask Claude, or name a seed…'}" autocomplete="off" aria-label="Where to, or start Claude"><div class="hres" id="hits" hidden></div>
-          <div class="hacts"${parent ? ' style="grid-template-columns:1fr"' : ''}><button type="submit" class="hclaude">✦ Start Claude</button>${parent ? '' : '<button type="button" class="hseed" id="hsd">🌱 Plant seed</button>'}</div><p class="hmsg" id="hmsg" hidden></p></form>`}
+      // the first screen: Claude (Where to?) and four apps, each with its badge
+      const QUICK = play ? PLAY.slice(0, 4) : (parent ? ['os', 'diary', 'chat', 'projects'] : ['games', 'chat', 'diary', 'projects']).map((k) => APPS.find((a) => a.k === k)).filter(Boolean);
+      const dock = (list, big, small) => `<div class="hdock${big ? ' big' : ''}">${list.map((a) => `<a href="${a.href}" style="--c:${a.c}"${a.ask ? ' data-ask="1"' : ''}>${glyph(a)}<b>${a.k}</b>${small ? `<small class="${a.hot ? 'hot' : ''}">${esc(a.s)}</small>` : ''}${a.badge ? `<span class="badge">${a.badge > 99 ? '99+' : a.badge}</span>` : ''}</a>`).join('')}</div>`;
+      $('hquick').innerHTML = `${play ? '' : `<form class="hcmd hgo" id="hgo"><input id="q" placeholder="${parent ? 'Where to? Or what should Claude do?' : 'Where to? Ask Claude, or name a seed…'}" autocomplete="off" aria-label="Where to, or start Claude"><div class="hres" id="hits" hidden></div>
+          <div class="hacts"><button type="submit" class="hclaude" aria-label="Start Claude" title="Start Claude">✦</button>${parent ? '' : '<button type="button" class="hseed" id="hsd" aria-label="Plant seed" title="Plant seed">🌱</button>'}</div><p class="hmsg" id="hmsg" hidden></p></form>`}
+        ${dock(QUICK, play, false)}`;
+      $('htop').innerHTML = `<div class="vpick"><button class="vbtn" id="vbtn" aria-haspopup="menu" aria-expanded="false" aria-label="View: ${cur.name}"><span>${cur.em}</span>${cur.name}<i>▾</i></button>
+          <div class="vmenu" id="vmenu" role="menu" hidden><p>View</p>${DENSITY.map((d) => `<button role="menuitemradio" aria-checked="${d.id === dens}" data-dens="${d.id}" class="${d.id === dens ? 'on' : ''}"><span>${d.em}</span><b>${d.name}</b><em>${d.blurb}</em></button>`).join('')}</div></div>
         ${play ? '' : `<div class="htoday">${today.map((t) => `<a href="${t.href}" style="--c:${t.c}"><span class="g">${t.g}</span><span><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span></a>`).join('')}</div>`}`;
       $('hrest').innerHTML = `${chatCard}<h3 class="k">Apps</h3>
-        <div class="hdock${play ? ' big' : ''}">${(play ? PLAY : APPS).map((a) => `<a href="${a.href}" style="--c:${a.c}"${a.ask ? ' data-ask="1"' : ''}>${glyph(a)}<b>${a.k}</b>${play ? '' : `<small class="${a.hot ? 'hot' : ''}">${esc(a.s)}</small>`}${a.badge ? `<span class="badge">${a.badge > 99 ? '99+' : a.badge}</span>` : ''}</a>`).join('')}</div>
+        ${dock(play ? PLAY : APPS, play, !play)}
         ${play ? '' : `<h3 class="k">Recent</h3><div class="hrecent">${recent.length ? recent.map((r) => `<a href="${r.href}"><span class="g" style="color:${r.c}">${r.g}</span><span class="t">${esc(r.t)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span><span class="a">${agoOf(r.at)}</span></a>`).join('') : '<div class="hempty">Nothing new this week.</div>'}</div>`}
         ${familyCard()}`;
       wireHome(APPS);
@@ -665,6 +686,7 @@
     }
 
     function wireHome(APPS) {
+      $('hmore').onclick = () => $('hpage').scrollIntoView({ behavior: 'smooth' });   // the same as swiping up
       const vb = $('vbtn'), vm = $('vmenu');
       vb.onclick = (e) => { e.stopPropagation(); const open = vm.hidden; vm.hidden = !open; vb.setAttribute('aria-expanded', String(open));
         if (open) setTimeout(() => document.addEventListener('click', function off() { vm.hidden = true; vb.setAttribute('aria-expanded', 'false'); document.removeEventListener('click', off); }), 0); };
