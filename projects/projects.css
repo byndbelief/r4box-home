@@ -241,3 +241,8 @@ i.t-attr{font-style:normal;color:#B9A6FF}i.t-prop{font-style:normal;color:#7DF0C
 .glall[open]{display:grid;gap:8px}
 .hl-words{all:unset;cursor:pointer;display:inline-flex;gap:6px;align-items:center;margin:2px 10px 8px;padding:6px 11px;border-radius:99px;background:#3DD6C612;border:1px solid #3DD6C655;font:700 12.5px var(--body);color:var(--teal)}
 .hl-words small{font-weight:600;color:var(--faint)}
+/* the glossary layer: a line's words before (or without) Claude's note */
+.hl-note.gw{background:#3DD6C60c;border-color:#3DD6C633;color:var(--muted);font-size:12px;padding:4px 9px}
+.hl-note.gw b.kw{color:#7DF0C8;background:#3DD6C618;box-shadow:inset 0 -1px 0 #3DD6C655;font-weight:600}
+.hl-note.gw .hl-more{color:var(--teal)}
+.glnote.dim{font-size:13px;color:var(--faint)}

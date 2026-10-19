@@ -152,22 +152,34 @@
   const entry = (d) => `<div class="gl"><b>${esc(d.term)}</b><p>${esc(d.means)}</p>${d.example ? `<pre class="glx">${hl(d.example, /^</.test(d.example.trim()) ? 'html' : /\{[^}]*:/.test(d.example) && !/[=(]/.test(d.example) ? 'css' : 'js')}</pre>` : ''}</div>`;
   // A note, opened: its line, the note, and every key word in it explained; then all the words for this file.
   function openNote(n, line, note) {
-    const mk = marked(note.text, note.terms), lang = langOf(file);
+    const mk = note.text ? marked(note.text, note.terms) : { html: '', found: note.terms.map((t) => t.toLowerCase()) }, lang = langOf(file);
     const words = mk.found.map(defOf).filter(Boolean), more = [...new Map([...Object.values(gloss), ...Object.entries(GLOSS).map(([term, [means, example]]) => ({ term, means, example }))].map((d) => [d.term.toLowerCase(), d])).values()].filter((d) => !mk.found.includes(d.term.toLowerCase()));
     const d = X.sheet(`<div class="playh"><b>💡 Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
-      <div class="glbody"><pre class="glcode">${hl(line, lang)}</pre><p class="glnote">${mk.html}</p>
-      ${words.length ? `<h3 class="k">Words to know</h3>${words.map(entry).join('')}` : ''}
+      <div class="glbody"><pre class="glcode">${hl(line, lang)}</pre>${note.text ? `<p class="glnote">${mk.html}</p>` : '<p class="glnote dim">The words this line uses. Claude’s note for it comes with the others.</p>'}
+      ${words.length ? `<h3 class="k">${note.text ? 'Words to know' : 'Words on this line'}</h3>${words.map(entry).join('')}` : ''}
       <details class="glall"><summary>All words (${more.length})</summary>${more.sort((a, b) => a.term.localeCompare(b.term)).map(entry).join('')}</details></div>`);
     d.querySelector('.glnote').onclick = (e) => { const b = e.target.closest('b.kw'); if (!b) return; const el = [...d.querySelectorAll('.gl > b')].find((x) => x.textContent.toLowerCase() === b.textContent.toLowerCase()); if (el) { el.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.parentElement.classList.add('flash'); setTimeout(() => el.parentElement.classList.remove('flash'), 1200); } };
   }
+  // The words a line of code uses, from the starter glossary: the first layer of Help, there at once.
+  const CODE_WORDS = { js: [[/\bconst\s/, 'const'], [/\blet\s/, 'let'], [/\b(let|const|var)\s/, 'variable'], [/\bfunction\b/, 'function'], [/=>/, 'arrow function'], [/\breturn\b/, 'return'],
+      [/\bif\s*\(/, 'if'], [/\bfor\s*\(/, 'for loop'], [/console\.log/, 'console.log'], [/\bdocument\b/, 'document'], [/getElementById/, 'getElementById'], [/querySelector/, 'querySelector'],
+      [/addEventListener/, 'event listener'], [/['"]click['"]/, 'click'], [/textContent/, 'textContent'], [/innerHTML/, 'innerHTML'], [/requestAnimationFrame/, 'requestAnimationFrame'],
+      [/setInterval/, 'setInterval'], [/setTimeout/, 'setTimeout'], [/getContext/, 'context'], [/\bcanvas\b/i, 'canvas'], [/\+\+|\+=\s*1\b|=\s*(\w+)\s*\+\s*1\b/, 'increment'], [/\.style\b/, 'style'],
+      [/\/\/|\/\*/, 'comment'], [/\[[^\]]*,/, 'array'], [/\{\s*\w+\s*:/, 'object'], [/\.push\(|\.filter\(|\.map\(|\.forEach\(/, 'method']],
+    html: [[/<[a-z]/i, 'tag'], [/\sid=/, 'id'], [/\sclass=/, 'class'], [/\s[\w-]+=/, 'attribute'], [/<canvas/i, 'canvas'], [/<!--/, 'comment']],
+    css: [[/^[^:{]*\{/, 'selector'], [/\.[\w-]+\s*[{,]/, 'class'], [/[\w-]+\s*:/, 'style'], [/\/\*/, 'comment']] };
+  const wordsOn = (line, lang) => [...new Set(CODE_WORDS[lang].filter(([re]) => re.test(line)).map(([, w]) => w))];
+
   function helpView(el, src) {
     const key = file + '\u0000' + src, lines = src.split('\n'), lang = langOf(file), notes = helpCache.get(key);
-    const rows = (n) => lines.map((l, i) => `<div class="hl-row"><span class="hn">${i + 1}</span><code>${hl(l, lang).slice(0, -1) || ' '}</code></div>${n && n[i + 1] ? `<button class="hl-note" data-n="${i + 1}">💡 ${marked(n[i + 1].text, n[i + 1].terms).html}<span class="hl-more">more ›</span></button>` : ''}`).join('');
+    const rows = (n) => lines.map((l, i) => { const w = n && n[i + 1] ? null : wordsOn(l, lang);
+      return `<div class="hl-row"><span class="hn">${i + 1}</span><code>${hl(l, lang).slice(0, -1) || ' '}</code></div>${n && n[i + 1] ? `<button class="hl-note" data-n="${i + 1}">💡 ${marked(n[i + 1].text, n[i + 1].terms).html}<span class="hl-more">more ›</span></button>`
+        : w.length ? `<button class="hl-note gw" data-n="${i + 1}" data-w="${esc(w.join('|'))}">📖 ${w.map((x) => `<b class="kw">${esc(x)}</b>`).join(' · ')}<span class="hl-more">learn ›</span></button>` : ''}`; }).join('');
     // the starter words this file's code uses: there at once, before Claude's notes arrive
     const inCode = Object.keys(GLOSS).filter((w) => new RegExp('(^|[^\\w.])' + RE(w) + '(?![\\w])', w === 'HTML' || w === 'CSS' || w === 'DOM' ? '' : 'i').test(src) || (w === 'variable' && /\b(let|const|var)\s/.test(src)) || (w === 'event listener' && /addEventListener/.test(src)) || (w === 'string' && /['"`]/.test(src)) || (w === 'comment' && /\/\/|\/\*|<!--/.test(src)));
     el.innerHTML = `<div class="helpv">${inCode.length ? `<button class="hl-words" id="hlw">📖 Words in this file <small>${inCode.length}</small></button>` : ''}${notes ? '' : '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>'}${rows(notes)}</div>`;
     const hw = el.querySelector('#hlw'); if (hw) hw.onclick = () => X.sheet(`<div class="playh"><b>📖 Words in ${esc(file)}</b><small>${inCode.length} to know</small><button data-close aria-label="Close">✕</button></div><div class="glbody">${inCode.map(defOf).filter(Boolean).map(entry).join('')}</div>`);
-    el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openNote(k, lines[k - 1], notes[k]); }));
+    el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openNote(k, lines[k - 1], b.dataset.w ? { terms: b.dataset.w.split('|') } : notes[k]); }));
     if (notes || !src.trim()) return;
     X.explain(p, file, src).then((r) => {
       const n = {};
