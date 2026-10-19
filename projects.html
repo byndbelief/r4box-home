@@ -17,8 +17,8 @@
     @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
-  <link rel="stylesheet" href="world/world.css?v=48">
-  <link rel="stylesheet" href="projects/projects.css?v=48">
+  <link rel="stylesheet" href="world/world.css?v=49">
+  <link rel="stylesheet" href="projects/projects.css?v=49">
   <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }</style>
 </head>
 <body>
@@ -28,9 +28,9 @@
 <dialog class="psheet" id="sheet"></dialog>
 </div>
 <script src="world/story-kit.js"></script>
-<script src="projects/beautifier.min.js?v=48"></script>
-<script src="projects/structure.js?v=48"></script>
-<script src="projects/projects-data.js?v=48"></script>
+<script src="projects/beautifier.min.js?v=49"></script>
+<script src="projects/structure.js?v=49"></script>
+<script src="projects/projects-data.js?v=49"></script>
 <script type="module">
   import { sb, roleOf } from './auth.js';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
@@ -58,7 +58,7 @@
   // The kit keeps its list in memory and calls save(list) after every change; here each project
   // that changed since it was last written is saved: the maker writes the row, a helper saves
   // through project_save (versions, which one shows, and the name).
-  const fromRow = (r) => ({ id: r.id, owner: r.owner, kit: r.kit, name: r.name, published: r.published, from: r.remix_of || undefined, collab: r.collab || [], requests: r.requests || [], versions: r.versions, cur: r.cur, archived: !!r.archived });
+  const fromRow = (r) => ({ id: r.id, owner: r.owner, kit: r.kit, name: r.name, published: r.published, from: r.remix_of || undefined, collab: r.collab || [], requests: r.requests || [], versions: r.versions, cur: r.cur, archived: !!r.archived, brief: r.brief || '' });
   let list = (rows || []).map(fromRow);
   const last = new Map(list.map((p) => [p.id, JSON.stringify(p)]));
   // Every project is code: one of mine still showing a kit version (made by an older page) gets the
@@ -101,6 +101,7 @@
       const html = window.R4Projects.isCode(p) ? undefined : window.R4Projects.html(p);
       const r = await call('project-build', { project: p.id, ask, files: files || undefined, logs: logs || undefined, image: image || undefined, chat: chat || undefined, html });
       if (r.left !== undefined) this.left = r.left;
+      if (r.brief) p.brief = r.brief;   // Claude's note on the project (it saves it itself)
       return r;
     },
     // 💡 Help: Claude's note for the lines of one file ({ help: [{ n, text }] }); counts as a question, not a build.

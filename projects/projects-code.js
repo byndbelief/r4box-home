@@ -552,7 +552,8 @@
       }
     }
     if (tab === 'claude') {
-      el.innerHTML = `<div class="bchat" id="cchat">${ask.map((m) => `<div class="bm${m.me ? ' me' : ''}${m.ok ? ' ok' : ''}">${m.me ? '' : '<i>✦</i>'}<span>${m.html || esc(m.t)}</span></div>`).join('')}</div>
+      // 📋 the brief: Claude's own note on the project, read with every question (projects.brief)
+      el.innerHTML = `${p.brief ? `<details class="brief"><summary>📋 Claude’s notes on ${esc(p.name)}</summary><p>${esc(p.brief)}</p></details>` : ''}<div class="bchat" id="cchat">${ask.map((m) => `<div class="bm${m.me ? ' me' : ''}${m.ok ? ' ok' : ''}">${m.me ? '' : '<i>✦</i>'}<span>${m.html || esc(m.t)}</span></div>`).join('')}</div>
         ${ed ? `<div class="sugs">${(sugs || firstSugs()).map((s) => `<button data-s="${s}">${s}</button>`).join('')}</div><form class="bask" id="cask"><input id="cq" placeholder="Ask about the code…" autocomplete="off"><button class="ibtn send" aria-label="Send">↑</button></form><p class="capn">${X.left() === Infinity ? 'No build limit.' : X.left() + ' builds left today · reading and explaining don’t use one'}</p>` : ''}`;
       const go = (q) => claude(q.trim());
       if (ed) { $('cask').onsubmit = (e) => { e.preventDefault(); go($('cq').value); }; el.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => go(b.dataset.s))); }

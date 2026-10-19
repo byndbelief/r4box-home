@@ -385,3 +385,11 @@ dialog.psheet.full .glbody{max-height:none;overflow:visible}
 .parkbar{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;margin:6px 0;padding:10px 14px;border-radius:12px;border:1px solid #3DD6C655;background:#3DD6C614;color:#C9FFF8;font:700 14px Sora,system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .parkbar:hover{background:#3DD6C624}
 #parkhost:empty{display:none}
+
+/* 📋 Claude's notes on the project, at the top of ✦ Vibes */
+details.brief{margin:0 0 10px;border:1px solid rgba(201,255,248,.14);border-radius:12px;background:rgba(201,255,248,.04);font-size:13px}
+details.brief summary{cursor:pointer;padding:8px 12px;color:var(--mint,#C9FFF8);font-weight:600;list-style:none}
+details.brief summary::-webkit-details-marker{display:none}
+details.brief summary::after{content:' ›';opacity:.6}
+details.brief[open] summary::after{content:' ⌄'}
+details.brief p{margin:0;padding:0 12px 10px;white-space:pre-wrap;line-height:1.5;opacity:.85}
