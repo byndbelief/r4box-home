@@ -151,13 +151,14 @@
   const defOf = (t) => { const k = t.toLowerCase(), c = gloss[k], s = Object.entries(GLOSS).find(([w]) => w.toLowerCase() === k); return c ? c : s ? { term: s[0], means: s[1][0], example: s[1][1] } : null; };
   const entry = (d) => `<div class="gl"><b>${esc(d.term)}</b><p>${esc(d.means)}</p>${d.example ? `<pre class="glx">${hl(d.example, /^</.test(d.example.trim()) ? 'html' : /\{[^}]*:/.test(d.example) && !/[=(]/.test(d.example) ? 'css' : 'js')}</pre>` : ''}</div>`;
   // A note, opened: its line, the note, and every key word in it explained; then all the words for this file.
-  function openNote(n, line, note) {
+  function openNote(n, line, note, deeper) {
     const mk = note.text ? marked(note.text, note.terms) : { html: '', found: note.terms.map((t) => t.toLowerCase()) }, lang = langOf(file);
     const words = mk.found.map(defOf).filter(Boolean), more = [...new Map([...Object.values(gloss), ...Object.entries(GLOSS).map(([term, [means, example]]) => ({ term, means, example }))].map((d) => [d.term.toLowerCase(), d])).values()].filter((d) => !mk.found.includes(d.term.toLowerCase()));
     const d = X.sheet(`<div class="playh"><b>💡 Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
-      <div class="glbody"><pre class="glcode">${hl(line, lang)}</pre>${note.text ? `<p class="glnote">${mk.html}</p>` : '<p class="glnote dim">The words this line uses. Claude’s note for it comes with the others.</p>'}
+      <div class="glbody"><pre class="glcode">${hl(line, lang)}</pre>${note.text ? `<p class="glnote">${mk.html}</p>` : `<p class="glnote dim">The words this line uses.</p>${deeper ? '<button class="hl-ask" data-deeper>✦ Ask Claude what this line does</button>' : ''}`}
       ${words.length ? `<h3 class="k">${note.text ? 'Words to know' : 'Words on this line'}</h3>${words.map(entry).join('')}` : ''}
       <details class="glall"><summary>All words (${more.length})</summary>${more.sort((a, b) => a.term.localeCompare(b.term)).map(entry).join('')}</details></div>`);
+    const dp = d.querySelector('[data-deeper]'); if (dp) dp.onclick = () => { d.close(); deeper(); };
     d.querySelector('.glnote').onclick = (e) => { const b = e.target.closest('b.kw'); if (!b) return; const el = [...d.querySelectorAll('.gl > b')].find((x) => x.textContent.toLowerCase() === b.textContent.toLowerCase()); if (el) { el.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.parentElement.classList.add('flash'); setTimeout(() => el.parentElement.classList.remove('flash'), 1200); } };
   }
   // The words a line of code uses, from the starter glossary: the first layer of Help, there at once.
@@ -177,16 +178,25 @@
         : w.length ? `<button class="hl-note gw" data-n="${i + 1}" data-w="${esc(w.join('|'))}">📖 ${w.map((x) => `<b class="kw">${esc(x)}</b>`).join(' · ')}<span class="hl-more">learn ›</span></button>` : ''}`; }).join('');
     // the starter words this file's code uses: there at once, before Claude's notes arrive
     const inCode = Object.keys(GLOSS).filter((w) => new RegExp('(^|[^\\w.])' + RE(w) + '(?![\\w])', w === 'HTML' || w === 'CSS' || w === 'DOM' ? '' : 'i').test(src) || (w === 'variable' && /\b(let|const|var)\s/.test(src)) || (w === 'event listener' && /addEventListener/.test(src)) || (w === 'string' && /['"`]/.test(src)) || (w === 'comment' && /\/\/|\/\*|<!--/.test(src)));
-    el.innerHTML = `<div class="helpv">${inCode.length ? `<button class="hl-words" id="hlw">📖 Words in this file <small>${inCode.length}</small></button>` : ''}${notes ? '' : '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>'}${rows(notes)}</div>`;
+    el.innerHTML = `<div class="helpv">${inCode.length ? `<button class="hl-words" id="hlw">📖 Words in this file <small>${inCode.length}</small></button>` : ''}${notes ? '' : reading.has(key) ? '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>' : '<button class="hl-ask" id="hla">✦ Ask Claude to explain this file</button>'}${rows(notes)}</div>`;
     const hw = el.querySelector('#hlw'); if (hw) hw.onclick = () => X.sheet(`<div class="playh"><b>📖 Words in ${esc(file)}</b><small>${inCode.length} to know</small><button data-close aria-label="Close">✕</button></div><div class="glbody">${inCode.map(defOf).filter(Boolean).map(entry).join('')}</div>`);
-    el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openNote(k, lines[k - 1], b.dataset.w ? { terms: b.dataset.w.split('|') } : notes[k]); }));
-    if (notes || !src.trim()) return;
-    X.explain(p, file, src).then((r) => {
+    el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openNote(k, lines[k - 1], b.dataset.w ? { terms: b.dataset.w.split('|') } : notes[k], () => dig(src, k)); }));
+    const ha = el.querySelector('#hla'); if (ha) ha.onclick = () => dig(src);
+  }
+  // Help starts with the glossary only; Claude reads the file when asked (a question, not a build).
+  const reading = new Set();
+  function dig(src, line) {
+    const key = file + '\u0000' + src;
+    if (helpCache.has(key) || reading.has(key)) return;
+    reading.add(key); if (helpOn && tab === 'files') paint();
+    const f = file;
+    X.explain(p, f, src).then((r) => {
       const n = {};
       for (const x of r.help || []) if (x && x.n >= 1) n[x.n] = n[x.n] ? { text: n[x.n].text + ' ' + x.text, terms: [...n[x.n].terms, ...(x.terms || [])] } : { text: x.text, terms: x.terms || [] };
       for (const g of r.glossary || []) gloss[g.term.toLowerCase()] = g;
-      helpCache.set(key, n); if (helpOn && tab === 'files') paint();
-    }, (e) => { const w = el.querySelector('.hl-wait'); if (w) w.textContent = e.message; });
+      helpCache.set(key, n); reading.delete(key);
+      if (helpOn && tab === 'files' && file === f) { paint(); if (line && n[line]) openNote(line, src.split('\n')[line - 1], n[line]); }
+    }, (e) => { reading.delete(key); X.toast(e.message); if (helpOn && tab === 'files') paint(); });
   }
 
   function open(proj, ctx, intro) {
