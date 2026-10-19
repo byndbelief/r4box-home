@@ -258,3 +258,22 @@ i.t-attr{font-style:normal;color:#B9A6FF}i.t-prop{font-style:normal;color:#7DF0C
 .gledh{font-size:11px;color:var(--faint);margin-top:-4px}
 .glnote.stale{opacity:.55}
 .glnote.stale::after{content:' (this was about the line before your edit: ask Claude again)';font-size:11.5px;color:var(--faint)}
+/* word cards: tap to open */
+.gl[data-term]{cursor:pointer}
+.gl[data-term]:hover{border-color:#F5C54255}
+.gl>b{display:flex;align-items:center;justify-content:space-between}
+.glchev{font-style:normal;font-size:12px;color:var(--faint);transition:transform .2s}
+.gl.open{border-color:#F5C54266;box-shadow:0 0 0 1px #F5C54233,var(--glow)}
+.gl.open .glchev{transform:rotate(180deg)}
+.glmore{display:grid;gap:8px;margin-top:4px;padding-top:8px;border-top:1px solid var(--line);cursor:default}
+.gluse{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.gluse small,.glacts small{font-size:11px;color:var(--faint)}
+.gluse button{all:unset;cursor:pointer;padding:3px 9px;border-radius:99px;border:1px solid var(--line);font:600 11.5px ui-monospace,monospace;color:var(--teal)}
+.glacts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.glacts button{all:unset;cursor:pointer;padding:6px 11px;border-radius:99px;font:700 12px var(--body);border:1px solid #3DD6C655;background:#3DD6C612;color:var(--teal)}
+.glacts [data-askc]{border-color:#F5C54255;background:#F5C54212;color:var(--gold)}
+.gltry{display:grid;gap:6px}
+.glout{display:grid;gap:2px;font:400 11.5px/1.45 ui-monospace,monospace;color:#D4CEF2;background:#05040C;border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:22px}
+.glout:empty{display:none}
+.glout .error{color:#FF8A7A}.glout .dim{color:var(--faint)}
+.glframe{width:100%;height:140px;border:1px solid var(--line);border-radius:8px;background:#0D0B1F}

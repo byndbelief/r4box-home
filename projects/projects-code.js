@@ -149,7 +149,48 @@
     return { html: out + esc(text.slice(at)), found: [...found] };
   }
   const defOf = (t) => { const k = t.toLowerCase(), c = gloss[k], s = Object.entries(GLOSS).find(([w]) => w.toLowerCase() === k); return c ? c : s ? { term: s[0], means: s[1][0], example: s[1][1] } : null; };
-  const entry = (d) => `<div class="gl"><b>${esc(d.term)}</b><p>${esc(d.means)}</p>${d.example ? `<pre class="glx">${hl(d.example, /^</.test(d.example.trim()) ? 'html' : /\{[^}]*:/.test(d.example) && !/[=(]/.test(d.example) ? 'css' : 'js')}</pre>` : ''}</div>`;
+  const exLang = (x) => (/^\s*</.test(x) ? 'html' : /\{[^}]*:/.test(x) && !/[=(]/.test(x) ? 'css' : 'js');
+  const entry = (d) => `<div class="gl" data-term="${esc(d.term)}" role="button" tabindex="0" aria-expanded="false"><b>${esc(d.term)}<i class="glchev">⌄</i></b><p>${esc(d.means)}</p>${d.example ? `<pre class="glx">${hl(d.example, exLang(d.example))}</pre>` : ''}<div class="glmore" hidden></div></div>`;
+  // A word card, opened: where this file uses it, ▶ Try it (the example, editable, run in a sandbox),
+  // and ✦ Ask Claude about it (in the Claude tab, about this code).
+  const usesOf = (term, src, lang) => { const t = term.toLowerCase(); return src.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => wordsOn(l, lang).some((w) => w.toLowerCase() === t) || new RegExp('(^|[^\\w])' + RE(term) + '(?![\\w])', 'i').test(l)); };
+  const RUNNER = "<script>(function(){var o=function(k,a){parent.postMessage({r4try:[k,[].map.call(a,function(x){try{return typeof x==='object'?JSON.stringify(x):String(x)}catch(e){return String(x)}}).join(' ')]},'*')};['log','info','warn','error'].forEach(function(k){console[k]=function(){o(k,arguments)}});addEventListener('error',function(e){o('error',[e.message])})})()<\/script>";
+  function activate(d) {
+    d.querySelectorAll('.gl[data-term]').forEach((card) => {
+      const toggle = (e) => {
+        if (e.target.closest('.glmore')) return;
+        const open = card.classList.toggle('open'); card.setAttribute('aria-expanded', open);
+        const more = card.querySelector('.glmore'); more.hidden = !open; if (!open || more.dataset.done) return;
+        more.dataset.done = 1;
+        const term = card.dataset.term, src = (draft || head().files)[file] ?? '', lang = langOf(file), uses = usesOf(term, src, lang), ex = defOf(term)?.example || '';
+        more.innerHTML = `<div class="gluse">${uses.length ? `<small>In ${esc(file)}:</small>${uses.slice(0, 12).map(([n]) => `<button data-line="${n}">line ${n}</button>`).join('')}${uses.length > 12 ? `<small>+${uses.length - 12}</small>` : ''}` : `<small>Not in ${esc(file)} yet.</small>`}</div>
+          <div class="glacts">${ex ? '<button data-try>▶ Try it</button>' : ''}<button data-askc>✦ Ask Claude about ${esc(term)}</button></div><div class="gltry" hidden></div>`;
+        more.querySelectorAll('[data-line]').forEach((b) => (b.onclick = () => { const n = +b.dataset.line, line = src.split('\n')[n - 1]; d.close(); openNote(n, line, { terms: wordsOn(line, lang).length ? wordsOn(line, lang) : [term] }, () => dig((draft || head().files)[file] ?? '', n), X.canEdit(p) ? (v) => editLine(n, v) : null); }));
+        more.querySelector('[data-askc]').onclick = () => { d.close(); tab = 'claude'; paint(); claude(`Explain "${term}" to me, using my ${file} as the example.`); };
+        const tb = more.querySelector('[data-try]');
+        if (tb) tb.onclick = () => {
+          const box = more.querySelector('.gltry'), xl0 = exLang(ex);
+          // a JS example that prints nothing gets a console.log of its last variable, so ▶ shows something
+          const nm = xl0 === 'js' && !/console\.log/.test(ex) && ([...ex.matchAll(/\b(?:let|const|var)\s+(\w+)|^\s*(\w+)\s*(?:=|\+\+)/gm)].pop() || []).slice(1).find(Boolean);
+          const ex2 = nm ? ex + '\nconsole.log(' + nm + ');' : ex, xl = xl0;
+          box.hidden = false; tb.hidden = true;
+          box.innerHTML = `<div class="gled"><pre class="glcode" aria-hidden="true">${hl(ex2, xl).slice(0, -1) || ' '}</pre><textarea class="glcode" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Try ${esc(term)}">${esc(ex2)}</textarea></div>
+            <div class="glacts"><button data-run>▶ Run</button><small>Change it and run it again: nothing here touches your project.</small></div><div class="glout"></div><iframe class="glframe" sandbox="allow-scripts" title="Try it" ${xl === 'js' ? 'hidden' : ''}></iframe>`;
+          const ta = box.querySelector('textarea'), pre = box.querySelector('pre'), out = box.querySelector('.glout'), fr = box.querySelector('iframe');
+          ta.oninput = () => { pre.innerHTML = hl(ta.value, xl).slice(0, -1) || ' '; };
+          const on = (e) => { if (e.source !== fr.contentWindow || !e.data || !e.data.r4try) return; const [k, m] = e.data.r4try; out.insertAdjacentHTML('beforeend', `<div class="cl ${k}">${k === 'error' ? '✕' : '›'} ${esc(m)}</div>`); };
+          addEventListener('message', on); d.addEventListener('close', () => removeEventListener('message', on), { once: true });
+          const run = () => {
+            out.innerHTML = ''; const v = ta.value;
+            fr.srcdoc = xl === 'js' ? `<!doctype html><body>${RUNNER}<script>${v.replace(/<\/script/gi, '<\\/script')}<\/script></body>` : xl === 'css' ? `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}${v}</style><h1>Heading</h1><p class="score">A paragraph</p><button id="go">Button</button>` : `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}</style>${RUNNER}${v}`;
+            setTimeout(() => { if (xl === 'js' && !out.children.length) out.innerHTML = '<div class="cl dim">ran, nothing logged · add console.log(…) to see a value</div>'; }, 700);
+          };
+          box.querySelector('[data-run]').onclick = run; run(); ta.focus();
+        };
+      };
+      card.onclick = toggle; card.onkeydown = (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); toggle(e); } };
+    });
+  }
   // A note, opened: its line, the note, and every key word in it explained; then all the words for this file.
   function openNote(n, line, note, deeper, edit) {
     const mk = note.text ? marked(note.text, note.terms) : { html: '', found: note.terms.map((t) => t.toLowerCase()) }, lang = langOf(file);
@@ -171,8 +212,9 @@
       ta.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); ta.blur(); } };
       d.addEventListener('close', () => { if (changed) paint(); }, { once: true });
     }
+    activate(d);
     const dp = d.querySelector('[data-deeper]'); if (dp) dp.onclick = () => { d.close(); deeper(); };
-    d.querySelector('.glnote').onclick = (e) => { const b = e.target.closest('b.kw'); if (!b) return; const el = [...d.querySelectorAll('.gl > b')].find((x) => x.textContent.toLowerCase() === b.textContent.toLowerCase()); if (el) { el.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.parentElement.classList.add('flash'); setTimeout(() => el.parentElement.classList.remove('flash'), 1200); } };
+    d.querySelector('.glnote').onclick = (e) => { const b = e.target.closest('b.kw'); if (!b) return; const card = [...d.querySelectorAll('.gl[data-term]')].find((x) => x.dataset.term.toLowerCase() === b.textContent.toLowerCase()); if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 1200); } };
   }
   // The words a line of code uses, from the starter glossary: the first layer of Help, there at once.
   const CODE_WORDS = { js: [[/\bconst\s/, 'const'], [/\blet\s/, 'let'], [/\b(let|const|var)\s/, 'variable'], [/\bfunction\b/, 'function'], [/=>/, 'arrow function'], [/\breturn\b/, 'return'],
@@ -192,7 +234,7 @@
     // the starter words this file's code uses: there at once, before Claude's notes arrive
     const inCode = Object.keys(GLOSS).filter((w) => new RegExp('(^|[^\\w.])' + RE(w) + '(?![\\w])', w === 'HTML' || w === 'CSS' || w === 'DOM' ? '' : 'i').test(src) || (w === 'variable' && /\b(let|const|var)\s/.test(src)) || (w === 'event listener' && /addEventListener/.test(src)) || (w === 'string' && /['"`]/.test(src)) || (w === 'comment' && /\/\/|\/\*|<!--/.test(src)));
     el.innerHTML = `<div class="helpv">${inCode.length ? `<button class="hl-words" id="hlw">📖 Words in this file <small>${inCode.length}</small></button>` : ''}${notes ? '' : reading.has(key) ? '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>' : '<button class="hl-ask" id="hla">✦ Ask Claude to explain this file</button>'}${rows(notes)}</div>`;
-    const hw = el.querySelector('#hlw'); if (hw) hw.onclick = () => X.sheet(`<div class="playh"><b>📖 Words in ${esc(file)}</b><small>${inCode.length} to know</small><button data-close aria-label="Close">✕</button></div><div class="glbody">${inCode.map(defOf).filter(Boolean).map(entry).join('')}</div>`);
+    const hw = el.querySelector('#hlw'); if (hw) hw.onclick = () => activate(X.sheet(`<div class="playh"><b>📖 Words in ${esc(file)}</b><small>${inCode.length} to know</small><button data-close aria-label="Close">✕</button></div><div class="glbody">${inCode.map(defOf).filter(Boolean).map(entry).join('')}</div>`));
     el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openNote(k, lines[k - 1], b.dataset.w ? { terms: b.dataset.w.split('|') } : notes[k], () => dig((draft || head().files)[file] ?? '', k), X.canEdit(p) ? (v) => editLine(k, v) : null); }));
     const ha = el.querySelector('#hla'); if (ha) ha.onclick = () => dig(src);
   }
