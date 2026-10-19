@@ -159,27 +159,28 @@
   // The one code box: coloured, editable, ▶ Run in a sandbox (an example on its own; a line of the file
   // inside the whole project, so it runs for real), and ✓ Apply to put an edited line into the file.
   function codeBox(host, d, { code, lang, line, apply, term }) {
-    host.innerHTML = `<div class="gled"><pre class="glcode" aria-hidden="true">${hl(code, lang).slice(0, -1) || ' '}</pre><textarea class="glcode" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Code">${esc(code)}</textarea></div>
-      <div class="glacts"><button data-run>▶ Run</button><button class="glaskb" data-askb>✦ Ask</button>${apply ? '<button class="glapply" data-apply disabled>✓ Apply</button>' : ''}<small>${apply ? 'Edit, ▶ to try it in the project, ✓ to put it in ' + esc(file) + '.' : 'Edit it and ▶ again: nothing here touches your project.'}</small></div><div class="glout"></div><iframe class="glframe" sandbox="allow-scripts allow-modals" title="Run" hidden></iframe>`;
+    // the live preview: the project with this line as it is in the box (or the example on its own),
+    // redrawn a moment after you stop typing; a JS-only example shows its console here instead
+    const page = !!line || lang !== 'js';
+    host.innerHTML = `<div class="glprev"${page ? '' : ' hidden'}><iframe class="glframe" sandbox="allow-scripts allow-modals" title="Live preview"></iframe><button class="glre" aria-label="Start again" title="Start again">↻</button><span class="gllive">● live</span></div><div class="glout"></div>
+      <div class="gled"><pre class="glcode" aria-hidden="true">${hl(code, lang).slice(0, -1) || ' '}</pre><textarea class="glcode" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Code">${esc(code)}</textarea></div>
+      <div class="glacts"><button class="glaskb" data-askb>✦ Ask</button>${apply ? '<button class="glapply" data-apply disabled>✓ Apply</button>' : ''}<small>${apply ? 'Change it and watch the preview; ✓ puts it in ' + esc(file) + '.' : 'Change it and watch: nothing here touches your project.'}</small></div>`;
     const ta = host.querySelector('textarea'), pre = host.querySelector('pre'), out = host.querySelector('.glout'), fr = host.querySelector('iframe'), ap = host.querySelector('[data-apply]');
-    let lit = null;
+    let lit = null, timer = 0;
     const draw = () => { const v = ta.value, r = lit && spot(v, lit, lang); pre.innerHTML = r ? hl(v.slice(0, r[0]), lang).slice(0, -1) + `<mark>${hl(v.slice(r[0], r[1]), lang).slice(0, -1)}</mark>` + hl(v.slice(r[1]), lang).slice(0, -1) : hl(v, lang).slice(0, -1) || ' '; };
     host.mark = (term) => { lit = term; draw(); };
-    ta.oninput = () => { draw(); if (ap) ap.disabled = ta.value === code; };
-    if (line) ta.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); host.querySelector('[data-run]').click(); } };
     const on = (e) => { if (e.source !== fr.contentWindow || !e.data) return; const m = e.data.r4try || e.data.r4log; if (!m) return; out.insertAdjacentHTML('beforeend', `<div class="cl ${m[0]}">${m[0] === 'error' ? '✕' : '›'} ${esc(m[1])}</div>`); };
-    addEventListener('message', on); d.addEventListener('close', () => removeEventListener('message', on), { once: true });
-    host.querySelector('[data-run]').onclick = () => {
+    addEventListener('message', on); d.addEventListener('close', () => { removeEventListener('message', on); clearTimeout(timer); }, { once: true });
+    const run = () => {
       out.innerHTML = ''; const v = ta.value;
-      if (line) {   // the project, with this line as it is in the box
-        const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L[line - 1] = v; F[file] = L.join('\n');
-        fr.hidden = lang === 'js'; fr.srcdoc = PR.codeDoc(F);
-      } else {
-        fr.hidden = lang === 'js';
-        fr.srcdoc = lang === 'js' ? `<!doctype html><body>${RUNNER}<script>${v.replace(/<\/script/gi, '<\\/script')}<\/script></body>` : lang === 'css' ? `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}${v}</style><h1>Heading</h1><p class="score">A paragraph</p><button id="go">Button</button>` : `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}</style>${RUNNER}${v}`;
-      }
-      setTimeout(() => { if (lang === 'js' && !out.children.length) out.innerHTML = '<div class="cl dim">ran, nothing logged · add console.log(…) to see a value</div>'; }, 900);
+      if (line) { const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L[line - 1] = v; F[file] = L.join('\n'); fr.srcdoc = PR.codeDoc(F); }
+      else fr.srcdoc = lang === 'js' ? `<!doctype html><body>${RUNNER}<script>${v.replace(/<\/script/gi, '<\\/script')}<\/script></body>` : lang === 'css' ? `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}${v}</style><h1>Heading</h1><p class="score">A paragraph</p><button id="go">Button</button>` : `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}</style>${RUNNER}${v}`;
+      if (!page) setTimeout(() => { if (!out.children.length) out.innerHTML = '<div class="cl dim">nothing logged · add console.log(…) to see a value</div>'; }, 900);
     };
+    ta.oninput = () => { draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); timer = setTimeout(run, 700); };
+    ta.onkeydown = (e) => { if (line && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); clearTimeout(timer); run(); } };
+    host.querySelector('.glre').onclick = run;
+    run();
     // ✦ Ask: Claude, in the Claude tab, about this line (and the word whose card is open), or this word
     host.querySelector('[data-askb]').onclick = () => {
       const open = d.querySelector('.gl.open'), w = (open && open.dataset.term) || term, v = ta.value.trim();
