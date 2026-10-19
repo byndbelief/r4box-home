@@ -464,3 +464,7 @@ body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent}
 .as button.on::after{content:" ▴";opacity:.6;font-size:.85em}
 /* touch: comfortable hit areas in Play and Explore */
 @media (pointer:coarse){.dens-play button,.dens-explore .gear,.dens-explore .back{min-height:40px}}
+/* Headers let taps through to what is behind them (pointer-events:none) and turn them back on for
+   their buttons. Buttons styled with all:unset (.sb, .back, .bb, .hbtn, .gear) inherit the none instead,
+   so a sub-page back button could not be tapped: every control in any header takes taps. */
+header button,header a,header input,header select,header label{pointer-events:auto!important}

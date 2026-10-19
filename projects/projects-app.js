@@ -311,11 +311,15 @@
 
   // ---------- chrome ----------
   $('back').onclick = () => { history.replaceState(null, '', location.pathname); renderHome(); };
-  addEventListener('popstate', () => { const id = new URLSearchParams(location.search).get('open'); id && list.some((p) => p.id === id) ? openBench(id) : renderHome(); });
+  addEventListener('popstate', () => { if (document.querySelector('.subpage')) return;   // closing Settings: it handles itself
+    const id = new URLSearchParams(location.search).get('open'); id && list.some((p) => p.id === id) ? openBench(id) : renderHome(); });
   $('gear').onclick = () => {
     const pg = document.createElement('section'); pg.className = 'subpage';
     pg.innerHTML = '<header><button class="sb" aria-label="Back">‹</button><span><b>Settings</b><small>View · builder</small></span></header><div class="subb" id="sbody" style="padding:12px"></div>';
-    $('app').append(pg); pg.querySelector('.sb').onclick = () => { pg.remove(); open ? paintBench() : renderHome(); };
+    // Settings is a step in history, so the phone's back button closes it too.
+    $('app').append(pg); history.pushState({ set: 1 }, '');
+    const shut = () => { if (!pg.isConnected) return; pg.remove(); removeEventListener('popstate', shut); open ? paintBench() : renderHome(); };
+    addEventListener('popstate', shut); pg.querySelector('.sb').onclick = () => history.back();
     const VIEWS = [['play', '🧸', 'Play', 'A few big controls'], ['explore', '🧭', 'Explore', 'The main things, a little text'], ['pilot', '✈️', 'Pilot', 'Every instrument at once'], ...(viewer.role === 'parent' ? [['dev', '⌘', 'Developer', 'Everything, condensed, plus the raw data']] : [])];
     const paint = () => {
       $('sbody').innerHTML = `<h3 class="k">View</h3><div class="vset">${VIEWS.map(([id, em, n, b]) => `<button class="vopt${dens === id ? ' on' : ''}" data-view="${id}"><span class="em">${em}</span><b>${n}</b><em>${b}</em></button>`).join('')}</div><p class="note" style="margin:6px 0 0">The same view as your home page.</p>
