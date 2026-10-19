@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0B0918">
+  <meta name="theme-color" content="#000000">
   <meta name="robots" content="noindex">
   <title>r4box trip</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -13,7 +13,7 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
     :root {
       color-scheme: dark;
-      --bg: #0B0918; --panel: #171331; --panel-2: #1F1A3F; --line: #2F2957; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
+      --bg: #000000; --panel: #0D0B1F; --glow: 0 0 0 1px #B9A6FF0d, 0 0 18px -6px #7B6BFF40; --panel-2: #141130; --line: #251F48; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
       --teal: #3DD6C6; --teal-ink: #062A26; --gold: #F5C542; --gold-ink: #2A2100; --hot: #FF5A4A; --hot-soft: #4A2230; --violet: #B9A6FF;
       --display: "Unbounded", "Arial Black", Impact, sans-serif;
       --body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -23,7 +23,7 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; background: var(--bg); color: var(--ink); }
     body { font: 16px/1.5 var(--body); -webkit-font-smoothing: antialiased; min-height: 100dvh;
-      background: radial-gradient(900px 420px at 15% -10%, #2A1F5E55, transparent 60%), radial-gradient(700px 380px at 100% 0%, #0E4A4655, transparent 60%), var(--bg); background-attachment: fixed; }
+      background: var(--bg); background-attachment: fixed; }
     :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     [hidden] { display: none !important; }
     button, input, select, textarea { font: inherit; }
@@ -111,11 +111,11 @@
     .tile { position: relative; aspect-ratio: 4 / 5; border-radius: 18px; overflow: hidden; cursor: pointer; background: var(--panel-2); border: 1px solid var(--line); isolation: isolate; }
     .tile > img, .tile > svg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; transition: transform .4s; }
     .tile:hover > img { transform: scale(1.04); }
-    .tile::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, #0B091800 35%, #0B0918d9 78%, #0B0918f2); }
+    .tile::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, #00000000 35%, #000000d9 78%, #000000f2); }
     .tile .tt { position: absolute; left: 12px; right: 12px; bottom: 12px; }
     .tile .tt b { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; line-height: 1.25; font-weight: 800; text-shadow: 0 1px 8px #000a; }
     .tile .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-    .tile .tags span { padding: 2px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 800; background: #0B0918b3; border: 1px solid #ffffff26; backdrop-filter: blur(4px); }
+    .tile .tags span { padding: 2px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 800; background: #000000b3; border: 1px solid #ffffff26; backdrop-filter: blur(4px); }
     .tile .tags .price { color: var(--gold); }
     .tile .play { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #FF5A4Ae6; color: #fff; font-size: 13px; box-shadow: 0 4px 14px #0008; }
     @media (prefers-reduced-motion: reduce) { .tile > img { transition: none; } }
@@ -131,7 +131,7 @@
     /* the detail sheet: full screen on a phone, a centred panel on a wide screen */
     #sheet { padding: 0; border: 0; width: 100%; max-width: 680px; height: 100dvh; max-height: 100dvh; margin: 0 auto; background: var(--bg); color: var(--ink); border-radius: 0; }
     @media (min-width: 720px) { #sheet { height: 92dvh; margin-top: 4dvh; border-radius: 22px; border: 1px solid var(--line); } }
-    #sheet::backdrop { background: #0B0918dd; }
+    #sheet::backdrop { background: #000000dd; }
     #sheet .wrap { display: flex; flex-direction: column; height: 100%; }
     #sheet header.sh { flex: none; display: flex; align-items: center; gap: 10px; padding: max(12px, env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--line); }
     #sheet header.sh b { flex: 1; min-width: 0; font: 800 15px/1.2 var(--body); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -140,8 +140,8 @@
     #sheet .pics figure { position: relative; flex: none; margin: 0; width: min(86%, 520px); aspect-ratio: 16 / 10; border-radius: 16px; overflow: hidden; background: var(--panel-2); scroll-snap-align: start; }
     #sheet .pics figure:only-child { width: 100%; }
     #sheet .pics img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    #sheet .pics figcaption { position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: 99px; background: #0B0918cc; font-size: 11px; color: var(--muted); }
-    #sheet .pics .x { position: absolute; top: 8px; right: 8px; all: unset; cursor: pointer; padding: 4px 9px; border-radius: 99px; background: #0B0918cc; font-size: 13px; }
+    #sheet .pics figcaption { position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: 99px; background: #000000cc; font-size: 11px; color: var(--muted); }
+    #sheet .pics .x { position: absolute; top: 8px; right: 8px; all: unset; cursor: pointer; padding: 4px 9px; border-radius: 99px; background: #000000cc; font-size: 13px; }
     #sheet .sec { padding: 16px 16px 0; }
     #sheet h2.t { margin: 0; font: 800 clamp(22px, 6vw, 28px)/1.15 var(--display); letter-spacing: -.02em; overflow-wrap: anywhere; }
     #sheet .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -179,7 +179,7 @@
     /* flight comparison */
     #fly { padding: 0; border: 0; width: 100%; max-width: 760px; height: 100dvh; max-height: 100dvh; margin: 0 auto; background: var(--bg); color: var(--ink); }
     @media (min-width: 800px) { #fly { height: 94dvh; margin-top: 3dvh; border-radius: 22px; border: 1px solid var(--line); } }
-    #fly::backdrop { background: #0B0918dd; }
+    #fly::backdrop { background: #000000dd; }
     #fly .wrap { display: flex; flex-direction: column; height: 100%; }
     #fly header.sh { flex: none; display: flex; align-items: center; gap: 10px; padding: max(12px, env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--line); }
     #fly header.sh b { flex: 1; font: 800 17px/1.2 var(--display); }
@@ -292,6 +292,7 @@
     .total b { font: 800 22px/1 var(--display); color: var(--gold); }
     .packs { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 14px; }
     .pack { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+    :is(.item, .fcard, .combo, .poll, .pack, .opt) { box-shadow: var(--glow); }
     .pack h3 { margin: 0 0 8px; font: 800 15px/1.2 var(--display); }
     .pack label { display: flex; gap: 10px; align-items: center; padding: 5px 0; cursor: pointer; }
     .pack label.done span { color: var(--faint); text-decoration: line-through; }
@@ -301,7 +302,7 @@
     textarea { resize: vertical; min-height: 70px; }
     .empty { color: var(--muted); padding: 10px 2px; }
     dialog { width: min(480px, calc(100% - 24px)); border: 1px solid var(--line); border-radius: 20px; background: var(--panel-2); color: var(--ink); padding: 20px; }
-    dialog::backdrop { background: #0B0918bb; }
+    dialog::backdrop { background: #000000bb; }
     dialog form { display: grid; gap: 12px; }
     dialog label { display: grid; gap: 4px; font-weight: 700; font-size: 14px; }
     dialog .row { display: flex; gap: 10px; } dialog .row > * { flex: 1; }
@@ -559,7 +560,7 @@
     let h = 2166136261; for (const c of String(seed)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
     const cols = ['#3DD6C6', '#B9A6FF', '#F5C542', '#FF5A4A', '#C9FFF8'], a = cols[h % 5], b = cols[(h >> 3) % 5], n = 6 + (h % 4) * 2, r = 22 + (h >> 7) % 10;
     const circles = Array.from({ length: n }, (_, k) => { const t = (k / n) * Math.PI * 2; return `<circle cx="${(50 + Math.cos(t) * r * 0.55).toFixed(1)}" cy="${(52 + Math.sin(t) * r * 0.55).toFixed(1)}" r="${r}" />`; }).join('');
-    return `<svg viewBox="0 0 100 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="100" height="125" fill="#171331"/><g fill="none" stroke="${a}" stroke-width=".6" opacity=".7">${circles}</g><circle cx="50" cy="52" r="${r * 1.55}" fill="none" stroke="${b}" stroke-width=".5" opacity=".6"/><circle cx="50" cy="52" r="2" fill="${b}"/></svg>`;
+    return `<svg viewBox="0 0 100 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="100" height="125" fill="#0D0B1F"/><g fill="none" stroke="${a}" stroke-width=".6" opacity=".7">${circles}</g><circle cx="50" cy="52" r="${r * 1.55}" fill="none" stroke="${b}" stroke-width=".5" opacity=".6"/><circle cx="50" cy="52" r="2" fill="${b}"/></svg>`;
   }
   const priceOf = (i) => i.cost ? money(i.cost) : ((i.notes || '').match(/(?:about|around|roughly|~)\s*\$[\d,]+(?:\s*[–-]\s*\$?[\d,]+)?/i) || [])[0]?.replace(/^(about|around|roughly|~)\s*/i, '') || '';
   const tile = (i) => {

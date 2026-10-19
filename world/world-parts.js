@@ -76,6 +76,24 @@
     return finish({ kind: 'seed', seed, segs, buds: [{ x: seed.x, y: seed.y - 24 * s, r: 3.4 * s, c, seed }], label: { x: seed.x, y: seed.y - 34 * s }, hit: { x: seed.x, y: seed.y - 12 * s, r: 22 * s } }, seed.x, seed.y);
   }
 
+  // ⚒ A project: a straight stem, a leaf pair per version, a glowing gem on top with the project's emoji.
+  function project(pr, x, gy, s, col) {
+    const n = Math.min(9, Math.max(3, pr.versions.length + 1)), H = (60 + n * 9) * s, segs = [], buds = [];
+    let py = gy; for (let i = 0; i < n; i++) { const ny = py - H / n; segs.push({ x1: x, y1: py, x2: x + Math.sin(i * 1.3) * 1.5 * s, y2: ny, w: (3 - i * 0.2) * s, c: BARK }); py = ny; }
+    pr.versions.forEach((v, i) => { const sg = segs[Math.min(n - 1, i + 1)], side = i % 2 ? 1 : -1, lx = sg.x2 + side * 12 * s, ly = sg.y2 - 4 * s;
+      segs.push({ x1: sg.x2, y1: sg.y2, x2: lx, y2: ly, w: 1.3 * s, c: BARK, leaf: true }); buds.push({ x: lx, y: ly, r: 2.6 * s, c: col, ev: null }); });
+    const topic = { id: 'proj:' + pr.id, slug: pr.id, title: pr.name, project: pr.id };
+    return finish({ kind: 'project', topic, segs, buds, gem: { x, y: py - 12 * s, r: 11 * s, c: col, em: pr.em, draft: !pr.published }, label: { x, y: py - 30 * s }, hit: { x, y: (gy + py) / 2 - 6 * s, r: H * 0.55 + 14 * s } }, x, gy);
+  }
+  function drawGem(ctx, g, t) {
+    const r = g.r * (1 + 0.05 * Math.sin(t * 1.6 + g.x));
+    glow(ctx, g.x, g.y, r * 3, g.c, g.draft ? 0.35 : 0.8);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = g.draft ? 0.6 : 1;
+    ctx.beginPath(); ctx.moveTo(g.x, g.y - r); ctx.lineTo(g.x + r, g.y); ctx.lineTo(g.x, g.y + r); ctx.lineTo(g.x - r, g.y); ctx.closePath();
+    ctx.fillStyle = '#08061A'; ctx.fill(); ctx.strokeStyle = g.c; ctx.lineWidth = 1.6; if (g.draft) ctx.setLineDash([2, 3]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = (r * 1.05) + 'px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(g.em, g.x, g.y + 1); ctx.textBaseline = 'alphabetic';
+    ctx.globalCompositeOperation = 'lighter';
+  }
   function glow(ctx, x, y, r, c, a) {
     const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.globalAlpha = a; ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
@@ -96,6 +114,7 @@
     if (o.tips) for (const p of o.tips) glow(ctx, p.x, p.y, 7, LEAF, 0.55 * fade);
     if (o.fruit) for (const p of o.fruit) { glow(ctx, p.x, p.y, p.r * 3.2, GOLD, 0.7); ctx.globalAlpha = 1; ctx.fillStyle = GOLD; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill(); }
     if (o.bloom) drawBloom(ctx, o.bloom, t, fade);
+    if (o.gem) drawGem(ctx, o.gem, t);
     for (const b of o.buds) {
       const beat = 0.75 + 0.25 * Math.sin(t * (b.star ? 2.2 : 1.1) + b.x * 0.07);
       glow(ctx, b.x, b.y, b.r * (b.star ? 4.4 : 3.6), b.c, 0.8 * beat * fade);
@@ -115,5 +134,5 @@
     glow(ctx, 0, 0, R * 0.5, b.gold ? GOLD : '#C9FFF8', 0.6 * fade);
     ctx.restore();
   }
-  window.WorldParts = { flower, bush, starTree, sprout, draw, glow, hash, rng, FAM };
+  window.WorldParts = { project, flower, bush, starTree, sprout, draw, glow, hash, rng, FAM };
 })();

@@ -6,7 +6,7 @@
   <title>r4box</title>
   <meta name="description" content="r4box: the family game room, and the box that runs the rest.">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#06050F">
+  <meta name="theme-color" content="#000000">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
@@ -16,7 +16,7 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
     :root {
       color-scheme: dark;
-      --bg: #06050F; --panel: #171331; --panel-2: #1F1A3F; --line: #2F2957; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
+      --bg: #000000; --panel: #0D0B1F; --glow: 0 0 0 1px #B9A6FF0d, 0 0 18px -6px #7B6BFF40; --panel-2: #141130; --line: #251F48; --ink: #F3F1FF; --muted: #ACA5D6; --faint: #7A73A8;
       --teal: #3DD6C6; --teal-ink: #062A26; --gold: #F5C542; --hot: #FF5A4A; --hot-soft: #4A2230; --violet: #B9A6FF; --mint: #C9FFF8;
       --display: "Unbounded", "Arial Black", Impact, sans-serif;
       --body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -26,7 +26,7 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
     body { font: 16px/1.5 var(--body); -webkit-font-smoothing: antialiased; min-height: 100dvh;
-      background: radial-gradient(900px 420px at 15% -10%, #2A1F5E55, transparent 60%), radial-gradient(700px 380px at 100% 0%, #0E4A4655, transparent 60%), var(--bg); background-attachment: fixed; }
+      background: var(--bg); background-attachment: fixed; }
     :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     [hidden] { display: none !important; }
 
@@ -56,7 +56,7 @@
     .btn:disabled { opacity: .45; cursor: default; }
     .link { all: unset; cursor: pointer; color: var(--teal); text-decoration: underline; font-weight: 700; }
     .link.quiet { color: var(--muted); }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 14px; box-shadow: var(--glow); }
     label { display: grid; gap: 4px; font-weight: 700; font-size: 14px; }
     input { font: 400 16px/1.2 var(--body); color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; }
     .msg { margin: 0; border-radius: 12px; padding: 12px 14px; font-weight: 700; background: var(--panel-2); }
@@ -81,7 +81,7 @@
     .who img, .who .av { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
     .who .av { display: grid; place-items: center; font: 800 12px/1 var(--display); color: var(--teal-ink); background: linear-gradient(160deg, var(--teal), var(--violet)); }
     .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-    .sheet { position: fixed; inset: 0; z-index: 5; display: grid; place-items: end center; background: #0B091899; }
+    .sheet { position: fixed; inset: 0; z-index: 5; display: grid; place-items: end center; background: #00000099; }
     .sheet > div { width: min(390px, calc(100% - 24px)); margin: 12px; padding: 22px 20px 18px; border-radius: 24px; background: var(--panel-2); border: 1px solid var(--line); display: grid; justify-items: center; gap: 12px; text-align: center; }
     .sheet .ring { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; font-size: 30px; border: 2px solid var(--line); color: var(--muted); }
 
@@ -120,7 +120,7 @@
     #home > header .mark { font-size: 18px; }
     #home > header .sep { color: var(--faint); }
     #home > header h1 { font: 800 18px/1 var(--display); margin: 0; letter-spacing: -.02em; }
-    .gear { all: unset; cursor: pointer; margin-left: auto; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; border: 1px solid var(--line); background: #06050Fcc; color: var(--muted); font-size: 18px; }
+    .gear { all: unset; cursor: pointer; margin-left: auto; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; border: 1px solid var(--line); background: #000000cc; color: var(--muted); font-size: 18px; }
     .gmenu { position: absolute; z-index: 15; right: 16px; top: calc(max(14px, env(safe-area-inset-top)) + 48px); width: 210px; padding: 6px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 14px 32px #000b; }
     .gmenu button, .gmenu a { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: block; padding: 10px 12px; border-radius: 11px; font-size: 14px; font-weight: 700; }
     .gmenu button:hover, .gmenu a:hover { background: #ffffff0c; }
@@ -128,10 +128,10 @@
     .world { position: relative; overflow: hidden; height: min(64dvh, 560px); min-height: 360px; border-bottom: 1px solid var(--line); }
     .world canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
     .legend { position: absolute; z-index: 2; left: 16px; right: 16px; bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
-    .legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; line-height: 1.2; padding: 4px 10px; border-radius: 99px; background: #06050Fb3; border: 1px solid #ffffff1a; font-size: 12px; font-weight: 700; backdrop-filter: blur(4px); }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; line-height: 1.2; padding: 4px 10px; border-radius: 99px; background: #000000b3; border: 1px solid #ffffff1a; font-size: 12px; font-weight: 700; backdrop-filter: blur(4px); }
     .legend i { width: 7px; height: 7px; border-radius: 9px; flex: none; }
     .hpage { padding: 16px 16px calc(28px + env(safe-area-inset-bottom)); }
-    .pick { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; margin-bottom: 16px; }
+    .pick { box-shadow: var(--glow); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; margin-bottom: 16px; }
     .pick h2 { font: 800 18px/1.2 var(--display); margin: 0; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
     .pick h2 small { font: 700 12px/1.3 var(--body); color: var(--muted); }
     .pick p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
@@ -356,7 +356,7 @@
       $('treemsg').hidden = !msg; $('treemsg').textContent = msg || ''; $('treemsg').className = 'msg bad';
       tpath = []; tbad = false;
       if (!stopTree) stopTree = window.mountDiaryTree($('tcv'), SAPLING, {
-        palette: { '--bark': '#3A335F', '--c-park': '#4A4470', '--c-growth': '#B9A6FF', '--c-turn': '#FF5A4A', '--c-close': '#3DD6C6', '--accent': '#F5C542', '--ground': '#06050F' },
+        palette: { '--bark': '#3A335F', '--c-park': '#4A4470', '--c-growth': '#B9A6FF', '--c-turn': '#FF5A4A', '--c-close': '#3DD6C6', '--accent': '#F5C542', '--ground': '#000000' },
         flow: { colors: ['#3DD6C6', '#C9FFF8', '#B9A6FF', '#F5C542', '#FF5A4A'], wave: 70, speed: .45, tail: 2.6 },
         spin: false, fill: true, segScale: 1.7, withTips: true, onLayout: (n, w, h) => { dots = codeDots(n, w, h); drawDots(); },
       });

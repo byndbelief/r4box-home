@@ -26,7 +26,9 @@
     by('chat').forEach((o, i) => objs.push(P().flower(o.t, o.g, WW / 2 + side(i) * (tree.w * 0.58 + rank(i) * 120), gy - 2, s)));
     by('game').forEach((o, i) => objs.push(P().bush(o.t, o.g, WW / 2 + side(i + 1) * (tree.w * 0.6 + 70 + rank(i) * 150), gy, s)));
     by('trip').forEach((o, i) => objs.push(P().starTree(o.t, o.g, WW / 2 + side(i) * (WW * 0.2 + rank(i) * 160), WH * (0.1 + (i % 3) * 0.06), s)));
-    (seeds || []).forEach((sd) => objs.push(P().sprout(sd, s)));
+    const KC = { game: '#3DD6C6', app: '#F5C542', page: '#B9A6FF', story: '#FF5A4A', toy: '#7DF0C8' };
+    (data.projects || []).forEach((pr, i) => objs.push(P().project(pr, WW / 2 + side(i + 1) * (tree.w * 0.5 + 95 + rank(i) * 70), gy, s, KC[pr.kind] || '#B9A6FF')));
+    (seeds || []).forEach((sd, i) => objs.push(P().sprout(sd.x == null ? { ...sd, x: WW / 2 + side(i) * (tree.w * 0.5 + 30 + rank(i) * 46), y: gy } : sd, s)));
     // ties
     const ties = [], tutorDays = new Set((data.events || []).filter((e) => topics.some((t) => t.id === e.topic && t.source === 'tutor')).map((e) => e.day));
     objs.forEach((o) => {

@@ -4,7 +4,7 @@
      { destroy, setPlant(on), setSeeds(seeds), zoomBy(f), reset(), focus(hit), select(ev) } */
 (function () {
   const TAU = Math.PI * 2;
-  const PAL = { '--bark': '#3A335F', '--c-park': '#4A4470', '--c-growth': '#B9A6FF', '--c-turn': '#FF5A4A', '--c-close': '#3DD6C6', '--accent': '#F5C542', '--ground': '#06050F' };
+  const PAL = { '--bark': '#3A335F', '--c-park': '#4A4470', '--c-growth': '#B9A6FF', '--c-turn': '#FF5A4A', '--c-close': '#3DD6C6', '--accent': '#F5C542', '--ground': '#000000' };
   const FLOW = ['#3DD6C6', '#C9FFF8', '#B9A6FF', '#F5C542', '#FF5A4A'];
   function treeData(tutor, events) {
     const ids = new Set(tutor.map((t) => t.id));
@@ -87,13 +87,13 @@
       const t = now / 1000, dpr = cv.width / VW;
       if (tween) { const p = Math.min(1, (now - tween.t0) / tween.dur), e = 1 - Math.pow(1 - p, 3); cam = { k: tween.from.k + (tween.to.k - tween.from.k) * e, x: tween.from.x + (tween.to.x - tween.from.x) * e, y: tween.from.y + (tween.to.y - tween.from.y) * e }; if (p >= 1) tween = null; }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const sky = ctx.createLinearGradient(0, 0, 0, VH); sky.addColorStop(0, '#06050F'); sky.addColorStop(1, '#100C25'); ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+      const sky = ctx.createLinearGradient(0, 0, 0, VH); sky.addColorStop(0, '#000000'); sky.addColorStop(1, '#000000'); ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
       ctx.setTransform(dpr * cam.k, 0, 0, dpr * cam.k, dpr * (VW / 2 - cam.x * cam.k), dpr * (VH / 2 - cam.y * cam.k));
       // dust stars in the sky
       const r = window.WorldParts.rng(7); ctx.fillStyle = '#F5F1FF';
       for (let i = 0; i < 220; i++) { const x = r() * L.WW, y = r() * L.gy * 0.8, s = r() * 1.6 + 0.4, tw = r() * TAU; ctx.globalAlpha = 0.15 + 0.2 * Math.sin(t * 1.3 + tw); ctx.fillRect(x, y, s, s); }
       // the soil, then roots in it, then a Flower of Life on its surface
-      ctx.globalAlpha = 1; const soil = ctx.createLinearGradient(0, L.gy, 0, L.WH); soil.addColorStop(0, '#120E28'); soil.addColorStop(1, '#06050F'); ctx.fillStyle = soil; ctx.fillRect(0, L.gy, L.WW, L.WH - L.gy);
+      ctx.globalAlpha = 1; const soil = ctx.createLinearGradient(0, L.gy, 0, L.WH); soil.addColorStop(0, '#07051A'); soil.addColorStop(1, '#000000'); ctx.fillStyle = soil; ctx.fillRect(0, L.gy, L.WW, L.WH - L.gy);
       ctx.strokeStyle = '#3A335F'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, L.gy); ctx.lineTo(L.WW, L.gy); ctx.stroke();
       drawTies(t, true);
       ctx.save(); ctx.translate(L.root.x, L.gy); ctx.scale(1, 0.22); ctx.lineWidth = 3; const cr = L.tree.w * 0.16;
@@ -109,7 +109,7 @@
         ctx.font = '700 12px Sora, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.globalAlpha = Math.min(1, (zoom - 1.45) * 2.5);
         for (const o of L.objs) { const sx = (o.label.x - cam.x) * cam.k + VW / 2, sy = (o.label.y - cam.y) * cam.k + VH / 2; if (sx < -80 || sx > VW + 80 || sy < -20 || sy > VH + 20) continue;
           const txt = o.seed ? '🌱 ' + o.seed.title : o.topic.title, w = ctx.measureText(txt).width + 14;
-          ctx.fillStyle = '#06050Fcc'; ctx.beginPath(); ctx.roundRect(sx - w / 2, sy - 16, w, 20, 10); ctx.fill(); ctx.fillStyle = '#F3F1FF'; ctx.fillText(txt, sx, sy - 2); }
+          ctx.fillStyle = '#000000cc'; ctx.beginPath(); ctx.roundRect(sx - w / 2, sy - 16, w, 20, 10); ctx.fill(); ctx.fillStyle = '#F3F1FF'; ctx.fillText(txt, sx, sy - 2); }
       }
       if (!still || tween) raf = requestAnimationFrame(frame);
     }

@@ -9,7 +9,7 @@
    onPick gets { person } for a tree, { shared } for a root or star, or null. */
 (function () {
   const TAU = Math.PI * 2, FLOW = ['#3DD6C6', '#C9FFF8', '#B9A6FF', '#F5C542', '#FF5A4A'];
-  const PAL = { '--bark': '#3A335F', '--c-park': '#4A4470', '--c-growth': '#B9A6FF', '--c-turn': '#FF5A4A', '--c-close': '#3DD6C6', '--accent': '#F5C542', '--ground': '#06050F' };
+  const PAL = { '--bark': '#3A335F', '--c-park': '#4A4470', '--c-growth': '#B9A6FF', '--c-turn': '#FF5A4A', '--c-close': '#3DD6C6', '--accent': '#F5C542', '--ground': '#000000' };
   const COL = { game: '#3DD6C6', trip: '#F5C542', chat: '#B9A6FF', tutor: '#B9A6FF' };
 
   function treeData(w) {
@@ -77,7 +77,7 @@
     const qp = (r, u) => { const mx = (r.a.x + r.b.x) / 2, my = r.a.y + r.sag * 1.3, v = 1 - u; return [v * v * r.a.x + 2 * v * u * mx + u * u * r.b.x, v * v * r.a.y + 2 * v * u * my + u * u * r.b.y]; };
     function draw(t) {
       ctx.clearRect(0, 0, W, H);
-      const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#06050F'); sky.addColorStop(0.78, '#110D27'); sky.addColorStop(1, '#08060F');
+      const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#000000'); sky.addColorStop(0.78, '#06040E'); sky.addColorStop(1, '#000000');
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
       for (const d of L.dust) { ctx.globalAlpha = 0.18 + 0.2 * Math.sin(t * 1.3 + d.tw); ctx.fillStyle = '#F5F1FF'; ctx.fillRect(d.x, d.y, d.s, d.s); }
       // one ground for everyone: a Flower of Life laid flat, centred on Dad's root
@@ -112,7 +112,7 @@
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
       // names under each tree
       ctx.font = '700 11px Sora, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ACA5D6';
-      ctx.shadowColor = '#06050F'; ctx.shadowBlur = 6;
+      ctx.shadowColor = '#000000'; ctx.shadowBlur = 6;
       for (const tr of L.tr) { ctx.fillText(family[tr.pi].name, tr.base.x, L.groundY + 16); ctx.fillText(family[tr.pi].name, tr.base.x, L.groundY + 16); }
       ctx.shadowBlur = 0;
     }
