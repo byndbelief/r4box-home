@@ -17,8 +17,8 @@
     @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
-  <link rel="stylesheet" href="world/world.css?v=47">
-  <link rel="stylesheet" href="projects/projects.css?v=47">
+  <link rel="stylesheet" href="world/world.css?v=48">
+  <link rel="stylesheet" href="projects/projects.css?v=48">
   <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }</style>
 </head>
 <body>
@@ -28,9 +28,9 @@
 <dialog class="psheet" id="sheet"></dialog>
 </div>
 <script src="world/story-kit.js"></script>
-<script src="projects/beautifier.min.js?v=47"></script>
-<script src="projects/structure.js?v=47"></script>
-<script src="projects/projects-data.js?v=47"></script>
+<script src="projects/beautifier.min.js?v=48"></script>
+<script src="projects/structure.js?v=48"></script>
+<script src="projects/projects-data.js?v=48"></script>
 <script type="module">
   import { sb, roleOf } from './auth.js';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
@@ -95,11 +95,11 @@
     left: built.left,
     saved: () => chain,
     // Claude changes (or answers about) a project. Saved first, so it reads what's on screen.
-    async ask(p, ask, files, logs, image) {
+    async ask(p, ask, files, logs, image, chat) {
       await chain;
       // a kit project sends the page it builds, so Claude can rebuild it as code when the kit can't do it
       const html = window.R4Projects.isCode(p) ? undefined : window.R4Projects.html(p);
-      const r = await call('project-build', { project: p.id, ask, files: files || undefined, logs: logs || undefined, image: image || undefined, html });
+      const r = await call('project-build', { project: p.id, ask, files: files || undefined, logs: logs || undefined, image: image || undefined, chat: chat || undefined, html });
       if (r.left !== undefined) this.left = r.left;
       return r;
     },

@@ -26,7 +26,15 @@
   }
 
   let diffFile = null;
-  let X, p, file = 'main.js', tab = 'files', draft = null, logs = [], viewV = null, ask = [];
+  let X, p, file = 'main.js', tab = 'files', draft = null, logs = [], viewV = null, ask = [], sugs = null;
+  // ✦ Vibes chips: two or three for where the project is; after each answer, Claude's own next steps.
+  function firstSugs() {
+    if (logs.some((l) => l[0] === 'error')) return ['why is it broken?', 'fix the error'];
+    if (p.versions.length <= 2) return ['explain how it works', 'what could I add?'];
+    return ['what should I add next?', 'make it look nicer'];
+  }
+  // the chat so far, so Claude knows what it already said
+  const chatSoFar = () => ask.slice(1).filter((m) => m.t && m.t !== '…').slice(-10).map((m) => ({ me: !!m.me, t: m.t.slice(0, 800) }));
   const $ = (id) => document.getElementById(id);
   const esc = (s) => X.esc(s);
   const head = () => p.versions[p.cur];
@@ -484,7 +492,7 @@
   function open(proj, ctx, intro, autoAsk) {
     if (parked && parked.d.parked) { parked.d.parked = false; parked.d.dispatchEvent(new Event('close')); } parked = null;
     X = ctx; p = proj; file = Object.keys(head().files).includes('main.js') ? 'main.js' : Object.keys(head().files)[0]; tab = p.kit === 'code' ? 'files' : 'claude'; draft = null; viewV = null;
-    ask = [{ t: X.canEdit(p) ? 'What should we work on?' : 'Read-only. Remix it to change the code.' }];
+    sugs = null; ask = [{ t: X.canEdit(p) ? 'What should we work on?' : 'Read-only. Remix it to change the code.' }];
     if (intro) ask.push({ t: intro, ok: true });
     $('title').textContent = 'code'; $('back').hidden = false; $('mark').hidden = true;
     $('body').innerHTML = `<div class="bench codebench"><div class="bbar"><span class="bname">${esc(p.name)}</span><span class="bver" id="bver"></span><span class="grow"></span><button class="bb" id="crun" title="Run (⌘/Ctrl+Enter)">▶</button><button class="bb" id="cphone" aria-label="Test on phone">📱</button><button class="bb share" id="cshare">↗ Share</button></div>
@@ -545,7 +553,7 @@
     }
     if (tab === 'claude') {
       el.innerHTML = `<div class="bchat" id="cchat">${ask.map((m) => `<div class="bm${m.me ? ' me' : ''}${m.ok ? ' ok' : ''}">${m.me ? '' : '<i>✦</i>'}<span>${m.html || esc(m.t)}</span></div>`).join('')}</div>
-        ${ed ? `<div class="sugs">${['explain main.js', 'why is it broken?', 'make it look nicer', 'add a sound', 'add a reset button', 'turn it into a game'].map((s) => `<button data-s="${s}">${s}</button>`).join('')}</div><form class="bask" id="cask"><input id="cq" placeholder="Ask about the code…" autocomplete="off"><button class="ibtn send" aria-label="Send">↑</button></form><p class="capn">${X.left() === Infinity ? 'No build limit.' : X.left() + ' builds left today · reading and explaining don’t use one'}</p>` : ''}`;
+        ${ed ? `<div class="sugs">${(sugs || firstSugs()).map((s) => `<button data-s="${s}">${s}</button>`).join('')}</div><form class="bask" id="cask"><input id="cq" placeholder="Ask about the code…" autocomplete="off"><button class="ibtn send" aria-label="Send">↑</button></form><p class="capn">${X.left() === Infinity ? 'No build limit.' : X.left() + ' builds left today · reading and explaining don’t use one'}</p>` : ''}`;
       const go = (q) => claude(q.trim());
       if (ed) { $('cask').onsubmit = (e) => { e.preventDefault(); go($('cq').value); }; el.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => go(b.dataset.s))); }
       $('cchat').scrollTop = 1e6; return;
@@ -574,10 +582,10 @@
   }
   let asking = false;
   async function claude(q) {
-    if (!q || asking) return; ask.push({ me: true, t: q }, { t: '…' }); asking = true; paint();
+    if (!q || asking) return; const chat = chatSoFar(); ask.push({ me: true, t: q }, { t: '…' }); asking = true; paint();
     try {
-      const r = await X.claude(p, q, dirty() ? draft : null, logs);
-      ask.pop();
+      const r = await X.claude(p, q, dirty() ? draft : null, logs, null, chat);
+      ask.pop(); if (Array.isArray(r.next) && r.next.length) sugs = r.next.slice(0, 3);
       if (r.name) p.name = r.name;
       if (r.files) { ask.push({ t: r.say + ' Committed as v' + (head().v + 1) + ': open Commits to read the diff, or check out the one before if you don’t want it.', ok: true }); commit(r.note, r.files, X.viewer().id); run(); }
       else { ask.push({ t: r.say }); paint(); }
