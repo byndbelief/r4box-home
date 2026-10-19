@@ -348,3 +348,15 @@ button.gllive{all:unset;cursor:pointer;position:absolute;left:8px;top:7px;paddin
 .gut b.gb{color:#3DD6C6;font-weight:700}
 .lblock{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;margin:10px 0 2px;padding:9px 12px;border-radius:12px;border:1px solid #3DD6C655;background:#3DD6C612;color:#C9FFF8;font:600 13px Sora,system-ui,sans-serif}
 .lblock:hover{background:#3DD6C622}
+/* blocks you can see and pick: a bracket beside each outermost block (tap to open it whole) and a band behind it */
+.ed.rails{grid-template-columns:auto 18px minmax(0,1fr)}
+.ed .rail{position:relative;overflow:hidden;background:#08061A;border-right:1px solid var(--line)}
+.ed .rin{position:absolute;inset:0 0 auto 0}
+.ed .rb{all:unset;position:absolute;left:0;right:0;cursor:pointer;box-sizing:border-box}
+.ed .rb::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:6px;border:3px solid #3DD6C6aa;border-right:0;border-radius:6px 0 0 6px}
+.ed .rb:nth-child(even)::before{border-color:#B9A6FFaa}
+.ed .rb:hover::before,.ed .rb:active::before{border-color:var(--teal);background:#3DD6C622}
+.edw .bands{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.edw .band{position:absolute;left:0;right:0;background:#3DD6C610;border-top:1px solid #3DD6C626;border-bottom:1px solid #3DD6C626}
+.edw .band.alt{background:#B9A6FF12;border-color:#B9A6FF2a}
+.edw .hlc{z-index:0;background:transparent}

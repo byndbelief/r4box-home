@@ -323,6 +323,8 @@
   const blockName = (n) => { const t = (curLines()[n - 1] || '').trim().replace(/\s*[{[(]$/, '').replace(/\s*=$/, '').replace(/^(const|let|var)\s+/, '') || 'block'; return t.length > 34 ? t.slice(0, 33) + '…' : t; };
   // the blocks before / after this one (‹ › in the block editor)
   const blockStep = (a, b, dir) => { const L = curLines(); if (dir > 0) { for (let i = b + 1; i <= L.length; i++) if (blockAt(i)) return i; } else { for (let i = a - 1; i >= 1; i--) { const e = blockAt(i); if (e && e < a) return i; } } return null; };
+  // the outermost blocks of the file, top to bottom: [[first, last], …]
+  const topBlocks = () => { const out = [], L = curLines(); for (let n = 1; n <= L.length; n++) { const b = blockAt(n); if (b) { out.push([n, b]); n = b; } } return out; };
   // ✏️ Block: a whole style rule or function in one box, with its preview, ✦ Ask and ✓ Apply.
   function openBlock(a) {
     const b = blockAt(a); if (!b) return openLine(a);
@@ -464,17 +466,26 @@
     if (tab === 'files') {
       const src = F[file] ?? '', n = src.split('\n').length;
       el.innerHTML = `<div class="ftabs">${Object.keys(F).map((f) => `<button data-f="${esc(f)}" class="${f === file ? 'on' : ''}">${esc(f)}${draft && draft[f] !== head().files[f] ? ' •' : ''}</button>`).join('')}${ed ? '<button class="nf" id="nf">＋</button>' : ''}<button class="nf help${helpOn ? ' on' : ''}" id="hlp" title="Help me: what each line does">💡 Help</button></div>
-        ${helpOn ? '<div class="ed edh" id="edh"></div>' : `<div class="ed"><pre class="gut" id="gut">${gutter()}</pre><div class="edw"><pre class="hlc" id="hlc" aria-hidden="true">${hl(src, langOf(file))}</pre><textarea id="src" spellcheck="false" autocapitalize="off" autocorrect="off" wrap="off"${ed ? '' : ' readonly'}>${esc(src)}</textarea></div></div>`}
+        ${helpOn ? '<div class="ed edh" id="edh"></div>' : `<div class="ed rails"><pre class="gut" id="gut">${gutter()}</pre><div class="rail" id="rail"><div class="rin" id="rin"></div></div><div class="edw"><div class="bands" aria-hidden="true"><div class="rin" id="bands"></div></div><pre class="hlc" id="hlc" aria-hidden="true">${hl(src, langOf(file))}</pre><textarea id="src" spellcheck="false" autocapitalize="off" autocorrect="off" wrap="off"${ed ? '' : ' readonly'}>${esc(src)}</textarea></div></div>`}
         ${ed ? `<form class="cmt" id="cmt"><input id="cmsg" placeholder="${dirty() ? 'What did you change?' : 'Edit, then commit'}" autocomplete="off"><button class="bb" type="button" id="crev"${dirty() ? '' : ' disabled'}>↺</button><button class="bb share" id="cgo"${dirty() ? '' : ' disabled'}>Commit</button></form>` : ''}`;
       el.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { file = b.dataset.f; paint(); }));
       $('hlp').onclick = () => { helpOn = !helpOn; paint(); };
       if (helpOn) { helpView($('edh'), src); if (ed) wireCommit(F); return; }
       const ta = $('src'), g = $('gut'), hc = $('hlc');
-      ta.onscroll = () => { g.scrollTop = ta.scrollTop; hc.scrollTop = ta.scrollTop; hc.scrollLeft = ta.scrollLeft; };
+      ta.onscroll = () => { g.scrollTop = ta.scrollTop; hc.scrollTop = ta.scrollTop; hc.scrollLeft = ta.scrollLeft; $('rin').style.transform = $('bands').style.transform = `translateY(${-ta.scrollTop}px)`; };
+      // the file's blocks, easy to see and pick: a band behind each, and a bracket beside it to tap
+      const drawBlocks = () => {
+        const cs = getComputedStyle(ta), lh = parseFloat(cs.lineHeight) || 18, top = parseFloat(cs.paddingTop) || 8, B = topBlocks();
+        const pos = ([a, b]) => `top:${top + (a - 1) * lh}px;height:${(b - a + 1) * lh}px`;
+        $('rin').innerHTML = B.map(([a, b]) => `<button class="rb" data-a="${a}" style="${pos([a, b])}" aria-label="Open ${esc(blockName(a))}, lines ${a} to ${b}" title="${esc(blockName(a))} · lines ${a}–${b}"></button>`).join('');
+        $('bands').innerHTML = B.map((x, i) => `<i class="band${i % 2 ? ' alt' : ''}" style="${pos(x)}"></i>`).join('');
+        $('rin').querySelectorAll('[data-a]').forEach((x) => (x.onclick = () => openBlock(+x.dataset.a)));
+      };
+      drawBlocks();
       // ✏️ tap a line number: that line in the line editor
       g.title = 'Tap a line number to open that line';
       g.onclick = (e) => { const cs = getComputedStyle(g), lh = parseFloat(cs.lineHeight) || 18, n = Math.floor((e.clientY - g.getBoundingClientRect().top + g.scrollTop - parseFloat(cs.paddingTop)) / lh) + 1; if (n >= 1 && n <= ta.value.split('\n').length) openLine(n); };
-      ta.oninput = () => { draft = draft || { ...head().files }; draft[file] = ta.value; hc.innerHTML = hl(ta.value, langOf(file)); ta.onscroll(); g.innerHTML = gutter(); $('bver').textContent = 'v' + head().v + ' · unsaved'; $('cgo').disabled = $('crev').disabled = !dirty(); };
+      ta.oninput = () => { draft = draft || { ...head().files }; draft[file] = ta.value; hc.innerHTML = hl(ta.value, langOf(file)); ta.onscroll(); g.innerHTML = gutter(); drawBlocks(); $('bver').textContent = 'v' + head().v + ' · unsaved'; $('cgo').disabled = $('crev').disabled = !dirty(); };
       ta.onmousedown = (e) => {
         if (document.activeElement === ta) return;   // typing already: taps place the cursor
         const cs = getComputedStyle(ta), lh = parseFloat(cs.lineHeight) || 18, n = Math.floor((e.clientY - ta.getBoundingClientRect().top + ta.scrollTop - parseFloat(cs.paddingTop)) / lh) + 1;
