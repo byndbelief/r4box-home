@@ -189,3 +189,18 @@ body:has(.pvpanel .mk) #bsw{display:none}
 .vset .vopt.wide{grid-column:1/-1}
 /* the Bench / Preview switch stays out of the way of sub-pages */
 body:has(.subpage) #bsw{display:none}
+/* The bench fills the screen: its bar and tabs on top, the work in the middle taking all the room,
+   and the input (Claude's ask box, or the commit box) always at the bottom, above Code/Preview. */
+main.page:has(.bench){height:100dvh;box-sizing:border-box;padding-bottom:0;display:flex;flex-direction:column;overflow:hidden}
+main.page:has(.bench)>#body{flex:1;min-height:0;display:flex;flex-direction:column}
+.bench{flex:1;min-height:0;display:flex;flex-direction:column;padding-bottom:calc(var(--bsw-h,96px) + env(safe-area-inset-bottom))}
+.bench>*{flex:none}
+.bench>.tbody{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
+.bench>.tbody>*{flex:none}
+.bench>.tbody>.ed{flex:1;min-height:120px;height:auto}
+.bench>.tbody>.bchat{flex:1;min-height:60px;max-height:none;align-content:start}
+.bench>.tbody>.cmt,.bench>.tbody>.bask{margin-top:auto}
+.bench>.tbody>.bchat+.sugs{margin-top:0}
+/* r4box.com has no viewing-as bar under it: the switch sits at the bottom edge */
+.bswitch{bottom:calc(10px + env(safe-area-inset-bottom))}
+:root{--bsw-h:60px}
