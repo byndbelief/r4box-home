@@ -24,6 +24,7 @@
     return out;
   }
 
+  let diffFile = null;
   let X, p, file = 'main.js', tab = 'files', draft = null, logs = [], viewV = null, ask = [];
   const $ = (id) => document.getElementById(id);
   const esc = (s) => X.esc(s);
@@ -328,9 +329,15 @@
         // a version from before it outgrew its kit has no files: show the page the kit built
         const fo = (x) => (x ? x.files || { 'index.html': PR.KITS[p.kit].build(x.params) } : {});
         const v = { ...p.versions[viewV], files: fo(p.versions[viewV]) }, pv = p.versions[viewV - 1], prev = pv && { ...pv, files: fo(pv) }, files = [...new Set([...Object.keys(v.files), ...Object.keys((prev || {}).files || {})])];
+        // a tab per changed file, and one diff that fills the rest of the screen
+        const changes = files.map((f) => { const dd = diff(prev ? prev.files[f] : '', v.files[f]); return { f, dd, add: dd.filter((x) => x[0] === '+').length, del: dd.filter((x) => x[0] === '-').length }; }).filter((x) => x.add || x.del || !prev);
+        if (!changes.some((x) => x.f === diffFile)) diffFile = (changes.find((x) => x.f === 'main.js') || changes[0] || {}).f;
+        const cur2 = changes.find((x) => x.f === diffFile);
         el.innerHTML = `<button class="crumb" id="cbk">‹ All commits</button><div class="dh"><b>v${v.v}</b> ${esc(v.note)} <small>${esc((X.byId(v.by || p.owner) || {}).name)} · ${X.ago(v.at)}</small></div>`
-          + files.map((f) => { const dd = diff(prev ? prev.files[f] : '', v.files[f]), ch = dd.filter((x) => x[0] !== '=').length; return ch || !prev ? `<div class="df"><div class="dfn">${esc(f)} <small>+${dd.filter((x) => x[0] === '+').length} −${dd.filter((x) => x[0] === '-').length}</small></div><pre class="dfb">${dd.filter((x, i, a) => x[0] !== '=' || a.slice(Math.max(0, i - 2), i + 3).some((y) => y[0] !== '=')).map(([k, l]) => `<span class="d${k === '+' ? 'a' : k === '-' ? 'r' : ''}">${k === '=' ? ' ' : k} ${esc(l)}</span>`).join('\n')}</pre></div>` : ''; }).join('')
+          + (changes.length ? `<div class="ftabs">${changes.map((x) => `<button data-df="${esc(x.f)}" class="${x.f === diffFile ? 'on' : ''}">${esc(x.f)} <small class="dfc"><i class="a">+${x.add}</i> <i class="r">−${x.del}</i></small></button>`).join('')}</div>
+            <pre class="dfb dfull">${cur2.dd.filter((x, i, a) => x[0] !== '=' || a.slice(Math.max(0, i - 2), i + 3).some((y) => y[0] !== '=')).map(([k, l]) => `<span class="d${k === '+' ? 'a' : k === '-' ? 'r' : ''}"><i class="dk">${k === '=' ? ' ' : k}</i>${hl(l, langOf(diffFile)).slice(0, -1) || ' '}</span>`).join('')}</pre>` : '<p class="note">No changes in this version.</p>')
           + (ed && viewV !== p.cur ? `<button class="go" id="cco">Check out v${v.v}</button>` : '');
+        el.querySelectorAll('[data-df]').forEach((b) => (b.onclick = () => { diffFile = b.dataset.df; paint(); }));
         $('cbk').onclick = () => { viewV = null; paint(); };
         const co = $('cco'); if (co) co.onclick = () => { p.cur = viewV; draft = null; X.save(); viewV = null; X.toast('Checked out v' + head().v); if (!head().files) return X.openBench(p.id); paint(); run(); };
         return;
