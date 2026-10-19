@@ -291,12 +291,17 @@
   // A note, opened: its line, the note, and every key word in it explained; then all the words for this file.
   function openNote(n, line, note) {
     const mk = note.text ? marked(note.text, note.terms) : { html: '', found: note.terms.map((t) => t.toLowerCase()) }, lang = langOf(file);
-    const words = mk.found.map(defOf).filter(Boolean), more = [...new Map([...Object.values(gloss), ...Object.entries(GLOSS).map(([term, [means, example]]) => ({ term, means, example }))].map((d) => [d.term.toLowerCase(), d])).values()].filter((d) => !mk.found.includes(d.term.toLowerCase()));
+    const words = mk.found.map(defOf).filter(Boolean);
     const d = X.sheet(`<div class="playh"><b>💡 Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
       <div class="glbody"><div class="lbox"></div>${note.text ? `<p class="glnote">${mk.html}</p>` : ''}
       <div class="glwords">${words.length ? `<h3 class="k">${note.text ? 'Words to know' : 'Words on this line'}</h3>${words.map(entry).join('')}` : ''}</div>
-      <details class="glall"><summary>All words (${more.length})</summary>${more.sort((a, b) => a.term.localeCompare(b.term)).map(entry).join('')}</details></div>`);
+      <div class="lnav"><button data-step="-1" aria-label="Previous line">‹ line ${n - 1}</button><button data-step="1" aria-label="Next line">line ${n + 1} ›</button></div></div>`);
     let changed = false;
+    // ‹ › the line before or after (blank lines skipped), in the same panel
+    const all = ((draft || head().files)[file] ?? '').split('\n'), notes = helpCache.get(file + '\u0000' + all.join('\n'));
+    const step = (dir) => { let m = n + dir; while (m >= 1 && m <= all.length && !all[m - 1].trim()) m += dir; return m >= 1 && m <= all.length ? m : null; };
+    d.querySelectorAll('[data-step]').forEach((b) => { const m = step(+b.dataset.step); if (!m) { b.disabled = true; return; } b.textContent = b.dataset.step < 0 ? '‹ line ' + m : 'line ' + m + ' ›';
+      b.onclick = () => { d.close(); const L = ((draft || head().files)[file] ?? '').split('\n'); openNote(m, L[m - 1], (notes && notes[m]) || { terms: wordsOn(L[m - 1], lang) }); }; });
     codeBox(d.querySelector('.lbox'), d, { code: line, lang, line: n, apply: X.canEdit(p) ? (v) => { editLine(n, v); changed = true; const g = d.querySelector('.glnote'); if (g) g.classList.add('stale');
       if (!note.text) { const w = wordsOn(v, lang).map(defOf).filter(Boolean); d.querySelector('.glwords').innerHTML = w.length ? `<h3 class="k">Words on this line</h3>${w.map(entry).join('')}` : ''; activate(d); } } : null });
     d.addEventListener('close', () => { if (changed) paint(); }, { once: true });
