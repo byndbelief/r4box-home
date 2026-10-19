@@ -17,8 +17,8 @@
     @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
-  <link rel="stylesheet" href="world/world.css?v=23">
-  <link rel="stylesheet" href="projects/projects.css?v=23">
+  <link rel="stylesheet" href="world/world.css?v=25">
+  <link rel="stylesheet" href="projects/projects.css?v=25">
   <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }</style>
 </head>
 <body>
@@ -28,7 +28,7 @@
 <dialog class="psheet" id="sheet"></dialog>
 </div>
 <script src="world/story-kit.js"></script>
-<script src="projects/projects-data.js?v=23"></script>
+<script src="projects/projects-data.js?v=25"></script>
 <script type="module">
   import { sb, roleOf } from './auth.js';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
@@ -56,7 +56,7 @@
   // The kit keeps its list in memory and calls save(list) after every change; here each project
   // that changed since it was last written is saved: the maker writes the row, a helper saves
   // through project_save (versions, which one shows, and the name).
-  const fromRow = (r) => ({ id: r.id, owner: r.owner, kit: r.kit, name: r.name, published: r.published, from: r.remix_of || undefined, collab: r.collab || [], requests: r.requests || [], versions: r.versions, cur: r.cur });
+  const fromRow = (r) => ({ id: r.id, owner: r.owner, kit: r.kit, name: r.name, published: r.published, from: r.remix_of || undefined, collab: r.collab || [], requests: r.requests || [], versions: r.versions, cur: r.cur, archived: !!r.archived });
   let list = (rows || []).map(fromRow);
   const last = new Map(list.map((p) => [p.id, JSON.stringify(p)]));
   let chain = Promise.resolve();
@@ -70,7 +70,7 @@
       chain = chain.then(async () => {
         const { error: e } = p.owner === me
           ? await sb.from('projects').upsert({ id: p.id, owner: p.owner, kit: p.kit, name: (p.name || 'Untitled').slice(0, 80), published: !!p.published, remix_of: p.from || null,
-              collab: p.collab || [], requests: p.requests || [], versions: p.versions, cur: p.cur, updated_at: new Date().toISOString() })
+              collab: p.collab || [], requests: p.requests || [], versions: p.versions, cur: p.cur, archived: !!p.archived, updated_at: new Date().toISOString() })
           : await sb.rpc('project_save', { p_id: p.id, p_versions: p.versions, p_cur: p.cur, p_name: p.name });
         if (e) { if (was) last.set(p.id, was); else last.delete(p.id); toastErr('Couldn’t save ' + p.name + ': ' + e.message); }
       });
@@ -94,6 +94,8 @@
     },
     // 💡 Help: Claude's note for the lines of one file ({ help: [{ n, text }] }); counts as a question, not a build.
     explain: (p, file, src) => call('project-build', { project: p.id, explain: { file, src } }),
+    // Deleting is for good: the row goes (its chat cards stay, saying it's gone).
+    async remove(id) { await chain; const { error: e } = await sb.from('projects').delete().eq('id', id); if (e) throw new Error('Couldn’t delete: ' + e.message); last.delete(id); },
     askHelp: async (id) => { const { error: e } = await sb.rpc('project_ask_help', { p_id: id }); if (e) throw new Error(e.message); },
     // A line in the family chat with the project's card (family-chat builds the card from the row).
     post: (text, id) => call('family-chat', { text, ref: { type: 'project', id } }),

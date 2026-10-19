@@ -124,22 +124,69 @@
   }
   function renderHome() {
     clearBench(); open = null; $('title').textContent = 'projects'; $('back').hidden = true; $('mark').hidden = false;
-    const mine = list.filter((p) => p.owner === viewer.id).sort((a, b) => b.versions[b.cur].at - a.versions[a.cur].at);
-    const together = list.filter((p) => p.owner !== viewer.id && (p.collab || []).includes(viewer.id));
-    const fam = list.filter((p) => p.owner !== viewer.id && p.published && !(p.collab || []).includes(viewer.id));
+    const mine = list.filter((p) => p.owner === viewer.id && !p.archived).sort((a, b) => lastAt(b) - lastAt(a));
+    const together = list.filter((p) => p.owner !== viewer.id && !p.archived && (p.collab || []).includes(viewer.id));
+    const fam = list.filter((p) => p.owner !== viewer.id && p.published && !p.archived && !(p.collab || []).includes(viewer.id));
+    const allMine = list.filter((p) => p.owner === viewer.id).length;
     const l = left();
     $('body').innerHTML = `<div class="who"><h2>${dens === 'play' ? 'Make something!' : 'Your projects'}</h2><p>${viewer.role === 'parent' ? 'Start from a kit, then ask Claude to change it.' : `Start from a kit, then ask Claude to change it. <b class="cap">${l} of ${CAP}</b> builds left today.`}</p></div>
-      ${mine.length ? `<div class="plist">${mine.map((p) => card(p, true)).join('')}</div>` : `<p class="note">Nothing yet. Pick ${kits() ? 'a kit' : 'a starting point'} below.</p>`}
+      ${mine.length ? `<div class="plist">${mine.slice(0, 3).map((p) => card(p, true)).join('')}</div>` : `<p class="note">${allMine ? 'Everything is put away.' : `Nothing yet. Pick ${kits() ? 'a kit' : 'a starting point'} below.`}</p>`}
+      ${allMine > Math.min(3, mine.length) || allMine > 3 ? `<button class="plib" id="plib">🗂 All your projects <b>${allMine}</b><span>›</span></button>` : ''}
       ${together.length ? `<h3 class="k">Making together</h3><div class="plist">${together.map((p) => card(p, 'together')).join('')}</div>` : ''}
       ${kits() ? `<h3 class="k">Start from a kit</h3><div class="kits">${Object.entries(PR.KITS).filter(([id]) => id !== 'code').map(([id, k]) => `<button class="kit" data-kit="${id}" style="--kc:${PR.KIND[k.kind][2]}"><span class="ke">${k.em}</span><b>${k.name}</b><small>${k.blurb}</small></button>`).join('')}</div>` : ''}
       ${dev() && window.CodeBench ? `<h3 class="k">Start from code</h3><div class="kits">${Object.entries(CodeBench.TEMPLATES).map(([id, t]) => `<button class="kit code" data-tpl="${id}" style="--kc:#7DF0C8"><span class="ke">⌨</span><b>${t.name}</b><small>${t.blurb}</small></button>`).join('')}</div>` : ''}
       ${fam.length ? `<h3 class="k">Made by the family</h3><div class="plist">${fam.map((p) => card(p, false)).join('')}</div>` : ''}`;
     $('body').querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => openBench(b.dataset.open)));
+    const lb = $('plib'); if (lb) lb.onclick = () => { history.pushState({ lib: 1 }, '', '?lib=1'); renderLibrary(); };
     $('body').querySelectorAll('[data-kit]').forEach((b) => (b.onclick = () => newFromKit(b.dataset.kit)));
     $('body').querySelectorAll('[data-tpl]').forEach((b) => (b.onclick = () => { const p = CodeBench.create(b.dataset.tpl, ctx()); list.push(p); save(); openBench(p.id); }));
     $('body').querySelectorAll('[data-play]').forEach((b) => (b.onclick = () => player(list.find((p) => p.id === b.dataset.play))));
     $('body').querySelectorAll('[data-remix]').forEach((b) => (b.onclick = () => remix(b.dataset.remix)));
     $('body').querySelectorAll('[data-help]').forEach((b) => (b.onclick = () => askHelp(list.find((p) => p.id === b.dataset.help))));
+  }
+  // ---------- the library: every project of yours, found, sorted, renamed, put away ----------
+  const lastAt = (p) => Math.max(...p.versions.map((v) => v.at || 0));
+  let libQ = '', libF = 'all', libS = 'recent', fromLib = false;
+  function renderLibrary() {
+    clearBench(); open = null; $('title').textContent = 'library'; $('back').hidden = false; $('mark').hidden = true;
+    const mine = list.filter((p) => p.owner === viewer.id || (p.collab || []).includes(viewer.id));
+    const kindOf = (p) => (PR.isCode(p) ? 'code' : PR.kindOf(p));
+    const F = [['all', 'All'], ['game', '🎮 Games'], ['app', '🧰 Apps'], ['page', '🌐 Pages'], ['story', '📖 Stories'], ['toy', '🎨 Toys'], ['code', '⌨ Code'], ['published', 'Published'], ['draft', 'Drafts'], ['archived', '🗄 Put away']];
+    const pass = (p) => libF === 'archived' ? p.archived : !p.archived && (libF === 'all' || (libF === 'published' ? p.published : libF === 'draft' ? !p.published : kindOf(p) === libF));
+    const q = libQ.trim().toLowerCase();
+    const shown = mine.filter((p) => pass(p) && (!q || (p.name + ' ' + PR.KITS[p.kit].name + ' ' + p.versions.map((v) => v.note).join(' ')).toLowerCase().includes(q)))
+      .sort((a, b) => libS === 'name' ? a.name.localeCompare(b.name) : libS === 'oldest' ? a.versions[0].at - b.versions[0].at : lastAt(b) - lastAt(a));
+    const count = (id) => mine.filter((p) => (id === 'archived' ? p.archived : !p.archived && (id === 'all' || (id === 'published' ? p.published : id === 'draft' ? !p.published : kindOf(p) === id)))).length;
+    const row = (p) => { const k = PR.KIND[PR.kindOf(p)], v = p.versions[p.cur], own = p.owner === viewer.id;
+      return `<div class="pcard lrow${p.archived ? ' arch' : ''}" style="--kc:${k[2]}"><button class="pmain" data-open="${p.id}"><span class="pe">${v.params.sprite || PR.KITS[p.kit].em}</span><span class="pt"><b>${esc(p.name)}</b><small>${PR.isCode(p) ? '⌨ Code' : k[1]} · v${v.v} · ${p.versions.length} version${p.versions.length === 1 ? '' : 's'} · ${ago(lastAt(p))} · ${own ? (p.published ? '<i class="pub">published</i>' : 'draft') : 'with ' + esc(byId(p.owner).name)}</small></span></button>${own ? `<button class="pmore" data-menu="${p.id}" aria-label="More for ${esc(p.name)}">⋯</button>` : ''}</div>`; };
+    $('body').innerHTML = `<div class="who"><h2>All your projects</h2><p>${mine.length} in all${count('archived') ? ` · ${count('archived')} put away` : ''}.</p></div>
+      <div class="lbar"><input id="lq" placeholder="Search names and changes…" value="${esc(libQ)}" autocomplete="off" aria-label="Search projects"><select id="ls" aria-label="Sort"><option value="recent">Recent</option><option value="name">A–Z</option><option value="oldest">Oldest</option></select></div>
+      <div class="lchips">${F.filter(([id]) => id === 'all' || id === libF || count(id)).map(([id, l]) => `<button data-f="${id}" class="${id === libF ? 'on' : ''}">${l} <small>${count(id)}</small></button>`).join('')}</div>
+      <div class="plist">${shown.length ? shown.map(row).join('') : `<p class="note">${q ? 'Nothing matches “' + esc(libQ) + '”.' : libF === 'archived' ? 'Nothing put away.' : 'Nothing here yet.'}</p>`}</div>`;
+    $('ls').value = libS;
+    const lq = $('lq'); lq.oninput = () => { libQ = lq.value; const pos = lq.selectionStart; renderLibrary(); const n = $('lq'); n.focus(); n.setSelectionRange(pos, pos); };
+    $('ls').onchange = () => { libS = $('ls').value; renderLibrary(); };
+    $('body').querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { libF = b.dataset.f; renderLibrary(); }));
+    $('body').querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => { fromLib = true; openBench(b.dataset.open); }));
+    $('body').querySelectorAll('[data-menu]').forEach((b) => (b.onclick = () => projectMenu(list.find((p) => p.id === b.dataset.menu))));
+  }
+  function projectMenu(p) {
+    const d = sheet(`<div class="playh"><b>${esc(p.name)}</b><small>${p.versions.length} versions · started ${ago(p.versions[0].at)} ago</small><button data-close aria-label="Close">✕</button></div>
+      <div class="pmenu"><label class="tin"><span>Name</span><input id="pmn" value="${esc(p.name)}" maxlength="60"></label>
+      <button data-a="open">▶ Open</button><button data-a="dup">⧉ Duplicate</button><button data-a="arch">${p.archived ? '↩ Bring back' : '🗄 Put away'}</button><button data-a="del" class="bad">🗑 Delete…</button></div>`);
+    const nm = d.querySelector('#pmn');
+    nm.onchange = () => { const v = nm.value.trim(); if (v && v !== p.name) { p.name = v; save(); toast('Renamed.'); renderLibrary(); } };
+    d.querySelector('.pmenu').addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      if (a === 'open') { d.close(); return openBench(p.id); }
+      if (a === 'dup') { const c = JSON.parse(JSON.stringify(p)); Object.assign(c, { id: p.kit + '-' + Date.now().toString(36), name: p.name + ' copy', published: false, archived: false, collab: [], requests: [], from: { id: p.id, owner: p.owner, name: p.name } }); list.push(c); save(); d.close(); toast('⧉ Copied.'); return renderLibrary(); }
+      if (a === 'arch') { p.archived = !p.archived; if (p.archived) p.published = p.published; save(); d.close(); toast(p.archived ? '🗄 Put away. Find it under Put away.' : '↩ Back with your projects.'); return renderLibrary(); }
+      if (a === 'del') {
+        const b = e.target.closest('[data-a]');
+        if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = '🗑 Tap again to delete for good'; return; }
+        try { await window.R4Build.remove(p.id); list.splice(list.indexOf(p), 1); d.close(); toast('Deleted.'); renderLibrary(); } catch (err) { toast(err.message); }
+      }
+    });
   }
   function askHelp(p) {
     p.requests = [...new Set([...(p.requests || []), viewer.id])];
@@ -313,8 +360,10 @@
   }
 
   // ---------- chrome ----------
-  $('back').onclick = () => { history.replaceState(null, '', location.pathname); renderHome(); };
+  // ‹ goes up a level: bench → the library (if you came from it) or the projects; library → the projects
+  $('back').onclick = () => { const lib = $('title').textContent !== 'library' && fromLib; fromLib = false; history.replaceState(null, '', lib ? '?lib=1' : location.pathname); lib ? renderLibrary() : renderHome(); };
   addEventListener('popstate', () => { if (document.querySelector('.subpage')) return;   // closing Settings: it handles itself
+    if (new URLSearchParams(location.search).get('lib')) return renderLibrary();
     const id = new URLSearchParams(location.search).get('open'); id && list.some((p) => p.id === id) ? openBench(id) : renderHome(); });
   $('gear').onclick = () => {
     const pg = document.createElement('section'); pg.className = 'subpage';
@@ -334,6 +383,7 @@
   };
   applyDensity();
   const qs = new URLSearchParams(location.search), want = qs.get('open'), play = qs.get('play');
-  if (want && list.some((p) => p.id === want)) openBench(want);
+  if (qs.get('lib')) renderLibrary();
+  else if (want && list.some((p) => p.id === want)) openBench(want);
   else { renderHome(); const pp = play && list.find((p) => p.id === play); if (pp) player(pp); else if (play || want) toast('That project isn’t here: it may be a draft, or gone.'); }
 })();

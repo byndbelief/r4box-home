@@ -71,7 +71,7 @@
       sb.from('kid_shares').select('*').eq('owner', owner.id),
       owner.id === me.id ? sb.from('kid_seeds').select('*').order('created_at') : { data: [] },
       // Their projects grow as plants: all of them for their maker, the published ones for anyone else (110).
-      sb.from('projects').select('id, kit, name, published, versions, cur').eq('owner', owner.id).order('created_at'),
+      sb.from('projects').select('id, kit, name, published, versions, cur').eq('owner', owner.id).eq('archived', false).order('created_at'),
     ]);
     if (error) { $('body').innerHTML = `<div class="empty"><b>Can’t open this world</b><p>${esc(error.message)}</p></div>`; return; }
 

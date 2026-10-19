@@ -528,7 +528,7 @@
         sb.from('trip_items').select('id, trip, title, created_by, by_claude, created_at').gte('created_at', since).neq('created_by', ME.id).order('created_at', { ascending: false }).limit(6),
         sb.from('kid_events').select('topic, day, kind, summary, created_at').eq('kid', ME.id).order('day', { ascending: false }).limit(8),
         sb.from('kid_shares').select('owner, kind, ref, title, day, text, created_at').order('created_at', { ascending: false }).limit(8),
-        sb.from('projects').select('id', { count: 'exact', head: true }).eq('published', true),
+        sb.from('projects').select('id', { count: 'exact', head: true }).eq('published', true).eq('archived', false),
       ]);
       const family = (w.data || []).map((p, i) => ({ id: p.id, name: p.username, role: p.role, dot: DOTS[i % DOTS.length], world: { topics: p.topics, events: p.events } }));
       const readAt = reads.data?.read_at ? new Date(reads.data.read_at) : null;
