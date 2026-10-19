@@ -409,3 +409,7 @@ button.pe{all:unset;box-sizing:border-box;flex:none;width:40px;height:40px;borde
 
 /* ▶ Preview: a block editor's way to the whole project, in the big panel */
 .glacts .glpvb{all:unset;cursor:pointer;padding:8px 14px;border-radius:999px;font-weight:700;font-size:14px;background:var(--teal,#3DD6C6);color:#04201C}
+
+/* 📖 a word's card, under the chips of a line or block editor */
+.lchip.on{background:#F5C54238;border-color:#FFD866;color:#fff}
+.lword:empty{display:none}.lword{margin-top:8px}

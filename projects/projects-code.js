@@ -376,7 +376,7 @@
     const d = X.sheet(`<div class="playh"><b>✏️ ${esc(blockName(a))}</b><small>lines ${a}–${b} · ${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
       <div class="glbody"><div class="lbox"></div><div class="lwords">${chips(code)}</div><div class="lnav"><button data-bstep="-1"></button><button data-bstep="1"></button></div></div>`, { full: true });
     let changed = false;
-    const wireChips = () => d.querySelectorAll('[data-word]').forEach((x) => (x.onclick = () => wordLayer(d, x.dataset.word, '✏️ ' + blockName(a))));
+    const wireChips = () => wordChips(d);
     d.reopen = () => openBlock(a);
     codeBox(d.querySelector('.lbox'), d, { code, lang, line: a, span: b - a + 1,
       onInput: (v) => { d.querySelector('.lwords').innerHTML = chips(v); wireChips(); },
@@ -394,7 +394,7 @@
     const d = X.sheet(`<div class="playh"><b>✏️ Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
       <div class="glbody"><div class="lbox"></div>${nt ? `<p class="glnote small">💡 ${marked(nt.text, nt.terms).html}</p>` : ''}<div class="lwords">${chips(line)}</div>${blockAt(n) ? `<button class="lblock" data-block>⤢ The whole ${esc(blockName(n))} (lines ${n}–${blockAt(n)})</button>` : ''}${NAV}</div>`, { full: true });
     let changed = false;
-    const wireChips = () => d.querySelectorAll('[data-word]').forEach((b) => (b.onclick = () => wordLayer(d, b.dataset.word, '✏️ Line ' + n)));
+    const wireChips = () => wordChips(d);
     d.reopen = () => openLine(n);
     codeBox(d.querySelector('.lbox'), d, { code: line, lang, line: n,
       onInput: (v) => { d.querySelector('.lwords').innerHTML = chips(v); wireChips(); const g = d.querySelector('.glnote'); if (g) g.classList.add('stale'); },
@@ -415,19 +415,20 @@
     d.querySelector('[data-edit]').onclick = () => { d.close(); openLine(n); };
     const gn = d.querySelector('.glnote'); if (gn) gn.onclick = (e) => { const b = e.target.closest('b.kw'); if (!b) return; const card = [...d.querySelectorAll('.gl[data-term]')].find((x) => x.dataset.term.toLowerCase() === b.textContent.toLowerCase()); if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 1200); } };
   }
-  // 📖 a word from an editor's chip: its card slides over the editor, which stays as it is underneath
-  // (your edits, the running preview); ‹ back returns to it, with the word marked in the code.
-  function wordLayer(d, term, back) {
+  // 📖 a word chip in a line or block editor: its card opens right under the chips, and the word
+  // lights up in the code above (tap the chip again to close it)
+  function wordChips(d) {
+    const box = d.querySelector('.lword'), cur = (box?.dataset.term || '').toLowerCase();
+    d.querySelectorAll('[data-word]').forEach((x) => { x.classList.toggle('on', x.dataset.word.toLowerCase() === cur); x.onclick = () => wordUnder(d, x.dataset.word); });
+  }
+  function wordUnder(d, term) {
     const def = defOf(term); if (!def) return;
-    d.querySelector('.wlayer')?.remove();
-    const y = d.scrollTop, lay = document.createElement('div'); lay.className = 'wlayer';
-    lay.innerHTML = `<div class="playh"><button class="wback" data-wback>‹ ${esc(back)}</button><span class="grow"></span><button data-close aria-label="Close">✕</button></div><div class="glbody">${entry(def)}</div>`;
-    d.append(lay); activate(d);
-    const card = lay.querySelector('.gl[data-term]'); if (card && !card.classList.contains('open')) card.click();
-    const off = onClose(d, () => lay.remove());
-    const close = () => { off(); lay.classList.add('out'); setTimeout(() => { lay.remove(); d.scrollTop = y; }, 160); };
-    lay.querySelector('[data-wback]').onclick = close;
-    lay.onkeydown = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+    let box = d.querySelector('.lword');
+    if (!box) { box = document.createElement('div'); box.className = 'lword'; d.querySelector('.lwords').after(box); }
+    const lb = d.querySelector('.lbox');
+    if (box.dataset.term === def.term) { box.dataset.term = ''; box.innerHTML = ''; if (lb && lb.mark) lb.mark(null); }
+    else { box.dataset.term = def.term; box.innerHTML = entry(def); activate(d); box.querySelector('.gl').click(); }
+    wordChips(d);
   }
   // 📖 one word, opened, from a line editor's chip (‹ back to that line)
   function openWord(term, n) {
