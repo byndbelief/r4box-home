@@ -284,3 +284,5 @@ i.t-attr{font-style:normal;color:#B9A6FF}i.t-prop{font-style:normal;color:#7DF0C
 .lbox{display:grid;gap:6px}
 .lbox .glframe,.glbox .glframe{height:160px}
 .glbox{display:grid;gap:6px}
+/* the part of the line a word card is about */
+.gled mark{background:#F5C54233;color:inherit;border-radius:3px;box-shadow:0 0 0 1px #F5C54288}

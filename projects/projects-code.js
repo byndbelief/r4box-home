@@ -161,7 +161,10 @@
     host.innerHTML = `<div class="gled"><pre class="glcode" aria-hidden="true">${hl(code, lang).slice(0, -1) || ' '}</pre><textarea class="glcode" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Code">${esc(code)}</textarea></div>
       <div class="glacts"><button data-run>▶ Run</button>${apply ? '<button class="glapply" data-apply disabled>✓ Apply</button>' : ''}<small>${apply ? 'Edit, ▶ to try it in the project, ✓ to put it in ' + esc(file) + '.' : 'Edit it and ▶ again: nothing here touches your project.'}</small></div><div class="glout"></div><iframe class="glframe" sandbox="allow-scripts allow-modals" title="Run" hidden></iframe>`;
     const ta = host.querySelector('textarea'), pre = host.querySelector('pre'), out = host.querySelector('.glout'), fr = host.querySelector('iframe'), ap = host.querySelector('[data-apply]');
-    ta.oninput = () => { pre.innerHTML = hl(ta.value, lang).slice(0, -1) || ' '; if (ap) ap.disabled = ta.value === code; };
+    let lit = null;
+    const draw = () => { const v = ta.value, r = lit && spot(v, lit, lang); pre.innerHTML = r ? hl(v.slice(0, r[0]), lang).slice(0, -1) + `<mark>${hl(v.slice(r[0], r[1]), lang).slice(0, -1)}</mark>` + hl(v.slice(r[1]), lang).slice(0, -1) : hl(v, lang).slice(0, -1) || ' '; };
+    host.mark = (term) => { lit = term; draw(); };
+    ta.oninput = () => { draw(); if (ap) ap.disabled = ta.value === code; };
     if (line) ta.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); host.querySelector('[data-run]').click(); } };
     const on = (e) => { if (e.source !== fr.contentWindow || !e.data) return; const m = e.data.r4try || e.data.r4log; if (!m) return; out.insertAdjacentHTML('beforeend', `<div class="cl ${m[0]}">${m[0] === 'error' ? '✕' : '›'} ${esc(m[1])}</div>`); };
     addEventListener('message', on); d.addEventListener('close', () => removeEventListener('message', on), { once: true });
@@ -184,6 +187,8 @@
       const toggle = (e) => {
         if (e.target.closest('.glmore, .glask')) return;
         const open = card.classList.toggle('open'); card.setAttribute('aria-expanded', open);
+        const lb = d.querySelector('.lbox');
+        if (lb && lb.mark) { d.querySelectorAll('.gl.open').forEach((x) => { if (x !== card) { x.classList.remove('open'); x.setAttribute('aria-expanded', 'false'); x.querySelector('.glmore').hidden = true; } }); lb.mark(open ? card.dataset.term : null); }
         const more = card.querySelector('.glmore'); more.hidden = !open; if (!open || more.dataset.done) return;
         more.dataset.done = 1;
         const term = card.dataset.term, src = (draft || head().files)[file] ?? '', lang = langOf(file), uses = usesOf(term, src, lang), ex = defOf(term)?.example || '';
@@ -222,6 +227,13 @@
       [/\/\/|\/\*/, 'comment'], [/\[[^\]]*,/, 'array'], [/\{\s*\w+\s*:/, 'object'], [/\.push\(|\.filter\(|\.map\(|\.forEach\(/, 'method']],
     html: [[/<[a-z]/i, 'tag'], [/\sid=/, 'id'], [/\sclass=/, 'class'], [/\s[\w-]+=/, 'attribute'], [/<canvas/i, 'canvas'], [/<!--/, 'comment']],
     css: [[/^[^:{]*\{/, 'selector'], [/\.[\w-]+\s*[{,]/, 'class'], [/[\w-]+\s*:/, 'style'], [/\/\*/, 'comment']] };
+  const SPOT = { variable: /\b(?:let|const|var)\s+([\w$]+)/, increment: /([\w$]+\s*(?:\+\+|\+=\s*1\b|=\s*[\w$]+\s*\+\s*1\b))/, 'for loop': /\bfor\s*\(/, if: /\bif\s*\(/, click: /['"]click['"]/ };
+  function spot(line, term, lang) {
+    const t = term.toLowerCase(), re = SPOT[t] || (CODE_WORDS[lang].find(([, w]) => w.toLowerCase() === t) || [])[0] || new RegExp(RE(term), 'i');
+    const m = line.match(re); if (!m) return null;
+    const s = m[1] != null ? m.index + m[0].indexOf(m[1]) : m.index, len = (m[1] != null ? m[1] : m[0]).trimEnd().length;
+    return [s, s + len];
+  }
   const wordsOn = (line, lang) => [...new Set(CODE_WORDS[lang].filter(([re]) => re.test(line)).map(([, w]) => w))];
 
   function helpView(el, src) {
