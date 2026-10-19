@@ -406,3 +406,6 @@ button.pe{all:unset;box-sizing:border-box;flex:none;width:40px;height:40px;borde
 .phnow img{width:100%;height:100%;object-fit:cover}
 .phbox .pmenu{width:100%}
 .phfr{width:min(100%,280px);aspect-ratio:1;border:1px solid var(--line);border-radius:16px;background:#000}
+
+/* ▶ Preview: a block editor's way to the whole project, in the big panel */
+.glacts .glpvb{all:unset;cursor:pointer;padding:8px 14px;border-radius:999px;font-weight:700;font-size:14px;background:var(--teal,#3DD6C6);color:#04201C}

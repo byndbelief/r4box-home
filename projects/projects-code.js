@@ -40,11 +40,11 @@
   const head = () => p.versions[p.cur];
   const dirty = () => draft && Object.keys(draft).some((k) => draft[k] !== (head().files[k] ?? null)) || (draft && Object.keys(head().files).some((k) => !(k in draft)));
   // the preview opens as its own panel: big, with its own run button and the console under it
-  let panel = null;
-  function run() { logs = []; paintConsole(); const doc = PR.codeDoc(draft || head().files); if (panel) { $('pv2').srcdoc = X.withShot(doc); $('pv').srcdoc = ''; } else $('pv').srcdoc = doc; }
+  let panel = null, pvFiles = null, pvBack = null;   // pvFiles: a block editor's change, shown in the panel without applying it
+  function run() { logs = []; paintConsole(); const doc = PR.codeDoc((panel && pvFiles) || draft || head().files); if (panel) { $('pv2').srcdoc = X.withShot(doc); $('pv').srcdoc = ''; } else $('pv').srcdoc = doc; }
   function openPanel() {
     panel = document.createElement('section'); panel.className = 'pvpanel'; panel.setAttribute('aria-label', 'Preview');
-    panel.innerHTML = `<header><button class="sb" id="pclose" aria-label="Back to the code">‹</button><span><b>${esc(p.name)}</b><small>v${head().v}${dirty() ? ' · unsaved changes' : ''}</small></span><span class="grow"></span>${X.canEdit(p) ? '<button class="bb" id="pmk" title="Mark it up and ask Claude">✏️ Mark</button>' : ''}<button class="bb" id="prun" title="Run again">▶</button><button class="bb" id="pphone" aria-label="Test on phone">📱</button></header><iframe id="pv2" title="Preview" sandbox="allow-scripts allow-modals"></iframe><div class="cons big" id="cons"></div>`;
+    panel.innerHTML = `<header><button class="sb" id="pclose" aria-label="Back to the code">‹</button><span><b>${esc(p.name)}</b><small>v${head().v}${pvFiles ? ' · with your change' : dirty() ? ' · unsaved changes' : ''}</small></span><span class="grow"></span>${X.canEdit(p) ? '<button class="bb" id="pmk" title="Mark it up and ask Claude">✏️ Mark</button>' : ''}<button class="bb" id="prun" title="Run again">▶</button><button class="bb" id="pphone" aria-label="Test on phone">📱</button></header><iframe id="pv2" title="Preview" sandbox="allow-scripts allow-modals"></iframe><div class="cons big" id="cons"></div>`;
     $('app').append(panel); $('cons') && null;
     document.querySelectorAll('.codebench .cons').forEach((c) => (c.id = 'cons-inline'));
     $('pclose').onclick = closePanel; $('prun').onclick = run;
@@ -59,7 +59,16 @@
   }
   function closePanel(fromPop) {
     if (!panel) return; panel.remove(); panel = null; const ci = document.getElementById('cons-inline'); if (ci) ci.id = 'cons';
+    const back = pvBack; pvBack = null; pvFiles = null;
     if (fromPop !== true) history.back(); run(); X.sw('bench', null, openPanel, true);
+    if (back) back();
+  }
+  // ▶ Preview from a block editor: the whole project, big, with the block as it is in the box;
+  // ‹ comes back to the editor as you left it
+  function previewFrom(d, files) {
+    pvFiles = files; d.parked = true; d.close();
+    pvBack = () => { if (!d.parked) return; d.parked = false; d.showModal(); };
+    openPanel();
   }
   addEventListener('popstate', () => { if (panel) closePanel(true); });
   function run_() { run(); }
@@ -252,13 +261,13 @@
     const page = !!line || lang !== 'js';
     host.innerHTML = `<div class="glprev"${page ? '' : ' hidden'}><iframe class="glframe" sandbox="allow-scripts allow-modals" title="Live preview"></iframe><button class="glcover" data-cover hidden><span>▶ Run</span></button><button class="glplay" data-play aria-label="Run" title="Run" hidden>▶</button><button class="glre" aria-label="Start again" title="Start again">↻</button><button class="gllive" data-mode title="Switch between this line and the whole project"></button></div><div class="glout"></div>
       <div class="gled"><pre class="glcode" aria-hidden="true">${hl(code, lang).slice(0, -1) || ' '}</pre><textarea class="glcode" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Code">${esc(code)}</textarea></div>
-      <div class="glacts"><button class="glaskb" data-askb>✦ Ask</button>${apply ? '<button class="glapply" data-apply disabled>✓ Apply</button>' : ''}<small>${apply ? 'Change it and watch the preview; ✓ puts it in ' + esc(file) + '.' : 'Change it and watch: nothing here touches your project.'}</small></div>`;
+      <div class="glacts"><button class="glaskb" data-askb>✦ Ask</button>${line && span > 1 ? '<button class="glpvb" data-pv>▶ Preview</button>' : ''}${apply ? '<button class="glapply" data-apply disabled>✓ Apply</button>' : ''}<small>${apply ? (line && span > 1 ? 'Change it, ▶ Preview to try it; ✓ puts it in ' : 'Change it and watch the preview; ✓ puts it in ') + esc(file) + '.' : 'Change it and watch: nothing here touches your project.'}</small></div>`;
     const ta = host.querySelector('textarea'), pre = host.querySelector('pre'), out = host.querySelector('.glout'), fr = host.querySelector('iframe'), ap = host.querySelector('[data-apply]');
     let lit = null, timer = 0, whole = false, peeked = false;   // whole: the project; else what the line makes, if it can stand alone
     const draw = () => { const v = ta.value, r = lit && spot(v, lit, lang); pre.innerHTML = r ? hl(v.slice(0, r[0]), lang).slice(0, -1) + `<mark>${hl(v.slice(r[0], r[1]), lang).slice(0, -1)}</mark>` + hl(v.slice(r[1]), lang).slice(0, -1) : hl(v, lang).slice(0, -1) || ' '; };
     host.mark = (term) => { lit = term; draw(); };
     const mode = host.querySelector('[data-mode]');
-    const label = () => { mode.textContent = peeked && !whole ? '🔍 ' + (span > 1 ? 'this block' : 'this line') + ' · tap for whole' : (going ? '● live · whole project' : '■ stopped · whole project'); mode.hidden = !line; };
+    const label = () => { mode.textContent = span > 1 ? '🔍 this block' : peeked && !whole ? '🔍 this line · tap for whole' : (going ? '● live · whole project' : '■ stopped · whole project'); mode.hidden = !line; };
     const on = (e) => { if (e.source !== fr.contentWindow || !e.data) return;
       if (e.data.r4grid) {
         const [gi, v] = e.data.r4grid, row = '\\[\\s*(?:-?\\d+|true|false)(?:\\s*,\\s*(?:-?\\d+|true|false))*\\s*\\]';
@@ -272,10 +281,12 @@
         if (out2 === src && k) out2 = src.replace(new RegExp(old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), nw);
         ta.value = out2; draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); run(); return;
       }
-      if (e.data.r4peek) { if (e.data.r4peek === 'fail' && !whole) { peeked = false; full(); } else if (e.data.h && peeked && !whole) fr.style.height = Math.max(160, Math.min(e.data.h + 4, 1200)) + 'px'; return; }
+      if (e.data.r4peek) { if (e.data.r4peek === 'fail' && !whole) { peeked = false; span > 1 ? (box.hidden = true) : full(); } else if (e.data.h && peeked && !whole) fr.style.height = Math.max(160, Math.min(e.data.h + 4, 1200)) + 'px'; return; }
       const m = e.data.r4try || e.data.r4log; if (!m) return; out.insertAdjacentHTML('beforeend', `<div class="cl ${m[0]}">${m[0] === 'error' ? '✕' : '›'} ${esc(m[1])}</div>`); };
     addEventListener('message', on); onClose(d, () => { removeEventListener('message', on); clearTimeout(timer); });
-    const cover = host.querySelector('[data-cover]'), play = host.querySelector('[data-play]');
+    const cover = host.querySelector('[data-cover]'), play = host.querySelector('[data-play]'), box = host.querySelector('.glprev');
+    const pv = host.querySelector('[data-pv]');
+    if (pv) pv.onclick = () => { const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L.splice(line - 1, span, ta.value); F[file] = L.join('\n'); previewFrom(d, F); };
     let going = false, edited = false;   // the whole project runs only after ▶, and stops with ■
     const showPlay = () => { const w = !peeked || whole; play.hidden = !w; play.textContent = going ? '■' : '▶'; play.title = going ? 'Stop' : 'Run'; cover.hidden = !w || going; cover.querySelector('span').textContent = edited ? '▶ Run with your change' : '▶ Run'; };
     const full = (start) => { if (start) going = true; fr.style.height = ''; if (!going) { fr.srcdoc = '<!doctype html><body style="margin:0;background:#0D0B1F"></body>'; label(); showPlay(); return; }
@@ -284,14 +295,15 @@
     play.onclick = () => { if (going) { going = false; full(); } else full(true); };
     const run = () => {
       out.innerHTML = ''; const v = ta.value;
-      if (line) { const pk = !whole && peekOf(v, lang); peeked = !!pk; if (pk) { fr.srcdoc = peekDoc(pk); label(); showPlay(); } else full(); }
+      // a block shows what it makes when that stands alone (a style rule); the whole project is ▶ Preview
+      if (line) { const pk = !whole && peekOf(v, lang); peeked = !!pk; box.hidden = !pk && span > 1; if (pk) { fr.srcdoc = peekDoc(pk); label(); showPlay(); } else if (span === 1) full(); }
       else fr.srcdoc = lang === 'js' ? `<!doctype html><body>${RUNNER}<script>${v.replace(/<\/script/gi, '<\\/script')}<\/script></body>` : lang === 'css' ? `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}${v}</style><h1>Heading</h1><p class="score">A paragraph</p><button id="go">Button</button>` : `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}</style>${RUNNER}${v}`;
       if (!page) setTimeout(() => { if (!out.children.length) out.innerHTML = '<div class="cl dim">nothing logged · add console.log(…) to see a value</div>'; }, 900);
     };
     ta.oninput = () => { edited = true; draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); timer = setTimeout(run, 700); if (onInput) onInput(ta.value); };
     ta.onkeydown = (e) => { if (line && span === 1 && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); clearTimeout(timer); run(); } };
     host.querySelector('.glre').onclick = () => { if (line && (!peeked || whole)) full(true); else run(); };
-    mode.onclick = () => { whole = !whole; run(); };
+    mode.onclick = () => { if (span > 1) return; whole = !whole; run(); };   // a block's whole project is ▶ Preview
     run();
     // ✦ Ask: Claude, in the Claude tab, about this line (and the word whose card is open), or this word
     host.querySelector('[data-askb]').onclick = () => {
@@ -362,7 +374,7 @@
     const lang = langOf(file), code = curLines().slice(a - 1, b).join('\n');
     const chips = (v) => { const w = wordsOn(v, lang); return w.length ? `<span class="lwl">📖</span>${w.map((x) => `<button class="lchip" data-word="${esc(x)}">${esc(x)}</button>`).join('')}` : ''; };
     const d = X.sheet(`<div class="playh"><b>✏️ ${esc(blockName(a))}</b><small>lines ${a}–${b} · ${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
-      <div class="glbody"><div class="lbox"></div><div class="lwords">${chips(code)}</div><p class="note small">Tap a line number in the file to change just one line.</p><div class="lnav"><button data-bstep="-1"></button><button data-bstep="1"></button></div></div>`, { full: true });
+      <div class="glbody"><div class="lbox"></div><div class="lwords">${chips(code)}</div><div class="lnav"><button data-bstep="-1"></button><button data-bstep="1"></button></div></div>`, { full: true });
     let changed = false;
     const wireChips = () => d.querySelectorAll('[data-word]').forEach((x) => (x.onclick = () => wordLayer(d, x.dataset.word, '✏️ ' + blockName(a))));
     d.reopen = () => openBlock(a);
