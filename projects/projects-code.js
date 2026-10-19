@@ -473,7 +473,7 @@
       const src = F[file] ?? '', n = src.split('\n').length;
       el.innerHTML = `<div class="ftabs">${Object.keys(F).map((f) => `<button data-f="${esc(f)}" class="${f === file ? 'on' : ''}">${esc(f)}${draft && draft[f] !== head().files[f] ? ' •' : ''}</button>`).join('')}${ed ? '<button class="nf" id="nf">＋</button>' : ''}<button class="nf help${helpOn ? ' on' : ''}" id="hlp" title="Help me: what each line does">💡 Help</button></div>
         ${helpOn ? '<div class="ed edh" id="edh"></div>' : `<div class="ed rails"><pre class="gut" id="gut">${gutter()}</pre><div class="rail" id="rail"><div class="rin" id="rin"></div></div><div class="edw"><div class="bands" aria-hidden="true"><div class="rin" id="bands"></div></div><pre class="hlc" id="hlc" aria-hidden="true">${hl(src, langOf(file))}</pre><textarea id="src" spellcheck="false" autocapitalize="off" autocorrect="off" wrap="off"${ed ? '' : ' readonly'}>${esc(src)}</textarea></div></div>`}
-        ${ed ? `<form class="cmt" id="cmt"><input id="cmsg" placeholder="${dirty() ? 'What did you change?' : 'Edit, then commit'}" autocomplete="off"><button class="bb" type="button" id="crev"${dirty() ? '' : ' disabled'}>↺</button><button class="bb share" id="cgo"${dirty() ? '' : ' disabled'}>Commit</button></form>` : ''}`;
+        ${ed ? `<form class="cmt" id="cmt"${dirty() ? '' : ' hidden'}><input id="cmsg" placeholder="What did you change?" autocomplete="off"><button class="bb" type="button" id="crev"${dirty() ? '' : ' disabled'}>↺</button><button class="bb share" id="cgo"${dirty() ? '' : ' disabled'}>Commit</button></form>` : ''}`;
       el.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { file = b.dataset.f; paint(); }));
       $('hlp').onclick = () => { helpOn = !helpOn; paint(); };
       if (helpOn) { helpView($('edh'), src); if (ed) wireCommit(F); return; }
@@ -491,7 +491,7 @@
       // ✏️ tap a line number: that line in the line editor
       g.title = 'Tap a line number to open that line';
       g.onclick = (e) => { const cs = getComputedStyle(g), lh = parseFloat(cs.lineHeight) || 18, n = Math.floor((e.clientY - g.getBoundingClientRect().top + g.scrollTop - parseFloat(cs.paddingTop)) / lh) + 1; if (n >= 1 && n <= ta.value.split('\n').length) openLine(n); };
-      ta.oninput = () => { draft = draft || { ...head().files }; draft[file] = ta.value; hc.innerHTML = hl(ta.value, langOf(file)); ta.onscroll(); g.innerHTML = gutter(); drawBlocks(); $('bver').textContent = 'v' + head().v + ' · unsaved'; $('cgo').disabled = $('crev').disabled = !dirty(); };
+      ta.oninput = () => { draft = draft || { ...head().files }; draft[file] = ta.value; hc.innerHTML = hl(ta.value, langOf(file)); ta.onscroll(); g.innerHTML = gutter(); drawBlocks(); $('bver').textContent = 'v' + head().v + ' · unsaved'; $('cgo').disabled = $('crev').disabled = !dirty(); $('cmt').hidden = !dirty(); };
       ta.onmousedown = (e) => {
         if (document.activeElement === ta) return;   // typing already: taps place the cursor
         const cs = getComputedStyle(ta), lh = parseFloat(cs.lineHeight) || 18, n = Math.floor((e.clientY - ta.getBoundingClientRect().top + ta.scrollTop - parseFloat(cs.paddingTop)) / lh) + 1;
