@@ -61,6 +61,34 @@
   addEventListener('message', (e) => { if (!p || !e.data || !e.data.r4log || ![$('pv'), $('pv2')].some((f) => f && f.contentWindow === e.source)) return; logs.push(e.data.r4log); if (logs.length > 80) logs.shift(); paintConsole(); });
   function paintConsole() { const el = $('cons'); if (!el) return; el.innerHTML = logs.length ? logs.map(([l, m]) => `<div class="cl ${l}">${l === 'error' ? '✕' : l === 'warn' ? '!' : '›'} ${esc(m)}</div>`).join('') : '<div class="cl dim">console is empty · ⌘/Ctrl+Enter runs</div>'; el.scrollTop = el.scrollHeight; }
 
+  // ---------- colour: a small highlighter for JS, CSS and HTML (raw text in, escaped HTML out) ----------
+  const JS = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|(`(?:\\[\s\S]|[^`\\])*`|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*")|\b(const|let|var|function|return|if|else|for|while|do|break|continue|new|class|extends|import|from|export|default|try|catch|finally|throw|typeof|instanceof|in|of|await|async|switch|case|this|null|undefined|true|false)\b|\b(\d+(?:\.\d+)?)\b|([A-Za-z_$][\w$]*)(?=\s*\()/g;
+  const CSS = /(\/\*[\s\S]*?\*\/)|('(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*")|(#[0-9a-fA-F]{3,8}\b|-?\d*\.?\d+(?:px|em|rem|%|vh|vw|dvh|s|ms|deg)?\b)|([\w-]+)(?=\s*:[^;{}]*[;}])/g;
+  const HTML = /(<!--[\s\S]*?-->)|('(?:[^'\n])*'|"(?:[^"\n])*")|(<\/?[\w-]+|\/?>)|(\s[\w:-]+)(?==)/g;
+  const KIND = { js: [JS, ['com', 'str', 'kw', 'num', 'fn']], css: [CSS, ['com', 'str', 'num', 'prop']], html: [HTML, ['com', 'str', 'tag', 'attr']] };
+  const langOf = (f) => (/\.css$/i.test(f) ? 'css' : /\.html?$/i.test(f) ? 'html' : 'js');
+  function hl(src, lang) {
+    const [re, cls] = KIND[lang]; let out = '', at = 0, m; re.lastIndex = 0;
+    while ((m = re.exec(src))) {
+      if (!m[0]) { re.lastIndex++; continue; }
+      const g = m.slice(1).findIndex((x) => x != null);
+      out += esc(src.slice(at, m.index)) + `<i class="t-${cls[g]}">${esc(m[0])}</i>`; at = m.index + m[0].length;
+    }
+    return out + esc(src.slice(at)) + '\n';
+  }
+  // ---------- 💡 Help: Claude's note on each line, under it (cached by the file's words) ----------
+  let helpOn = false; const helpCache = new Map();
+  function helpView(el, src) {
+    const key = file + '\u0000' + src, lines = src.split('\n'), lang = langOf(file), notes = helpCache.get(key);
+    const rows = (n) => lines.map((l, i) => `<div class="hl-row"><span class="hn">${i + 1}</span><code>${hl(l, lang).slice(0, -1) || ' '}</code></div>${n && n[i + 1] ? `<div class="hl-note">💡 ${esc(n[i + 1])}</div>` : ''}`).join('');
+    el.innerHTML = `<div class="helpv">${notes ? '' : '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>'}${rows(notes)}</div>`;
+    if (notes || !src.trim()) return;
+    X.explain(p, file, src).then((r) => {
+      const n = {}; for (const x of r.help || []) if (x && x.n >= 1) n[x.n] = (n[x.n] ? n[x.n] + ' ' : '') + x.text;
+      helpCache.set(key, n); if (helpOn && tab === 'files') paint();
+    }, (e) => { const w = el.querySelector('.hl-wait'); if (w) w.textContent = e.message; });
+  }
+
   function open(proj, ctx, intro) {
     X = ctx; p = proj; file = Object.keys(head().files).includes('main.js') ? 'main.js' : Object.keys(head().files)[0]; tab = p.kit === 'code' ? 'files' : 'claude'; draft = null; viewV = null;
     ask = [{ t: X.canEdit(p) ? 'I can read this code. Try: “explain main.js”, “why is it broken?”, or tell me anything you want it to do next, even something completely different.' : 'Read-only. Remix it to change the code.' }];
@@ -80,20 +108,25 @@
     const el = $('ctb'), ed = X.canEdit(p), F = draft || head().files;
     if (tab === 'files') {
       const src = F[file] ?? '', n = src.split('\n').length;
-      el.innerHTML = `<div class="ftabs">${Object.keys(F).map((f) => `<button data-f="${esc(f)}" class="${f === file ? 'on' : ''}">${esc(f)}${draft && draft[f] !== head().files[f] ? ' •' : ''}</button>`).join('')}${ed ? '<button class="nf" id="nf">＋</button>' : ''}</div>
-        <div class="ed"><pre class="gut" id="gut">${Array.from({ length: n }, (_, i) => i + 1).join('\n')}</pre><textarea id="src" spellcheck="false" autocapitalize="off" autocorrect="off" wrap="off"${ed ? '' : ' readonly'}>${esc(src)}</textarea></div>
+      el.innerHTML = `<div class="ftabs">${Object.keys(F).map((f) => `<button data-f="${esc(f)}" class="${f === file ? 'on' : ''}">${esc(f)}${draft && draft[f] !== head().files[f] ? ' •' : ''}</button>`).join('')}${ed ? '<button class="nf" id="nf">＋</button>' : ''}<button class="nf help${helpOn ? ' on' : ''}" id="hlp" title="Help me: what each line does">💡 Help</button></div>
+        ${helpOn ? '<div class="ed edh" id="edh"></div>' : `<div class="ed"><pre class="gut" id="gut">${Array.from({ length: n }, (_, i) => i + 1).join('\n')}</pre><div class="edw"><pre class="hlc" id="hlc" aria-hidden="true">${hl(src, langOf(file))}</pre><textarea id="src" spellcheck="false" autocapitalize="off" autocorrect="off" wrap="off"${ed ? '' : ' readonly'}>${esc(src)}</textarea></div></div>`}
         ${ed ? `<form class="cmt" id="cmt"><input id="cmsg" placeholder="${dirty() ? 'What did you change?' : 'Edit, then commit'}" autocomplete="off"><button class="bb" type="button" id="crev"${dirty() ? '' : ' disabled'}>↺</button><button class="bb share" id="cgo"${dirty() ? '' : ' disabled'}>Commit</button></form>` : ''}`;
       el.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { file = b.dataset.f; paint(); }));
-      const ta = $('src'), g = $('gut');
-      ta.onscroll = () => (g.scrollTop = ta.scrollTop);
-      ta.oninput = () => { draft = draft || { ...head().files }; draft[file] = ta.value; g.textContent = Array.from({ length: ta.value.split('\n').length }, (_, i) => i + 1).join('\n'); $('bver').textContent = 'v' + head().v + ' · unsaved'; $('cgo').disabled = $('crev').disabled = !dirty(); };
+      $('hlp').onclick = () => { helpOn = !helpOn; paint(); };
+      if (helpOn) { helpView($('edh'), src); if (ed) wireCommit(F); return; }
+      const ta = $('src'), g = $('gut'), hc = $('hlc');
+      ta.onscroll = () => { g.scrollTop = ta.scrollTop; hc.scrollTop = ta.scrollTop; hc.scrollLeft = ta.scrollLeft; };
+      ta.oninput = () => { draft = draft || { ...head().files }; draft[file] = ta.value; hc.innerHTML = hl(ta.value, langOf(file)); ta.onscroll(); g.textContent = Array.from({ length: ta.value.split('\n').length }, (_, i) => i + 1).join('\n'); $('bver').textContent = 'v' + head().v + ' · unsaved'; $('cgo').disabled = $('crev').disabled = !dirty(); };
       ta.onkeydown = (e) => { if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('  ', s, ta.selectionEnd, 'end'); ta.oninput(); } if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); run(); } };
-      if (ed) {
+      if (ed) wireCommit(F);
+      return;
+    }
+    function wireCommit(F) {
+      {
         $('nf').onclick = () => { const nm = (prompt('New file name', 'helpers.js') || '').trim(); if (!nm || F[nm] != null) return; draft = { ...(draft || head().files), [nm]: '' }; file = nm; paint(); X.toast(nm.endsWith('.js') ? 'Only main.js runs on its own: load ' + nm + ' from index.html with a script tag.' : 'Added ' + nm); };
         $('crev').onclick = () => { draft = null; paint(); run(); };
         $('cmt').onsubmit = (e) => { e.preventDefault(); if (!dirty()) return; commit($('cmsg').value.trim() || 'Edited ' + Object.keys(draft).filter((k) => draft[k] !== head().files[k]).join(', '), draft); run(); X.toast('Committed v' + head().v); };
       }
-      return;
     }
     if (tab === 'claude') {
       el.innerHTML = `<div class="bchat" id="cchat">${ask.map((m) => `<div class="bm${m.me ? ' me' : ''}${m.ok ? ' ok' : ''}">${m.me ? '' : '<i>✦</i>'}<span>${m.html || esc(m.t)}</span></div>`).join('')}</div>

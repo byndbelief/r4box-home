@@ -204,3 +204,22 @@ main.page:has(.bench)>#body{flex:1;min-height:0;display:flex;flex-direction:colu
 /* r4box.com has no viewing-as bar under it: the switch sits at the bottom edge */
 .bswitch{bottom:calc(10px + env(safe-area-inset-bottom))}
 :root{--bsw-h:60px}
+/* code colour: the highlighted copy sits under a see-through textarea, same font and padding */
+.edw{position:relative;min-width:0;height:100%;overflow:hidden}
+.edw .hlc,.edw textarea{position:absolute;inset:0;margin:0;box-sizing:border-box;padding:8px 10px;white-space:pre;tab-size:2;font:400 12px/1.5 ui-monospace,monospace!important}
+.edw .hlc{overflow:hidden;color:#D4CEF2;pointer-events:none;padding-bottom:60px}
+.edw textarea{color:transparent!important;-webkit-text-fill-color:transparent;background:transparent;z-index:1}
+.edw textarea::selection{background:#3DD6C640;-webkit-text-fill-color:transparent}
+i.t-kw{font-style:normal;color:#FF7AC8}i.t-str{font-style:normal;color:#F5C542}i.t-num{font-style:normal;color:#FF8A7A}
+i.t-com{color:#6E6799}i.t-fn{font-style:normal;color:#3DD6C6}i.t-tag{font-style:normal;color:#3DD6C6}
+i.t-attr{font-style:normal;color:#B9A6FF}i.t-prop{font-style:normal;color:#7DF0C8}
+/* 💡 Help: each line, with Claude's note under the ones that need one */
+.ftabs .nf.help{margin-left:auto;padding:0 10px;font-size:12px;font-weight:700;color:var(--gold)}
+.ftabs .nf.help.on{background:#F5C54222;border-color:#F5C54266}
+.ed.edh{display:block;overflow:auto}
+.helpv{padding:6px 0 20px;font:400 12px/1.5 ui-monospace,monospace}
+.hl-row{display:flex;gap:8px;padding:0 10px 0 0;white-space:pre}
+.hl-row .hn{flex:none;width:28px;text-align:right;color:#4A4470;user-select:none}
+.hl-row code{font:inherit;color:#E6E1FF}
+.hl-note{margin:2px 10px 6px 36px;padding:6px 9px;border-radius:9px;background:#F5C54212;border:1px solid #F5C54240;color:#F3E7B8;font:500 12.5px/1.4 var(--body);white-space:normal}
+.hl-wait{margin:4px 10px 8px;font:600 12px var(--body);color:var(--gold)}
