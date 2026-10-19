@@ -33,7 +33,7 @@
   const BUILDER = [['both', '⚒', 'Maker + Developer', 'Standard. Kits and code side by side: start either way, the code is always a tap away.'], ['maker', '🧩', 'Maker only', 'Kits, Claude and parts. Tools unlock as the project grows.'], ['developer', '⌨', 'Developer only', 'Code projects: real files, a console, commits and diffs. No kits.']];
   const builderOf = (u) => { try { const b = localStorage.getItem('r4.builder.' + u.id); if (BUILDER.some(([id]) => id === b)) return b; } catch {} return 'both'; };
   const dev = () => builderOf(viewer) !== 'maker', kits = () => builderOf(viewer) !== 'developer';
-  const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs, image) => window.R4Build.ask(p, q, files, logs, image), openBench: (id) => openBench(id), explain: (p, f, src) => window.R4Build.explain(p, f, src), markUp, withShot, phoneTest, shareSheet });
+  const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs, image) => window.R4Build.ask(p, q, files, logs, image), openBench: (id) => openBench(id), explain: (p, f, src) => window.R4Build.explain(p, f, src), sheet: (h) => sheet(h), markUp, withShot, phoneTest, shareSheet });
   // Bench ⇄ Preview: one switch, always in reach at the bottom of the screen
   function sw(mode, toBench, toPrev, code) {
     let el = document.getElementById('bsw'); if (!el) { el = document.createElement('div'); el.id = 'bsw'; el.className = 'bswitch'; el.setAttribute('role', 'tablist'); $('app').append(el); }

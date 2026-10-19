@@ -78,13 +78,101 @@
   }
   // ---------- 💡 Help: Claude's note on each line, under it (cached by the file's words) ----------
   let helpOn = false; const helpCache = new Map();
+  // Words to know: a starter glossary that's always there (so key words light up right away), and
+  // Claude's own definitions for this file, which come with its notes and win where both exist.
+  const GLOSS = {
+    'variable': ['A named box that holds a value, so you can use it and change it later.', 'let score = 0;\nscore = score + 1;'],
+    'let': ['Makes a variable whose value can change later.', 'let lives = 3;\nlives = 2;'],
+    'const': ['Makes a variable that keeps the same value (you can’t point it at something else).', 'const name = "Ava";'],
+    'function': ['A named set of steps you can run again and again by calling it.', 'function greet() {\n  console.log("hi");\n}\ngreet();'],
+    'argument': ['A value you hand to a function when you call it.', 'greet("Sam");  // "Sam" is the argument'],
+    'parameter': ['The name a function gives to a value it receives.', 'function greet(name) { … }  // name is the parameter'],
+    'return': ['Sends a value back out of a function to whoever called it.', 'function double(n) { return n * 2; }'],
+    'console': ['A hidden log where your code can write messages; here it shows under the preview.', 'console.log("it works");'],
+    'console.log': ['Writes a message to the console: the quickest way to check what your code is doing.', 'console.log("score is", score);'],
+    'string': ['Text, written inside quotes.', 'const word = "hello";'],
+    'number': ['A plain number you can do maths with.', 'const total = 2 + 3;  // 5'],
+    'boolean': ['A value that is either true or false.', 'let isPlaying = true;'],
+    'array': ['A list of values in order, counted from 0.', 'const fruits = ["apple", "pear"];\nfruits[0];  // "apple"'],
+    'object': ['A bundle of named values (properties) kept together.', 'const player = { name: "Ava", score: 10 };'],
+    'property': ['A named value that belongs to an object.', 'player.score  // reads the score property'],
+    'method': ['A function that belongs to an object, called with a dot.', 'fruits.push("plum");'],
+    'if': ['Runs some code only when a condition is true.', 'if (score > 10) {\n  console.log("you win");\n}'],
+    'condition': ['A question your code asks that comes out true or false.', 'score > 10'],
+    'loop': ['Code that repeats, again and again, until it’s told to stop.', 'for (let i = 0; i < 3; i++) { … }'],
+    'for loop': ['A loop that counts: start, keep going while true, step.', 'for (let i = 0; i < 5; i++) {\n  console.log(i);\n}'],
+    'event': ['Something that happens on the page: a click, a key press, a tap.', '"click", "keydown", "pointermove"'],
+    'event listener': ['Code that waits for an event and runs when it happens.', 'button.addEventListener("click", () => { … });'],
+    'addEventListener': ['Attaches an event listener to something on the page.', 'button.addEventListener("click", go);'],
+    'click': ['The event when something is clicked or tapped.', 'el.addEventListener("click", …)'],
+    'element': ['One piece of the page: a button, a heading, a picture.', '<button id="go">Go</button>'],
+    'page element': ['One piece of the page: a button, a heading, a picture.', '<p id="laps">0</p>'],
+    'id': ['A unique name you give an element so your code can find it.', '<button id="lapBtn">Lap</button>'],
+    'document': ['The whole web page, as your code sees it.', 'document.title = "My game";'],
+    'getElementById': ['Finds the element on the page with that id.', 'const btn = document.getElementById("lapBtn");'],
+    'querySelector': ['Finds the first element that matches a CSS selector.', 'document.querySelector(".score")'],
+    'textContent': ['The text inside an element; set it to change what it says.', 'lapsText.textContent = laps;'],
+    'innerHTML': ['The HTML inside an element; set it to replace what’s in it.', 'box.innerHTML = "<b>Hi</b>";'],
+    'DOM': ['The page as a tree of elements your code can read and change.', 'document.body.append(el);'],
+    'canvas': ['A drawing area on the page that code paints shapes and pictures on.', '<canvas id="c"></canvas>'],
+    'context': ['The canvas’s pen: what you call to actually draw.', 'const ctx = canvas.getContext("2d");'],
+    'requestAnimationFrame': ['Asks the browser to run your function before the next screen redraw: the heart of an animation.', 'function frame() { …; requestAnimationFrame(frame); }'],
+    'game loop': ['A function that runs over and over (about 60 times a second) to move and redraw everything.', 'function frame() { update(); draw(); requestAnimationFrame(frame); }'],
+    'setInterval': ['Runs a function again every so many milliseconds.', 'setInterval(tick, 1000);  // every second'],
+    'setTimeout': ['Runs a function once, after a wait in milliseconds.', 'setTimeout(done, 2000);'],
+    'callback': ['A function you hand to something else, to be run later.', 'setTimeout(() => alert("hi"), 1000);'],
+    'arrow function': ['A shorter way to write a function.', 'const add = (a, b) => a + b;'],
+    'increment': ['Add one to a number.', 'laps = laps + 1;  // or laps++'],
+    'operator': ['A symbol that does something to values: + - * / = === …', 'a + b, a === b'],
+    'comment': ['A note in code for people; the computer skips it.', '// this is a comment'],
+    'HTML': ['The language for what’s on the page: headings, buttons, pictures.', '<h1>Hello</h1>'],
+    'CSS': ['The language for how the page looks: colours, sizes, layout.', 'h1 { color: teal; }'],
+    'tag': ['How HTML marks a piece of the page, in angle brackets.', '<p> … </p>'],
+    'attribute': ['Extra information on an HTML tag.', '<img src="cat.png" alt="a cat">'],
+    'selector': ['In CSS, which elements a style applies to.', '.score { … }  #go { … }  button { … }'],
+    'class': ['A label you can put on many elements so CSS or code can find them together.', '<div class="card">'],
+    'style': ['How something looks; in code, an element’s style property.', 'box.style.color = "red";'],
+    'browser': ['The app that shows web pages and runs their code.', 'Chrome, Safari, Firefox'],
+    'score': ['In a game, the number that counts how well you’re doing.', 'let score = 0;'],
+  };
+  // everyday words that are also code words: lit up only when Claude marks them in a note
+  const PLAIN = new Set(['if', 'let', 'id', 'class', 'style', 'number', 'string', 'object', 'return', 'score', 'click', 'tag', 'condition', 'browser', 'comment', 'context', 'property', 'event', 'element', 'method']);
+  let gloss = {};   // Claude's, for the files read so far: lower-case term -> { term, means, example }
+  const RE = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Mark the key words in a note: Claude's for that note, plus any starter-glossary word in it.
+  function marked(text, terms) {
+    const all = [...new Set([...(terms || []), ...Object.keys(GLOSS).filter((w) => !PLAIN.has(w)), ...Object.values(gloss).map((g) => g.term)])].filter((t) => t && new RegExp('(^|[^\\w])' + RE(t) + '(?![\\w])', 'i').test(text)).sort((a, b) => b.length - a.length);
+    if (!all.length) return { html: esc(text), found: [] };
+    const re = new RegExp('(^|[^\\w])(' + all.map(RE).join('|') + ')(?![\\w])', 'gi'), found = new Set();
+    let out = '', at = 0, m;
+    while ((m = re.exec(text))) { const s = m.index + m[1].length; out += esc(text.slice(at, s)) + `<b class="kw">${esc(m[2])}</b>`; found.add(m[2].toLowerCase()); at = s + m[2].length; }
+    return { html: out + esc(text.slice(at)), found: [...found] };
+  }
+  const defOf = (t) => { const k = t.toLowerCase(), c = gloss[k], s = Object.entries(GLOSS).find(([w]) => w.toLowerCase() === k); return c ? c : s ? { term: s[0], means: s[1][0], example: s[1][1] } : null; };
+  const entry = (d) => `<div class="gl"><b>${esc(d.term)}</b><p>${esc(d.means)}</p>${d.example ? `<pre class="glx">${hl(d.example, /^</.test(d.example.trim()) ? 'html' : /\{[^}]*:/.test(d.example) && !/[=(]/.test(d.example) ? 'css' : 'js')}</pre>` : ''}</div>`;
+  // A note, opened: its line, the note, and every key word in it explained; then all the words for this file.
+  function openNote(n, line, note) {
+    const mk = marked(note.text, note.terms), lang = langOf(file);
+    const words = mk.found.map(defOf).filter(Boolean), more = [...new Map([...Object.values(gloss), ...Object.entries(GLOSS).map(([term, [means, example]]) => ({ term, means, example }))].map((d) => [d.term.toLowerCase(), d])).values()].filter((d) => !mk.found.includes(d.term.toLowerCase()));
+    const d = X.sheet(`<div class="playh"><b>💡 Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
+      <div class="glbody"><pre class="glcode">${hl(line, lang)}</pre><p class="glnote">${mk.html}</p>
+      ${words.length ? `<h3 class="k">Words to know</h3>${words.map(entry).join('')}` : ''}
+      <details class="glall"><summary>All words (${more.length})</summary>${more.sort((a, b) => a.term.localeCompare(b.term)).map(entry).join('')}</details></div>`);
+    d.querySelector('.glnote').onclick = (e) => { const b = e.target.closest('b.kw'); if (!b) return; const el = [...d.querySelectorAll('.gl > b')].find((x) => x.textContent.toLowerCase() === b.textContent.toLowerCase()); if (el) { el.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.parentElement.classList.add('flash'); setTimeout(() => el.parentElement.classList.remove('flash'), 1200); } };
+  }
   function helpView(el, src) {
     const key = file + '\u0000' + src, lines = src.split('\n'), lang = langOf(file), notes = helpCache.get(key);
-    const rows = (n) => lines.map((l, i) => `<div class="hl-row"><span class="hn">${i + 1}</span><code>${hl(l, lang).slice(0, -1) || ' '}</code></div>${n && n[i + 1] ? `<div class="hl-note">💡 ${esc(n[i + 1])}</div>` : ''}`).join('');
-    el.innerHTML = `<div class="helpv">${notes ? '' : '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>'}${rows(notes)}</div>`;
+    const rows = (n) => lines.map((l, i) => `<div class="hl-row"><span class="hn">${i + 1}</span><code>${hl(l, lang).slice(0, -1) || ' '}</code></div>${n && n[i + 1] ? `<button class="hl-note" data-n="${i + 1}">💡 ${marked(n[i + 1].text, n[i + 1].terms).html}<span class="hl-more">more ›</span></button>` : ''}`).join('');
+    // the starter words this file's code uses: there at once, before Claude's notes arrive
+    const inCode = Object.keys(GLOSS).filter((w) => new RegExp('(^|[^\\w.])' + RE(w) + '(?![\\w])', w === 'HTML' || w === 'CSS' || w === 'DOM' ? '' : 'i').test(src) || (w === 'variable' && /\b(let|const|var)\s/.test(src)) || (w === 'event listener' && /addEventListener/.test(src)) || (w === 'string' && /['"`]/.test(src)) || (w === 'comment' && /\/\/|\/\*|<!--/.test(src)));
+    el.innerHTML = `<div class="helpv">${inCode.length ? `<button class="hl-words" id="hlw">📖 Words in this file <small>${inCode.length}</small></button>` : ''}${notes ? '' : '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>'}${rows(notes)}</div>`;
+    const hw = el.querySelector('#hlw'); if (hw) hw.onclick = () => X.sheet(`<div class="playh"><b>📖 Words in ${esc(file)}</b><small>${inCode.length} to know</small><button data-close aria-label="Close">✕</button></div><div class="glbody">${inCode.map(defOf).filter(Boolean).map(entry).join('')}</div>`);
+    el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openNote(k, lines[k - 1], notes[k]); }));
     if (notes || !src.trim()) return;
     X.explain(p, file, src).then((r) => {
-      const n = {}; for (const x of r.help || []) if (x && x.n >= 1) n[x.n] = (n[x.n] ? n[x.n] + ' ' : '') + x.text;
+      const n = {};
+      for (const x of r.help || []) if (x && x.n >= 1) n[x.n] = n[x.n] ? { text: n[x.n].text + ' ' + x.text, terms: [...n[x.n].terms, ...(x.terms || [])] } : { text: x.text, terms: x.terms || [] };
+      for (const g of r.glossary || []) gloss[g.term.toLowerCase()] = g;
       helpCache.set(key, n); if (helpOn && tab === 'files') paint();
     }, (e) => { const w = el.querySelector('.hl-wait'); if (w) w.textContent = e.message; });
   }
