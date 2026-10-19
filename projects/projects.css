@@ -277,3 +277,5 @@ i.t-attr{font-style:normal;color:#B9A6FF}i.t-prop{font-style:normal;color:#7DF0C
 .glout:empty{display:none}
 .glout .error{color:#FF8A7A}.glout .dim{color:var(--faint)}
 .glframe{width:100%;height:140px;border:1px solid var(--line);border-radius:8px;background:#0D0B1F}
+.gl>b>span{flex:1;min-width:0}
+.glask{all:unset;cursor:pointer;flex:none;margin:0 8px;padding:3px 10px;border-radius:99px;border:1px solid #F5C54255;background:#F5C54212;font:700 11.5px var(--body);color:var(--gold)}

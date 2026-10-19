@@ -150,23 +150,23 @@
   }
   const defOf = (t) => { const k = t.toLowerCase(), c = gloss[k], s = Object.entries(GLOSS).find(([w]) => w.toLowerCase() === k); return c ? c : s ? { term: s[0], means: s[1][0], example: s[1][1] } : null; };
   const exLang = (x) => (/^\s*</.test(x) ? 'html' : /\{[^}]*:/.test(x) && !/[=(]/.test(x) ? 'css' : 'js');
-  const entry = (d) => `<div class="gl" data-term="${esc(d.term)}" role="button" tabindex="0" aria-expanded="false"><b>${esc(d.term)}<i class="glchev">⌄</i></b><p>${esc(d.means)}</p>${d.example ? `<pre class="glx">${hl(d.example, exLang(d.example))}</pre>` : ''}<div class="glmore" hidden></div></div>`;
+  const entry = (d) => `<div class="gl" data-term="${esc(d.term)}" role="button" tabindex="0" aria-expanded="false"><b><span>${esc(d.term)}</span><button class="glask" data-askc aria-label="Ask Claude about ${esc(d.term)}">✦ Ask</button><i class="glchev">⌄</i></b><p>${esc(d.means)}</p>${d.example ? `<pre class="glx">${hl(d.example, exLang(d.example))}</pre>` : ''}<div class="glmore" hidden></div></div>`;
   // A word card, opened: where this file uses it, ▶ Try it (the example, editable, run in a sandbox),
   // and ✦ Ask Claude about it (in the Claude tab, about this code).
   const usesOf = (term, src, lang) => { const t = term.toLowerCase(); return src.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => wordsOn(l, lang).some((w) => w.toLowerCase() === t) || new RegExp('(^|[^\\w])' + RE(term) + '(?![\\w])', 'i').test(l)); };
   const RUNNER = "<script>(function(){var o=function(k,a){parent.postMessage({r4try:[k,[].map.call(a,function(x){try{return typeof x==='object'?JSON.stringify(x):String(x)}catch(e){return String(x)}}).join(' ')]},'*')};['log','info','warn','error'].forEach(function(k){console[k]=function(){o(k,arguments)}});addEventListener('error',function(e){o('error',[e.message])})})()<\/script>";
   function activate(d) {
     d.querySelectorAll('.gl[data-term]').forEach((card) => {
+      card.querySelector('.glask').onclick = (e) => { e.stopPropagation(); const term = card.dataset.term; d.close(); tab = 'claude'; paint(); claude(`Explain "${term}" to me, using my ${file} as the example.`); };
       const toggle = (e) => {
-        if (e.target.closest('.glmore')) return;
+        if (e.target.closest('.glmore, .glask')) return;
         const open = card.classList.toggle('open'); card.setAttribute('aria-expanded', open);
         const more = card.querySelector('.glmore'); more.hidden = !open; if (!open || more.dataset.done) return;
         more.dataset.done = 1;
         const term = card.dataset.term, src = (draft || head().files)[file] ?? '', lang = langOf(file), uses = usesOf(term, src, lang), ex = defOf(term)?.example || '';
         more.innerHTML = `<div class="gluse">${uses.length ? `<small>In ${esc(file)}:</small>${uses.slice(0, 12).map(([n]) => `<button data-line="${n}">line ${n}</button>`).join('')}${uses.length > 12 ? `<small>+${uses.length - 12}</small>` : ''}` : `<small>Not in ${esc(file)} yet.</small>`}</div>
-          <div class="glacts">${ex ? '<button data-try>▶ Try it</button>' : ''}<button data-askc>✦ Ask Claude about ${esc(term)}</button></div><div class="gltry" hidden></div>`;
+          ${ex ? '<div class="glacts"><button data-try>▶ Try it</button></div>' : ''}<div class="gltry" hidden></div>`;
         more.querySelectorAll('[data-line]').forEach((b) => (b.onclick = () => { const n = +b.dataset.line, line = src.split('\n')[n - 1]; d.close(); openNote(n, line, { terms: wordsOn(line, lang).length ? wordsOn(line, lang) : [term] }, () => dig((draft || head().files)[file] ?? '', n), X.canEdit(p) ? (v) => editLine(n, v) : null); }));
-        more.querySelector('[data-askc]').onclick = () => { d.close(); tab = 'claude'; paint(); claude(`Explain "${term}" to me, using my ${file} as the example.`); };
         const tb = more.querySelector('[data-try]');
         if (tb) tb.onclick = () => {
           const box = more.querySelector('.gltry'), xl0 = exLang(ex);
