@@ -276,7 +276,7 @@
     }, (e) => { reading.delete(key); X.toast(e.message); if (helpOn && tab === 'files') paint(); });
   }
 
-  function open(proj, ctx, intro) {
+  function open(proj, ctx, intro, autoAsk) {
     X = ctx; p = proj; file = Object.keys(head().files).includes('main.js') ? 'main.js' : Object.keys(head().files)[0]; tab = p.kit === 'code' ? 'files' : 'claude'; draft = null; viewV = null;
     ask = [{ t: X.canEdit(p) ? 'I can read this code. Try: “explain main.js”, “why is it broken?”, or tell me anything you want it to do next, even something completely different.' : 'Read-only. Remix it to change the code.' }];
     if (intro) ask.push({ t: intro, ok: true });
@@ -286,6 +286,7 @@
       <div class="btabs" id="ctabs"></div><div class="tbody" id="ctb"></div></div>`;
     $('crun').onclick = run; $('popen').onclick = openPanel; X.sw('bench', null, openPanel, true); $('cphone').onclick = () => X.phoneTest(p); $('cshare').onclick = () => X.shareSheet(p); $('cshare').hidden = p.owner !== X.viewer().id;
     paint(); run(); window.scrollTo(0, 0);
+    if (autoAsk) { tab = 'claude'; paint(); claude(autoAsk); }   // an idea that Claude builds: it starts at once
   }
   function paint() {
     $('bver').textContent = 'v' + head().v + (dirty() ? ' · unsaved' : '');

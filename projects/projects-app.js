@@ -130,16 +130,16 @@
     const fam = list.filter((p) => p.owner !== viewer.id && p.published && !p.archived && !(p.collab || []).includes(viewer.id));
     const allMine = list.filter((p) => p.owner === viewer.id).length;
     const l = left();
-    $('body').innerHTML = `<div class="who"><h2>${dens === 'play' ? 'Make something!' : 'Your projects'}</h2><p>${viewer.role === 'parent' ? 'Start from a kit, then ask Claude to change it.' : `Start from a kit, then ask Claude to change it. <b class="cap">${l} of ${CAP}</b> builds left today.`}</p></div>
+    $('body').innerHTML = `<div class="who"><h2>${dens === 'play' ? 'Make something!' : 'Your projects'}</h2><p>${viewer.role === 'parent' ? 'Pick something to start, then ask Claude to change it.' : `Pick something to start, then ask Claude to change it. <b class="cap">${l} of ${CAP}</b> builds left today.`}</p></div>
       ${mine.length ? `<div class="plist">${mine.slice(0, 3).map((p) => card(p, true)).join('')}</div>` : `<p class="note">${allMine ? 'Everything is put away.' : `Nothing yet. Pick ${kits() ? 'a kit' : 'a starting point'} below.`}</p>`}
       ${allMine > Math.min(3, mine.length) || allMine > 3 ? `<button class="plib" id="plib">🗂 All your projects <b>${allMine}</b><span>›</span></button>` : ''}
       ${together.length ? `<h3 class="k">Making together</h3><div class="plist">${together.map((p) => card(p, 'together')).join('')}</div>` : ''}
-      ${kits() ? `<h3 class="k">Start from a kit</h3><div class="kits">${Object.entries(PR.KITS).filter(([id]) => id !== 'code').map(([id, k]) => `<button class="kit" data-kit="${id}" style="--kc:${PR.KIND[k.kind][2]}"><span class="ke">${k.em}</span><b>${k.name}</b><small>${k.blurb}</small></button>`).join('')}</div>` : ''}
+      ${kits() ? `<h3 class="k">Start something</h3><div class="kits">${CATS.map((c) => `<button class="kit" data-cat="${c.id}" style="--kc:${c.color}"><span class="ke">${c.em}</span><b>${c.name}</b><small>${c.blurb}</small></button>`).join('')}</div>` : ''}
       ${dev() && window.CodeBench ? `<h3 class="k">Start from code</h3><div class="kits">${Object.entries(CodeBench.TEMPLATES).map(([id, t]) => `<button class="kit code" data-tpl="${id}" style="--kc:#7DF0C8"><span class="ke">⌨</span><b>${t.name}</b><small>${t.blurb}</small></button>`).join('')}</div>` : ''}
       ${fam.length ? `<h3 class="k">Made by the family</h3><div class="plist">${fam.map((p) => card(p, false)).join('')}</div>` : ''}`;
     $('body').querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => openBench(b.dataset.open)));
     const lb = $('plib'); if (lb) lb.onclick = () => { history.pushState({ lib: 1 }, '', '?lib=1'); renderLibrary(); };
-    $('body').querySelectorAll('[data-kit]').forEach((b) => (b.onclick = () => newFromKit(b.dataset.kit)));
+    $('body').querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => ideas(CATS.find((c) => c.id === b.dataset.cat))));
     $('body').querySelectorAll('[data-tpl]').forEach((b) => (b.onclick = () => { const p = CodeBench.create(b.dataset.tpl, ctx()); list.push(p); save(); openBench(p.id); }));
     $('body').querySelectorAll('[data-play]').forEach((b) => (b.onclick = () => player(list.find((p) => p.id === b.dataset.play))));
     $('body').querySelectorAll('[data-remix]').forEach((b) => (b.onclick = () => remix(b.dataset.remix)));
@@ -194,11 +194,48 @@
     window.R4Build.askHelp(p.id).then(() => window.R4Build.post('@' + byId(p.owner).name + ' can I help on ' + p.name + '?', p.id))
       .then(() => toast('🤝 Asked ' + byId(p.owner).name + '. They’ll see it in Share and in the chat.'), (e) => toast(e.message)); renderHome();
   }
-  function newFromKit(kit) {
-    const k = PR.KITS[kit], id = kit + '-' + Date.now().toString(36);
+  // ---------- categories: a few ideas each, from a kit with its settings, some finished by Claude ----------
+  const CATS = [
+    { id: 'game', em: '🎮', name: 'Games', color: '#3DD6C6', blurb: 'Catch, dodge, chase, score.', ideas: [
+      { em: '🧺', name: 'Catch game', blurb: 'Move the basket, catch the stars.', kit: 'catch' },
+      { em: '🚀', name: 'Space catch', blurb: 'A rocket catching planets, fast, in the dark.', kit: 'catch', set: { title: 'Space catch', sprite: '🚀', item: '🪐', bg: '#000000', color: '#B9A6FF', speed: 1.6 } },
+      { em: '🐟', name: 'Deep sea catch', blurb: 'A fish catching glowing things.', kit: 'catch', set: { title: 'Deep sea catch', sprite: '🐟', item: '✨', bg: '#061a33', color: '#3DD6C6' } },
+      { em: '🪨', name: 'Dodge the rocks', blurb: 'Rocks fall: don’t get hit. Three lives.', kit: 'catch', set: { title: 'Dodge!', sprite: '🏃', item: '🪨' }, ask: 'Turn this into a dodge game: the falling things are rocks to avoid, not catch. Start with 3 lives (show them as hearts), lose one on a hit, the score goes up the longer you survive, and show Game over with a tap to play again.' },
+    ] },
+    { id: 'app', em: '🧰', name: 'Apps', color: '#F5C542', blurb: 'Timers, counters, tools.', ideas: [
+      { em: '⏱', name: 'Focus timer', blurb: '25 minutes, then a beep.', kit: 'timer', set: { title: 'Focus timer', minutes: 25 } },
+      { em: '🍵', name: 'Tea timer', blurb: 'Three minutes, big and gold.', kit: 'timer', set: { title: 'Tea timer', minutes: 3, color: '#F5C542' } },
+      { em: '💪', name: 'Workout timer', blurb: '30 seconds on, 10 off, rounds counted.', kit: 'timer', set: { title: 'Workout' }, ask: 'Turn this into an interval workout timer: 30 seconds of work, then 10 seconds of rest, repeated for 8 rounds. Show which it is (WORK or REST) in big letters with different colours, the round number, a beep at each switch, and Start/Pause/Reset.' },
+      { em: '🔢', name: 'Tally counter', blurb: 'Tap to count; laps, reps, anything.', kit: 'timer', set: { title: 'Counter' }, ask: 'Turn this into a tally counter: a huge number in the middle, a big + button (and tap anywhere to add one), a smaller − button, a reset button, and it remembers the count on this device.' },
+    ] },
+    { id: 'page', em: '🌐', name: 'Pages', color: '#B9A6FF', blurb: 'About you, or something you love.', ideas: [
+      { em: '😎', name: 'About me', blurb: 'A page about you.', kit: 'page' },
+      { em: '❤️', name: 'Something I love', blurb: 'Three reasons, one big emoji.', kit: 'page', set: { title: 'Why I love sharks', sprite: '🦈', color: '#3DD6C6', lines: ['They’ve been around longer than trees.', 'Some glow in the dark.', 'They never run out of teeth.'] } },
+      { em: '🏆', name: 'Fan page', blurb: 'Your team, band or game, with a fact card.', kit: 'page', set: { title: 'Fan page', sprite: '🏆' }, ask: 'Turn this into a fan page: a big title with an emoji, a short intro, a grid of 4 fact cards, and a "Random fact" button that shows one of the facts. Leave the facts as easy-to-change text for me to fill in.' },
+    ] },
+    { id: 'story', em: '📖', name: 'Stories', color: '#FF5A4A', blurb: 'Comics and adventures.', ideas: [
+      { em: '🐉', name: 'Comic strip', blurb: 'Three panels: a dragon, a door, pizza.', kit: 'comic' },
+      { em: '🛸', name: 'Space comic', blurb: 'Lost in space in four panels.', kit: 'comic', set: { title: 'Lost in space', color: '#B9A6FF', panels: [{ e: '🚀', t: 'We took off on a Tuesday.' }, { e: '🌑', t: 'The moon was not where the map said.' }, { e: '👽', t: 'Someone waved.' }, { e: '🍪', t: 'They wanted to trade cookies.' }] } },
+      { em: '🔀', name: 'Choose your path', blurb: 'A story where you pick what happens.', kit: 'comic', set: { title: 'Choose your path' }, ask: 'Turn this into a choose-your-own-adventure: show one scene at a time (an emoji and a few lines), with two buttons for what to do next, at least 6 scenes with two different endings, and a Start again button.' },
+    ] },
+    { id: 'toy', em: '🎨', name: 'Music & art', blurb: 'Make sounds, make pictures.', ideas: [
+      { em: '🥁', name: 'Drum pad', blurb: 'Four pads, tap to play.', kit: 'drums' },
+      { em: '🎛', name: 'Big beat pad', blurb: 'Eight pads, in red.', kit: 'drums', set: { title: 'Big beat pad', pads: 8, color: '#FF5A4A' } },
+      { em: '🎹', name: 'Piano', blurb: 'An octave of keys you can play.', kit: 'drums', set: { title: 'Piano' }, ask: 'Turn this into a little piano: one octave of white and black keys laid out like a real keyboard, each playing its note (C4 to C5) when tapped, keys light up while pressed, and the computer keys A S D F G H J K play them too.' },
+      { em: '🖌', name: 'Finger painting', blurb: 'Draw with your finger, pick colours.', kit: 'drums', set: { title: 'Paint' }, ask: 'Turn this into a finger-painting app: a full-screen canvas you draw on with your finger or mouse, a row of 6 colour swatches, a brush-size slider, and a Clear button.' },
+    ] },
+  ];
+  function ideas(cat) {
+    const left0 = left(), d = sheet(`<div class="playh"><b>${cat.em} ${esc(cat.name)}</b><small>Pick one to start</small><button data-close aria-label="Close">✕</button></div>
+      <div class="ideas">${cat.ideas.map((x, i) => `<button class="idea" data-i="${i}" style="--kc:${cat.color}"><span class="ie">${x.em}</span><span class="it"><b>${esc(x.name)}${x.ask ? ' <i>✦ Claude builds it</i>' : ''}</b><small>${esc(x.blurb)}</small></span><span class="ig">›</span></button>`).join('')}</div>
+      ${cat.ideas.some((x) => x.ask) && left0 !== Infinity ? `<p class="note" style="margin:8px 2px 0">✦ ideas use one of your builds (${left0} left today).</p>` : ''}`);
+    d.querySelectorAll('[data-i]').forEach((b) => (b.onclick = () => { const x = cat.ideas[+b.dataset.i]; d.close(); newFromKit(x.kit, x.set, x.ask); }));
+  }
+  function newFromKit(kit, set = {}, autoAsk) {
+    const k = { ...PR.KITS[kit], defaults: { ...PR.KITS[kit].defaults, ...set } }, id = kit + '-' + Date.now().toString(36);
     // every project is code: the kit is where it starts, as real files (its settings live in main.js)
     const p = { id, owner: viewer.id, kit, name: k.defaults.title, published: false, versions: [{ v: 1, at: Date.now(), note: 'Started from ' + k.name, params: { ...k.defaults }, files: PR.kitFiles(kit, k.defaults) }], cur: 0 };
-    list.push(p); save(); openBench(id);
+    list.push(p); save(); openBench(id, null, autoAsk);
   }
   function remix(id) {
     const s = list.find((p) => p.id === id), v = s.versions[s.cur];
@@ -239,9 +276,9 @@
   }
 
   // ---------- workbench ----------
-  function openBench(id, intro) {
+  function openBench(id, intro, autoAsk) {
     clearBench(); open = id; tab = 'claude'; const p = list.find((x) => x.id === id);
-    if (PR.isCode(p)) { history.pushState({ bench: id }, '', '?open=' + id); return CodeBench.open(p, ctx(), intro); }
+    if (PR.isCode(p)) { history.pushState({ bench: id }, '', '?open=' + id); return CodeBench.open(p, ctx(), intro, autoAsk); }
     chat = [{ t: canEdit(p) ? `${p.owner === viewer.id ? 'This is ' + p.name + '.' : 'You’re helping ' + byId(p.owner).name + ' on ' + p.name + '. Your changes show up for both of you.'} Tell me what to change: “make it faster”, “red background”, “I’m a 🐱 catching 🍩”.` : 'This one isn’t yours. Remix it to change it.' }];
     $('title').textContent = 'workbench'; $('back').hidden = false; $('mark').hidden = true;
     $('body').innerHTML = `<div class="bench"><div class="bbar"><span class="bname" id="bname"></span><span class="bver" id="bver"></span><span class="bteam" id="bteam"></span><span class="blvl" id="blvl"></span><span class="grow"></span><button class="bb" id="undo" aria-label="Undo">⤺</button><button class="bb" id="redo" aria-label="Redo">⤻</button><button class="bb" id="phone" aria-label="Test on phone">📱</button><button class="bb share" id="share">↗ Share</button></div>
