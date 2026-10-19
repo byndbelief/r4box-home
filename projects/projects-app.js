@@ -116,12 +116,53 @@
   }
   const codeOK = () => dens === 'pilot' || dens === 'dev';
 
+  // ---------- a project's photo and one line about it ----------
+  // Its photo, or (for its maker, until they set one) its icon with a 📷 asking for one.
+  function thumb(p) {
+    const v = p.versions[p.cur], em = v.params.sprite || PR.KITS[p.kit].em, own = p.owner === viewer.id;
+    if (p.cover) return own ? `<button class="pe ph" data-photo="${p.id}" aria-label="Change the photo"><img src="${p.cover}" alt=""></button>` : `<span class="pe ph"><img src="${p.cover}" alt=""></span>`;
+    return own ? `<button class="pe sug" data-photo="${p.id}" aria-label="Add a photo for ${esc(p.name)}">${em}<i>📷</i></button>` : `<span class="pe">${em}</span>`;
+  }
+  // what it is: the first line of Claude's notes on it, else its latest change
+  // (else the newest change someone made, not the page's own notes; else what its kit is)
+  const AUTO = /^(now real code|one thing per line|started\b|opened .* as code|remixed|edited\b)/i;
+  const about = (p) => (p.brief || '').split('\n').map((l) => l.replace(/^[-•*\s]+/, '').trim()).find(Boolean)
+    || (p.versions.slice(0, p.cur + 1).reverse().find((v) => v.note && !AUTO.test(v.note) && v.note.length > 2) || {}).note
+    || (CATS.flatMap((c) => c.ideas).find((i) => i.kit === p.kit) || {}).blurb || '';
+  const wirePhotos = (root) => root.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => photoSheet(list.find((p) => p.id === b.dataset.photo))));
+  // 📷 snap it from its preview, or pick one from the phone: a 256px square JPEG on the project
+  function photoSheet(p) {
+    const d = sheet(`<div class="playh"><b>📷 ${esc(p.name)}’s photo</b><small>So you can spot it in your projects</small><button data-close aria-label="Close">✕</button></div>
+      <div class="phbox">${p.cover ? `<div class="phnow"><img src="${p.cover}" alt=""></div>` : ''}
+      <iframe id="phfr" sandbox="allow-scripts" title="preview" class="phfr"></iframe>
+      <div class="pmenu"><button data-ph="snap">📸 Snap the preview as it is now</button><button data-ph="pick">🖼 Pick a picture</button>${p.cover ? '<button data-ph="rm" class="bad">Remove the photo</button>' : ''}</div>
+      <input type="file" accept="image/*" id="phf" hidden></div>`);
+    // the project runs right here (a sandboxed frame, as everywhere): snap it when it looks right
+    const fr = d.querySelector('#phfr'); fr.srcdoc = withShot(PR.html(p));
+    d.addEventListener('close', () => (fr.srcdoc = ''), { once: true });   // stop it (and its sounds)
+    const set = (url) => { if (!url) { const b = d.querySelector('[data-ph="snap"]'); b.disabled = false; b.textContent = '📸 Snap the preview as it is now'; return toast('Couldn’t make a photo from that. Try the other way?'); } p.cover = url; save(); d.close(); toast('📷 Photo set.'); rerender(); };
+    d.querySelector('.pmenu').onclick = async (e) => {
+      const a = e.target.closest('[data-ph]')?.dataset.ph; if (!a) return;
+      if (a === 'rm') { p.cover = ''; save(); d.close(); toast('Photo removed.'); return rerender(); }
+      if (a === 'pick') return d.querySelector('#phf').click();
+      const b = e.target.closest('[data-ph]'); b.disabled = true; b.textContent = '📸 Snapping…';
+      const shot = await shoot(fr); set(shot && await square(shot));
+    };
+    d.querySelector('#phf').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = async () => set(await square(r.result)); r.readAsDataURL(f); };
+  }
+  // the middle square of a picture, 256px, as a JPEG
+  function square(src) {
+    return new Promise((ok) => { const im = new Image(); im.onload = () => { const s = Math.min(im.width, im.height), c = document.createElement('canvas'); c.width = c.height = 256;
+      const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256); g.drawImage(im, (im.width - s) / 2, (im.height - s) / 2, s, s, 0, 0, 256, 256); ok(c.toDataURL('image/jpeg', 0.8)); };
+      im.onerror = () => ok(null); im.src = src; });
+  }
+  const rerender = () => (open ? null : $('title').textContent === 'library' ? renderLibrary() : renderHome());
   // ---------- home: mine, kits, the family's ----------
   function card(p, mine) {
     const k = PR.KIND[PR.kindOf(p)], v = p.versions[p.cur];
     const team = helpers(p), asked = (p.requests || []).includes(viewer.id), req = (p.requests || []).length;
     const sub = mine === 'together' ? 'with ' + esc(byId(p.owner).name) + (team.length > 1 ? ' + ' + (team.length - 1) : '') : mine ? (p.published ? '<i class="pub">published</i>' : 'draft') + (team.length ? ' · 🤝 ' + team.map((h) => esc(h.name)).join(', ') : '') : 'by ' + esc(byId(p.owner).name);
-    return `<div class="pcard" style="--kc:${k[2]}"><button class="pmain" data-open="${p.id}"><span class="pe">${v.params.sprite || PR.KITS[p.kit].em}</span><span class="pt"><b>${esc(p.name)}</b><small>${k[1]} · v${v.v} · ${ago(v.at)} · ${sub}</small></span></button>${mine === true && req ? `<span class="preq">${req} want${req === 1 ? 's' : ''} to help</span>` : ''}${mine ? '' : `<span class="pacts"><button data-play="${p.id}">▶ Play</button><button data-help="${p.id}"${asked ? ' disabled' : ''}>${asked ? 'Asked' : '🤝 Help'}</button><button data-remix="${p.id}">⑂ Remix</button></span>`}</div>`;
+    return `<div class="pcard" style="--kc:${k[2]}">${thumb(p)}<button class="pmain" data-open="${p.id}"><span class="pt"><b>${esc(p.name)}</b>${about(p) ? `<small class="pab">${esc(about(p))}</small>` : ''}<small>${k[1]} · v${v.v} · ${ago(v.at)} · ${sub}</small></span></button>${mine === true && req ? `<span class="preq">${req} want${req === 1 ? 's' : ''} to help</span>` : ''}${mine ? '' : `<span class="pacts"><button data-play="${p.id}">▶ Play</button><button data-help="${p.id}"${asked ? ' disabled' : ''}>${asked ? 'Asked' : '🤝 Help'}</button><button data-remix="${p.id}">⑂ Remix</button></span>`}</div>`;
   }
   function renderHome() {
     clearBench(); open = null; $('title').textContent = 'projects'; $('back').hidden = true; $('mark').hidden = false;
@@ -138,6 +179,7 @@
       ${dev() && window.CodeBench ? `<h3 class="k">Start from code</h3><div class="kits">${Object.entries(CodeBench.TEMPLATES).map(([id, t]) => `<button class="kit code" data-tpl="${id}" style="--kc:#7DF0C8"><span class="ke">⌨</span><b>${t.name}</b><small>${t.blurb}</small></button>`).join('')}</div>` : ''}
       ${fam.length ? `<h3 class="k">Made by the family</h3><div class="plist">${fam.map((p) => card(p, false)).join('')}</div>` : ''}`;
     $('body').querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => openBench(b.dataset.open)));
+    wirePhotos($('body'));
     const lb = $('plib'); if (lb) lb.onclick = () => { history.pushState({ lib: 1 }, '', '?lib=1'); renderLibrary(); };
     $('body').querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => ideas(CATS.find((c) => c.id === b.dataset.cat))));
     $('body').querySelectorAll('[data-tpl]').forEach((b) => (b.onclick = () => { const p = CodeBench.create(b.dataset.tpl, ctx()); list.push(p); save(); openBench(p.id); }));
@@ -159,7 +201,7 @@
       .sort((a, b) => libS === 'name' ? a.name.localeCompare(b.name) : libS === 'oldest' ? a.versions[0].at - b.versions[0].at : lastAt(b) - lastAt(a));
     const count = (id) => mine.filter((p) => (id === 'archived' ? p.archived : !p.archived && (id === 'all' || (id === 'published' ? p.published : id === 'draft' ? !p.published : kindOf(p) === id)))).length;
     const row = (p) => { const k = PR.KIND[PR.kindOf(p)], v = p.versions[p.cur], own = p.owner === viewer.id;
-      return `<div class="pcard lrow${p.archived ? ' arch' : ''}" style="--kc:${k[2]}"><button class="pmain" data-open="${p.id}"><span class="pe">${v.params.sprite || PR.KITS[p.kit].em}</span><span class="pt"><b>${esc(p.name)}</b><small>${k[1]} · v${v.v} · ${p.versions.length} version${p.versions.length === 1 ? '' : 's'} · ${ago(lastAt(p))} · ${own ? (p.published ? '<i class="pub">published</i>' : 'draft') : 'with ' + esc(byId(p.owner).name)}</small></span></button>${own ? `<button class="pmore" data-menu="${p.id}" aria-label="More for ${esc(p.name)}">⋯</button>` : ''}</div>`; };
+      return `<div class="pcard lrow${p.archived ? ' arch' : ''}" style="--kc:${k[2]}">${thumb(p)}<button class="pmain" data-open="${p.id}"><span class="pt"><b>${esc(p.name)}</b>${about(p) ? `<small class="pab">${esc(about(p))}</small>` : ''}<small>${k[1]} · v${v.v} · ${p.versions.length} version${p.versions.length === 1 ? '' : 's'} · ${ago(lastAt(p))} · ${own ? (p.published ? '<i class="pub">published</i>' : 'draft') : 'with ' + esc(byId(p.owner).name)}</small></span></button>${own ? `<button class="pmore" data-menu="${p.id}" aria-label="More for ${esc(p.name)}">⋯</button>` : ''}</div>`; };
     $('body').innerHTML = `<div class="who"><h2>All your projects</h2><p>${mine.length} in all${count('archived') ? ` · ${count('archived')} put away` : ''}.</p></div>
       <div class="lbar"><input id="lq" placeholder="Search names and changes…" value="${esc(libQ)}" autocomplete="off" aria-label="Search projects"><select id="ls" aria-label="Sort"><option value="recent">Recent</option><option value="name">A–Z</option><option value="oldest">Oldest</option></select></div>
       <div class="lchips">${F.filter(([id]) => id === 'all' || id === libF || count(id)).map(([id, l]) => `<button data-f="${id}" class="${id === libF ? 'on' : ''}">${l} <small>${count(id)}</small></button>`).join('')}</div>
@@ -170,16 +212,18 @@
     $('body').querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { libF = b.dataset.f; renderLibrary(); }));
     $('body').querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => { fromLib = true; openBench(b.dataset.open); }));
     $('body').querySelectorAll('[data-menu]').forEach((b) => (b.onclick = () => projectMenu(list.find((p) => p.id === b.dataset.menu))));
+    wirePhotos($('body'));
   }
   function projectMenu(p) {
     const d = sheet(`<div class="playh"><b>${esc(p.name)}</b><small>${p.versions.length} versions · started ${ago(p.versions[0].at)} ago</small><button data-close aria-label="Close">✕</button></div>
       <div class="pmenu"><label class="tin"><span>Name</span><input id="pmn" value="${esc(p.name)}" maxlength="60"></label>
-      <button data-a="open">▶ Open</button><button data-a="dup">⧉ Duplicate</button><button data-a="arch">${p.archived ? '↩ Bring back' : '🗄 Put away'}</button><button data-a="del" class="bad">🗑 Delete…</button></div>`);
+      <button data-a="open">▶ Open</button><button data-a="photo">📷 ${p.cover ? 'Change the photo' : 'Add a photo'}</button><button data-a="dup">⧉ Duplicate</button><button data-a="arch">${p.archived ? '↩ Bring back' : '🗄 Put away'}</button><button data-a="del" class="bad">🗑 Delete…</button></div>`);
     const nm = d.querySelector('#pmn');
     nm.onchange = () => { const v = nm.value.trim(); if (v && v !== p.name) { p.name = v; save(); toast('Renamed.'); renderLibrary(); } };
     d.querySelector('.pmenu').addEventListener('click', async (e) => {
       const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
       if (a === 'open') { d.close(); return openBench(p.id); }
+      if (a === 'photo') return photoSheet(p);
       if (a === 'dup') { const c = JSON.parse(JSON.stringify(p)); Object.assign(c, { id: p.kit + '-' + Date.now().toString(36), name: p.name + ' copy', published: false, archived: false, collab: [], requests: [], from: { id: p.id, owner: p.owner, name: p.name } }); list.push(c); save(); d.close(); toast('⧉ Copied.'); return renderLibrary(); }
       if (a === 'arch') { p.archived = !p.archived; if (p.archived) p.published = p.published; save(); d.close(); toast(p.archived ? '🗄 Put away. Find it under Put away.' : '↩ Back with your projects.'); return renderLibrary(); }
       if (a === 'del') {

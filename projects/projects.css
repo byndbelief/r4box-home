@@ -393,3 +393,16 @@ details.brief summary::-webkit-details-marker{display:none}
 details.brief summary::after{content:' ›';opacity:.6}
 details.brief[open] summary::after{content:' ⌄'}
 details.brief p{margin:0;padding:0 12px 10px;white-space:pre-wrap;line-height:1.5;opacity:.85}
+
+/* 📷 a project's photo; until its maker sets one, its icon asks for one */
+.pcard>.pe{margin-left:6px}
+button.pe{all:unset;box-sizing:border-box;flex:none;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:21px;cursor:pointer;position:relative;background:color-mix(in srgb,var(--kc) 16%,#000);box-shadow:0 0 14px -4px var(--kc)}
+.pe.ph{overflow:hidden;padding:0}.pe.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.pe.sug{outline:1.5px dashed color-mix(in srgb,var(--kc) 70%,#fff);outline-offset:2px}
+.pe.sug i{position:absolute;right:-7px;bottom:-7px;font-style:normal;font-size:11px;width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:#000;border:1px solid var(--line)}
+.pt small.pab{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;margin:1px 0}
+.phbox{display:grid;gap:14px;justify-items:center;padding:6px 0}
+.phnow{width:128px;height:128px;border-radius:24px;overflow:hidden;display:grid;place-items:center;font-size:60px;background:#ffffff0a;border:1px solid var(--line)}
+.phnow img{width:100%;height:100%;object-fit:cover}
+.phbox .pmenu{width:100%}
+.phfr{width:min(100%,280px);aspect-ratio:1;border:1px solid var(--line);border-radius:16px;background:#000}

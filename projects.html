@@ -17,8 +17,8 @@
     @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
-  <link rel="stylesheet" href="world/world.css?v=50">
-  <link rel="stylesheet" href="projects/projects.css?v=50">
+  <link rel="stylesheet" href="world/world.css?v=51">
+  <link rel="stylesheet" href="projects/projects.css?v=51">
   <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }</style>
 </head>
 <body>
@@ -28,9 +28,9 @@
 <dialog class="psheet" id="sheet"></dialog>
 </div>
 <script src="world/story-kit.js"></script>
-<script src="projects/beautifier.min.js?v=50"></script>
-<script src="projects/structure.js?v=50"></script>
-<script src="projects/projects-data.js?v=50"></script>
+<script src="projects/beautifier.min.js?v=51"></script>
+<script src="projects/structure.js?v=51"></script>
+<script src="projects/projects-data.js?v=51"></script>
 <script type="module">
   import { sb, roleOf } from './auth.js';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
@@ -58,7 +58,7 @@
   // The kit keeps its list in memory and calls save(list) after every change; here each project
   // that changed since it was last written is saved: the maker writes the row, a helper saves
   // through project_save (versions, which one shows, and the name).
-  const fromRow = (r) => ({ id: r.id, owner: r.owner, kit: r.kit, name: r.name, published: r.published, from: r.remix_of || undefined, collab: r.collab || [], requests: r.requests || [], versions: r.versions, cur: r.cur, archived: !!r.archived, brief: r.brief || '' });
+  const fromRow = (r) => ({ id: r.id, owner: r.owner, kit: r.kit, name: r.name, published: r.published, from: r.remix_of || undefined, collab: r.collab || [], requests: r.requests || [], versions: r.versions, cur: r.cur, archived: !!r.archived, brief: r.brief || '', cover: r.cover || '' });
   let list = (rows || []).map(fromRow);
   const last = new Map(list.map((p) => [p.id, JSON.stringify(p)]));
   // Every project is code: one of mine still showing a kit version (made by an older page) gets the
@@ -80,7 +80,7 @@
       chain = chain.then(async () => {
         const { error: e } = p.owner === me
           ? await sb.from('projects').upsert({ id: p.id, owner: p.owner, kit: p.kit, name: (p.name || 'Untitled').slice(0, 80), published: !!p.published, remix_of: p.from || null,
-              collab: p.collab || [], requests: p.requests || [], versions: p.versions, cur: p.cur, archived: !!p.archived, updated_at: new Date().toISOString() })
+              collab: p.collab || [], requests: p.requests || [], versions: p.versions, cur: p.cur, archived: !!p.archived, cover: p.cover || '', updated_at: new Date().toISOString() })
           : await sb.rpc('project_save', { p_id: p.id, p_versions: p.versions, p_cur: p.cur, p_name: p.name });
         if (e) { if (was) last.set(p.id, was); else last.delete(p.id); toastErr('Couldn’t save ' + p.name + ': ' + e.message); }
       });
