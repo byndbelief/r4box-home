@@ -221,6 +221,23 @@
     return `<!doctype html><head>${PEEK}</head><body><script>__peek(function(){return (${pk.expr.replace(/<\/script/gi, '<\\/script')}\n)},${JSON.stringify(pk.key)})<\/script></body>`;
   }
 
+  // A panel set aside while you're in Vibes (✦ Ask): closed but kept, with its edits and preview, and
+  // a ‹ back bar in the bench to return to it. Its close handlers run only when it's really closed.
+  let parked = null;
+  function onClose(d, fn) { const h = () => { if (d.parked) return; d.removeEventListener('close', h); fn(); }; d.addEventListener('close', h); return () => d.removeEventListener('close', h); }
+  function park(d) {
+    const name = (d.querySelector('.playh b')?.textContent || 'the editor').trim();
+    parked = { d, name, v: head().v, src: curLines().join('\n'), file, reopen: d.reopen };
+    d.parked = true; d.close();
+  }
+  function unpark() {
+    const k = parked; parked = null; if (!k) return;
+    if (!k.d.parked) return;   // another panel took its place
+    // the code changed meanwhile (Claude committed): open it fresh on the same lines
+    if (k.v !== head().v || k.file !== file || k.src !== curLines().join('\n')) { k.d.parked = false; k.d.dispatchEvent(new Event('close')); tab = 'files'; paint(); if (k.reopen) k.reopen(); return; }
+    k.d.parked = false; tab = 'files'; paint(); k.d.showModal();
+  }
+  const parkBar = () => parked && parked.d.parked ? `<button class="parkbar" id="parkbar">‹ Back to ${esc(parked.name)}</button>` : '';
   function codeBox(host, d, { code, lang, line, span = 1, apply, term, onInput }) {
     // the live preview: the project with this line as it is in the box (or the example on its own),
     // redrawn a moment after you stop typing; a JS-only example shows its console here instead
@@ -249,7 +266,7 @@
       }
       if (e.data.r4peek) { if (e.data.r4peek === 'fail' && !whole) { peeked = false; full(); } else if (e.data.h && peeked && !whole) fr.style.height = Math.max(160, Math.min(e.data.h + 4, 1200)) + 'px'; return; }
       const m = e.data.r4try || e.data.r4log; if (!m) return; out.insertAdjacentHTML('beforeend', `<div class="cl ${m[0]}">${m[0] === 'error' ? '✕' : '›'} ${esc(m[1])}</div>`); };
-    addEventListener('message', on); d.addEventListener('close', () => { removeEventListener('message', on); clearTimeout(timer); }, { once: true });
+    addEventListener('message', on); onClose(d, () => { removeEventListener('message', on); clearTimeout(timer); });
     const cover = host.querySelector('[data-cover]'), play = host.querySelector('[data-play]');
     let going = false, edited = false;   // the whole project runs only after ▶, and stops with ■
     const showPlay = () => { const w = !peeked || whole; play.hidden = !w; play.textContent = going ? '■' : '▶'; play.title = going ? 'Stop' : 'Run'; cover.hidden = !w || going; cover.querySelector('span').textContent = edited ? '▶ Run with your change' : '▶ Run'; };
@@ -272,7 +289,7 @@
     host.querySelector('[data-askb]').onclick = () => {
       const open = d.querySelector('.gl.open'), w = (open && open.dataset.term) || term, v = ta.value.trim();
       const q = line ? `What does ${span > 1 ? `lines ${line}–${line + span - 1}` : `line ${line}`} of ${file} do${w ? `, and what does "${w}" mean there` : ''}?\n${v}` : `Explain "${w}" to me, using my ${file} as the example.`;
-      d.close(); tab = 'claude'; paint(); claude(q);
+      park(d); tab = 'claude'; paint(); claude(q);
     };
     if (ap) ap.onclick = () => {
       const r = apply(ta.value), was = span;
@@ -339,14 +356,15 @@
     const d = X.sheet(`<div class="playh"><b>✏️ ${esc(blockName(a))}</b><small>lines ${a}–${b} · ${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
       <div class="glbody"><div class="lbox"></div><div class="lwords">${chips(code)}</div><p class="note small">Tap a line number in the file to change just one line.</p><div class="lnav"><button data-bstep="-1"></button><button data-bstep="1"></button></div></div>`, { full: true });
     let changed = false;
-    const wireChips = () => d.querySelectorAll('[data-word]').forEach((x) => (x.onclick = () => { d.close(); openWord(x.dataset.word, a); }));
+    const wireChips = () => d.querySelectorAll('[data-word]').forEach((x) => (x.onclick = () => wordLayer(d, x.dataset.word, '✏️ ' + blockName(a))));
+    d.reopen = () => openBlock(a);
     codeBox(d.querySelector('.lbox'), d, { code, lang, line: a, span: b - a + 1,
       onInput: (v) => { d.querySelector('.lwords').innerHTML = chips(v); wireChips(); },
       apply: X.canEdit(p) ? (v) => { changed = true; const r = editRange(a, b - a + 1, v); d.querySelector('.playh small').textContent = `lines ${a}–${a + r.span - 1} · ${file}`; return r; } : null });
     wireChips();
     d.querySelectorAll('[data-bstep]').forEach((x) => { const m = blockStep(a, b, +x.dataset.bstep); if (!m) { x.disabled = true; x.textContent = +x.dataset.bstep < 0 ? '‹' : '›'; return; }
       x.textContent = +x.dataset.bstep < 0 ? '‹ ' + blockName(m) : blockName(m) + ' ›'; x.onclick = () => { d.close(); openBlock(m); }; });
-    d.addEventListener('close', () => { if (changed) paint(); }, { once: true });
+    onClose(d, () => { if (changed) paint(); });
   }
   // ✏️ Line: one line of the file, edited with its live preview (what it makes, or the whole project),
   // ✦ Ask and ✓ Apply; its words are chips that open the glossary.
@@ -356,13 +374,14 @@
     const d = X.sheet(`<div class="playh"><b>✏️ Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
       <div class="glbody"><div class="lbox"></div>${nt ? `<p class="glnote small">💡 ${marked(nt.text, nt.terms).html}</p>` : ''}<div class="lwords">${chips(line)}</div>${blockAt(n) ? `<button class="lblock" data-block>⤢ The whole ${esc(blockName(n))} (lines ${n}–${blockAt(n)})</button>` : ''}${NAV}</div>`, { full: true });
     let changed = false;
-    const wireChips = () => d.querySelectorAll('[data-word]').forEach((b) => (b.onclick = () => { d.close(); openWord(b.dataset.word, n); }));
+    const wireChips = () => d.querySelectorAll('[data-word]').forEach((b) => (b.onclick = () => wordLayer(d, b.dataset.word, '✏️ Line ' + n)));
+    d.reopen = () => openLine(n);
     codeBox(d.querySelector('.lbox'), d, { code: line, lang, line: n,
       onInput: (v) => { d.querySelector('.lwords').innerHTML = chips(v); wireChips(); const g = d.querySelector('.glnote'); if (g) g.classList.add('stale'); },
       apply: X.canEdit(p) ? (v) => { changed = true; if (editLine(n, v)) d.close(); } : null });
     wireChips(); lineNav(d, n, openLine);
     const bk = d.querySelector('[data-block]'); if (bk) bk.onclick = () => { d.close(); openBlock(n); };
-    d.addEventListener('close', () => { if (changed) paint(); }, { once: true });
+    onClose(d, () => { if (changed) paint(); });
   }
   // 📖 a line's words: the line as it is, Claude's note if there is one, and a card for each word.
   function openWords(n) {
@@ -375,6 +394,20 @@
     activate(d); lineNav(d, n, openWords);
     d.querySelector('[data-edit]').onclick = () => { d.close(); openLine(n); };
     const gn = d.querySelector('.glnote'); if (gn) gn.onclick = (e) => { const b = e.target.closest('b.kw'); if (!b) return; const card = [...d.querySelectorAll('.gl[data-term]')].find((x) => x.dataset.term.toLowerCase() === b.textContent.toLowerCase()); if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 1200); } };
+  }
+  // 📖 a word from an editor's chip: its card slides over the editor, which stays as it is underneath
+  // (your edits, the running preview); ‹ back returns to it, with the word marked in the code.
+  function wordLayer(d, term, back) {
+    const def = defOf(term); if (!def) return;
+    d.querySelector('.wlayer')?.remove();
+    const y = d.scrollTop, lay = document.createElement('div'); lay.className = 'wlayer';
+    lay.innerHTML = `<div class="playh"><button class="wback" data-wback>‹ ${esc(back)}</button><span class="grow"></span><button data-close aria-label="Close">✕</button></div><div class="glbody">${entry(def)}</div>`;
+    d.append(lay); activate(d);
+    const card = lay.querySelector('.gl[data-term]'); if (card && !card.classList.contains('open')) card.click();
+    const off = onClose(d, () => lay.remove());
+    const close = () => { off(); lay.classList.add('out'); setTimeout(() => { lay.remove(); d.scrollTop = y; }, 160); };
+    lay.querySelector('[data-wback]').onclick = close;
+    lay.onkeydown = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
   }
   // 📖 one word, opened, from a line editor's chip (‹ back to that line)
   function openWord(term, n) {
@@ -449,13 +482,14 @@
   }
 
   function open(proj, ctx, intro, autoAsk) {
+    if (parked && parked.d.parked) { parked.d.parked = false; parked.d.dispatchEvent(new Event('close')); } parked = null;
     X = ctx; p = proj; file = Object.keys(head().files).includes('main.js') ? 'main.js' : Object.keys(head().files)[0]; tab = p.kit === 'code' ? 'files' : 'claude'; draft = null; viewV = null;
     ask = [{ t: X.canEdit(p) ? 'What should we work on?' : 'Read-only. Remix it to change the code.' }];
     if (intro) ask.push({ t: intro, ok: true });
     $('title').textContent = 'code'; $('back').hidden = false; $('mark').hidden = true;
     $('body').innerHTML = `<div class="bench codebench"><div class="bbar"><span class="bname">${esc(p.name)}</span><span class="bver" id="bver"></span><span class="grow"></span><button class="bb" id="crun" title="Run (⌘/Ctrl+Enter)">▶</button><button class="bb" id="cphone" aria-label="Test on phone">📱</button><button class="bb share" id="cshare">↗ Share</button></div>
       <div class="prev mini" hidden><iframe id="pv" title="Preview" sandbox="allow-scripts allow-modals" tabindex="-1"></iframe><button class="pcover" id="popen" aria-label="Open the preview"><span>⤢ Open preview</span></button><span class="live">● run</span></div><div class="cons" id="cons"></div>
-      <div class="btabs" id="ctabs"></div><div class="tbody" id="ctb"></div></div>`;
+      <div class="btabs" id="ctabs"></div><div id="parkhost"></div><div class="tbody" id="ctb"></div></div>`;
     $('crun').onclick = run; $('popen').onclick = openPanel; X.sw('bench', null, openPanel, true); $('cphone').onclick = () => X.phoneTest(p); $('cshare').onclick = () => X.shareSheet(p); $('cshare').hidden = p.owner !== X.viewer().id;
     if (X.canEdit(p)) { const f = head().files, s = ST.structure(f); if (Object.keys(f).some((k) => f[k] !== s[k])) commit('One thing per line, so each line opens on its own', f, X.viewer().id); }
     paint(); run(); window.scrollTo(0, 0);
@@ -469,6 +503,7 @@
     $('ctabs').innerHTML = T.map(([k, l]) => `<button data-t="${k}" class="${k === tab ? 'on' : ''}">${l}</button>`).join('');
     $('ctabs').querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { tab = b.dataset.t; viewV = null; paint(); }));
     const el = $('ctb'), ed = X.canEdit(p), F = draft || head().files;
+    const pb = $('parkhost'); if (pb) { pb.innerHTML = parkBar(); const b = $('parkbar'); if (b) b.onclick = unpark; }
     if (tab === 'files') {
       const src = F[file] ?? '', n = src.split('\n').length;
       el.innerHTML = `<div class="ftabs">${Object.keys(F).map((f) => `<button data-f="${esc(f)}" class="${f === file ? 'on' : ''}">${esc(f)}${draft && draft[f] !== head().files[f] ? ' •' : ''}</button>`).join('')}${ed ? '<button class="nf" id="nf">＋</button>' : ''}<button class="nf help${helpOn ? ' on' : ''}" id="hlp" title="Help me: what each line does">💡 Help</button></div>

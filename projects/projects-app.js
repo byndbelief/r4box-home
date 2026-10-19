@@ -377,7 +377,8 @@
   }
 
   // ---------- play, phone test, share ----------
-  function sheet(html, o) { const d = $('sheet'); d.classList.toggle('full', !!(o && o.full)); d.innerHTML = html; d.showModal(); d.scrollTop = 0; d.onclick = (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); }; return d; }
+  function sheet(html, o) { const d = $('sheet'); if (d.parked) { d.parked = false; d.dispatchEvent(new Event('close')); }   // a panel set aside for Vibes gives way
+    d.classList.toggle('full', !!(o && o.full)); d.innerHTML = html; d.showModal(); d.scrollTop = 0; d.onclick = (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); }; return d; }
   function player(p) { sheet(`<div class="playh"><b>${esc(p.name)}</b><small>by ${esc(byId(p.owner).name)}</small><button data-close aria-label="Close">✕</button></div><iframe class="playf" sandbox="allow-scripts" title="${esc(p.name)}"></iframe>`).querySelector('iframe').srcdoc = PR.html(p); }
   function phoneTest(p) {
     const link = 'https://r4box.com/p/' + p.id;   // 404.html sends it on to projects.html?play=

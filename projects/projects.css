@@ -373,3 +373,15 @@ dialog.psheet.full .glprev .glframe{height:38dvh}
 dialog.psheet.full .glbody{max-height:none;overflow:visible}
 /* the code box keeps the coloured copy's size while you type (world.css makes touch inputs 16px) */
 .gled>textarea.glcode,.gled>pre.glcode{font:400 12px/1.5 ui-monospace,monospace!important}
+/* a word's card over the line/block editor: slides in, ‹ back slides it away (the editor is untouched underneath) */
+.wlayer{position:fixed;inset:0;z-index:20;max-width:760px;margin:0 auto;box-sizing:border-box;overflow-y:auto;background:#0D0B1F;padding:calc(12px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));display:grid;gap:10px;align-content:start;animation:wlin .18s ease-out}
+.wlayer.out{animation:wlout .16s ease-in forwards}
+@keyframes wlin{from{transform:translateX(30%);opacity:0}to{transform:none;opacity:1}}
+@keyframes wlout{to{transform:translateX(30%);opacity:0}}
+.wlayer .playh{display:flex;align-items:center;gap:8px}
+.wlayer .wback{all:unset;cursor:pointer;padding:8px 14px;border-radius:999px;border:1px solid #3DD6C655;background:#3DD6C612;color:#C9FFF8;font:700 14px Sora,system-ui,sans-serif;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wlayer .glbody{max-height:none;overflow:visible}
+/* ‹ back to the line/block editor set aside while asking in Vibes */
+.parkbar{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;margin:6px 0;padding:10px 14px;border-radius:12px;border:1px solid #3DD6C655;background:#3DD6C614;color:#C9FFF8;font:700 14px Sora,system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.parkbar:hover{background:#3DD6C624}
+#parkhost:empty{display:none}
