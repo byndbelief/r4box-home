@@ -233,10 +233,9 @@
         : w.length ? `<button class="hl-note gw" data-n="${i + 1}" data-w="${esc(w.join('|'))}">📖 ${w.map((x) => `<b class="kw">${esc(x)}</b>`).join(' · ')}<span class="hl-more">learn ›</span></button>` : ''}`; }).join('');
     // the starter words this file's code uses: there at once, before Claude's notes arrive
     const inCode = Object.keys(GLOSS).filter((w) => new RegExp('(^|[^\\w.])' + RE(w) + '(?![\\w])', w === 'HTML' || w === 'CSS' || w === 'DOM' ? '' : 'i').test(src) || (w === 'variable' && /\b(let|const|var)\s/.test(src)) || (w === 'event listener' && /addEventListener/.test(src)) || (w === 'string' && /['"`]/.test(src)) || (w === 'comment' && /\/\/|\/\*|<!--/.test(src)));
-    el.innerHTML = `<div class="helpv">${inCode.length ? `<button class="hl-words" id="hlw">📖 Words in this file <small>${inCode.length}</small></button>` : ''}${notes ? '' : reading.has(key) ? '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>' : '<button class="hl-ask" id="hla">✦ Ask Claude to explain this file</button>'}${rows(notes)}</div>`;
+    el.innerHTML = `<div class="helpv">${inCode.length ? `<button class="hl-words" id="hlw">📖 Words in this file <small>${inCode.length}</small></button>` : ''}${notes ? '' : reading.has(key) ? '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>' : ''}${rows(notes)}</div>`;
     const hw = el.querySelector('#hlw'); if (hw) hw.onclick = () => activate(X.sheet(`<div class="playh"><b>📖 Words in ${esc(file)}</b><small>${inCode.length} to know</small><button data-close aria-label="Close">✕</button></div><div class="glbody">${inCode.map(defOf).filter(Boolean).map(entry).join('')}</div>`));
     el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openNote(k, lines[k - 1], b.dataset.w ? { terms: b.dataset.w.split('|') } : notes[k], () => dig((draft || head().files)[file] ?? '', k), X.canEdit(p) ? (v) => editLine(k, v) : null); }));
-    const ha = el.querySelector('#hla'); if (ha) ha.onclick = () => dig(src);
   }
   // One line of the open file, changed from the help panel: a draft, like typing in the editor.
   function editLine(k, v) {
