@@ -360,3 +360,9 @@ button.gllive{all:unset;cursor:pointer;position:absolute;left:8px;top:7px;paddin
 .edw .band{position:absolute;left:0;right:0;background:#3DD6C610;border-top:1px solid #3DD6C626;border-bottom:1px solid #3DD6C626}
 .edw .band.alt{background:#B9A6FF12;border-color:#B9A6FF2a}
 .edw .hlc{z-index:0;background:transparent}
+/* the whole project waits for ▶: a cover to start it, ▶ / ■ beside ↻ */
+.glplay{all:unset;cursor:pointer;position:absolute;top:6px;right:40px;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:#3DD6C6;color:#000;font-size:13px;font-weight:800}
+.glplay[hidden]{display:none}
+.glcover{all:unset;cursor:pointer;position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(circle at 50% 50%,#3DD6C618,#0D0B1F 70%)}
+.glcover[hidden]{display:none}
+.glcover span{padding:12px 22px;border-radius:999px;background:#3DD6C6;color:#000;font:800 16px Sora,system-ui,sans-serif;box-shadow:0 0 24px -4px #3DD6C688}
