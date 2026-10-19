@@ -217,7 +217,7 @@
     return `<!doctype html><head>${PEEK}</head><body><script>__peek(function(){return (${pk.expr.replace(/<\/script/gi, '<\\/script')}\n)},${JSON.stringify(pk.key)})<\/script></body>`;
   }
 
-  function codeBox(host, d, { code, lang, line, apply, term }) {
+  function codeBox(host, d, { code, lang, line, apply, term, onInput }) {
     // the live preview: the project with this line as it is in the box (or the example on its own),
     // redrawn a moment after you stop typing; a JS-only example shows its console here instead
     const page = !!line || lang !== 'js';
@@ -253,7 +253,7 @@
       else fr.srcdoc = lang === 'js' ? `<!doctype html><body>${RUNNER}<script>${v.replace(/<\/script/gi, '<\\/script')}<\/script></body>` : lang === 'css' ? `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}${v}</style><h1>Heading</h1><p class="score">A paragraph</p><button id="go">Button</button>` : `<!doctype html><style>body{font:15px system-ui;color:#fff;background:#0D0B1F}</style>${RUNNER}${v}`;
       if (!page) setTimeout(() => { if (!out.children.length) out.innerHTML = '<div class="cl dim">nothing logged · add console.log(…) to see a value</div>'; }, 900);
     };
-    ta.oninput = () => { draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); timer = setTimeout(run, 700); };
+    ta.oninput = () => { draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); timer = setTimeout(run, 700); if (onInput) onInput(ta.value); };
     ta.onkeydown = (e) => { if (line && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); clearTimeout(timer); run(); } };
     host.querySelector('.glre').onclick = run;
     mode.onclick = () => { whole = !whole; run(); };
@@ -278,7 +278,7 @@
         const term = card.dataset.term, src = (draft || head().files)[file] ?? '', lang = langOf(file), uses = usesOf(term, src, lang), ex = defOf(term)?.example || '';
         const inLine = !!d.querySelector('.lbox');
         more.innerHTML = `<div class="gluse">${uses.length ? `<small>In ${esc(file)}:</small>${uses.slice(0, 12).map(([n]) => `<button data-line="${n}">line ${n}</button>`).join('')}${uses.length > 12 ? `<small>+${uses.length - 12}</small>` : ''}` : `<small>Not in ${esc(file)} yet.</small>`}</div>${!inLine && ex ? '<div class="glbox"></div>' : ''}`;
-        more.querySelectorAll('[data-line]').forEach((b) => (b.onclick = () => { const n = +b.dataset.line, line = src.split('\n')[n - 1]; d.close(); openNote(n, line, { terms: wordsOn(line, lang).length ? wordsOn(line, lang) : [term] }); }));
+        more.querySelectorAll('[data-line]').forEach((b) => (b.onclick = () => { const n = +b.dataset.line, line = src.split('\n')[n - 1]; d.close(); openLine(n); }));
         if (!inLine && ex) {
           // an example that prints nothing gets a console.log of its last variable, so ▶ shows something
           const xl = exLang(ex), nm = xl === 'js' && !/console\.log/.test(ex) && ([...ex.matchAll(/\b(?:let|const|var)\s+(\w+)|^\s*(\w+)\s*(?:=|\+\+)/gm)].pop() || []).slice(1).find(Boolean);
@@ -289,24 +289,50 @@
     });
   }
   // A note, opened: its line, the note, and every key word in it explained; then all the words for this file.
-  function openNote(n, line, note) {
-    const mk = note.text ? marked(note.text, note.terms) : { html: '', found: note.terms.map((t) => t.toLowerCase()) }, lang = langOf(file);
-    const words = mk.found.map(defOf).filter(Boolean);
-    const d = X.sheet(`<div class="playh"><b>💡 Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
-      <div class="glbody"><div class="lbox"></div>${note.text ? `<p class="glnote">${mk.html}</p>` : ''}
-      <div class="glwords">${words.length ? `<h3 class="k">${note.text ? 'Words to know' : 'Words on this line'}</h3>${words.map(entry).join('')}` : ''}</div>
-      <div class="lnav"><button data-step="-1" aria-label="Previous line">‹ line ${n - 1}</button><button data-step="1" aria-label="Next line">line ${n + 1} ›</button></div></div>`);
+  const curLines = () => ((draft || head().files)[file] ?? '').split('\n');
+  const notesNow = () => helpCache.get(file + '\u0000' + curLines().join('\n'));
+  const nextLine = (n, dir) => { const L = curLines(); let m = n + dir; while (m >= 1 && m <= L.length && !L[m - 1].trim()) m += dir; return m >= 1 && m <= L.length ? m : null; };
+  // ‹ › buttons that step to the line before / after (blank lines skipped) in the same kind of panel
+  function lineNav(d, n, open) {
+    d.querySelectorAll('[data-step]').forEach((b) => { const m = nextLine(n, +b.dataset.step); if (!m) { b.disabled = true; b.textContent = b.dataset.step < 0 ? '‹' : '›'; return; }
+      b.textContent = b.dataset.step < 0 ? '‹ line ' + m : 'line ' + m + ' ›'; b.onclick = () => { d.close(); open(m); }; });
+  }
+  const NAV = '<div class="lnav"><button data-step="-1" aria-label="Previous line"></button><button data-step="1" aria-label="Next line"></button></div>';
+
+  // ✏️ Line: one line of the file, edited with its live preview (what it makes, or the whole project),
+  // ✦ Ask and ✓ Apply; its words are chips that open the glossary.
+  function openLine(n) {
+    const line = curLines()[n - 1] ?? '', lang = langOf(file), nt = notesNow()?.[n];
+    const chips = (v) => { const w = wordsOn(v, lang); return w.length ? `<span class="lwl">📖</span>${w.map((x) => `<button class="lchip" data-word="${esc(x)}">${esc(x)}</button>`).join('')}` : ''; };
+    const d = X.sheet(`<div class="playh"><b>✏️ Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
+      <div class="glbody"><div class="lbox"></div>${nt ? `<p class="glnote small">💡 ${marked(nt.text, nt.terms).html}</p>` : ''}<div class="lwords">${chips(line)}</div>${NAV}</div>`);
     let changed = false;
-    // ‹ › the line before or after (blank lines skipped), in the same panel
-    const all = ((draft || head().files)[file] ?? '').split('\n'), notes = helpCache.get(file + '\u0000' + all.join('\n'));
-    const step = (dir) => { let m = n + dir; while (m >= 1 && m <= all.length && !all[m - 1].trim()) m += dir; return m >= 1 && m <= all.length ? m : null; };
-    d.querySelectorAll('[data-step]').forEach((b) => { const m = step(+b.dataset.step); if (!m) { b.disabled = true; return; } b.textContent = b.dataset.step < 0 ? '‹ line ' + m : 'line ' + m + ' ›';
-      b.onclick = () => { d.close(); const L = ((draft || head().files)[file] ?? '').split('\n'); openNote(m, L[m - 1], (notes && notes[m]) || { terms: wordsOn(L[m - 1], lang) }); }; });
-    codeBox(d.querySelector('.lbox'), d, { code: line, lang, line: n, apply: X.canEdit(p) ? (v) => { editLine(n, v); changed = true; const g = d.querySelector('.glnote'); if (g) g.classList.add('stale');
-      if (!note.text) { const w = wordsOn(v, lang).map(defOf).filter(Boolean); d.querySelector('.glwords').innerHTML = w.length ? `<h3 class="k">Words on this line</h3>${w.map(entry).join('')}` : ''; activate(d); } } : null });
+    const wireChips = () => d.querySelectorAll('[data-word]').forEach((b) => (b.onclick = () => { d.close(); openWord(b.dataset.word, n); }));
+    codeBox(d.querySelector('.lbox'), d, { code: line, lang, line: n,
+      onInput: (v) => { d.querySelector('.lwords').innerHTML = chips(v); wireChips(); const g = d.querySelector('.glnote'); if (g) g.classList.add('stale'); },
+      apply: X.canEdit(p) ? (v) => { editLine(n, v); changed = true; } : null });
+    wireChips(); lineNav(d, n, openLine);
     d.addEventListener('close', () => { if (changed) paint(); }, { once: true });
-    activate(d);
+  }
+  // 📖 a line's words: the line as it is, Claude's note if there is one, and a card for each word.
+  function openWords(n) {
+    const line = curLines()[n - 1] ?? '', lang = langOf(file), nt = notesNow()?.[n];
+    const mk = nt ? marked(nt.text, nt.terms) : { html: '', found: wordsOn(line, lang).map((t) => t.toLowerCase()) }, words = mk.found.map(defOf).filter(Boolean);
+    const d = X.sheet(`<div class="playh"><b>📖 Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
+      <div class="glbody"><pre class="glcode ro">${hl(line, lang).slice(0, -1) || ' '}</pre>${nt ? `<p class="glnote">${mk.html}</p>` : ''}
+      <div class="glwords">${words.length ? `<h3 class="k">Words on this line</h3>${words.map(entry).join('')}` : '<p class="note">No words to know on this line.</p>'}</div>
+      <div class="lnav"><button class="ledit" data-edit>✏️ ${X.canEdit(p) ? 'Edit' : 'Try'} this line</button><button data-step="-1"></button><button data-step="1"></button></div></div>`);
+    activate(d); lineNav(d, n, openWords);
+    d.querySelector('[data-edit]').onclick = () => { d.close(); openLine(n); };
     const gn = d.querySelector('.glnote'); if (gn) gn.onclick = (e) => { const b = e.target.closest('b.kw'); if (!b) return; const card = [...d.querySelectorAll('.gl[data-term]')].find((x) => x.dataset.term.toLowerCase() === b.textContent.toLowerCase()); if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 1200); } };
+  }
+  // 📖 one word, opened, from a line editor's chip (‹ back to that line)
+  function openWord(term, n) {
+    const def = defOf(term); if (!def) return;
+    const d = X.sheet(`<div class="playh"><b>📖 ${esc(def.term)}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
+      <div class="glbody">${entry(def)}<div class="lnav"><button data-back>‹ back to line ${n}</button></div></div>`);
+    activate(d); d.querySelector('.gl[data-term]').click();
+    d.querySelector('[data-back]').onclick = () => { d.close(); openLine(n); };
   }
   // The words a line of code uses, from the starter glossary: the first layer of Help, there at once.
   const CODE_WORDS = { js: [[/\bconst\s/, 'const'], [/\blet\s/, 'let'], [/\b(let|const|var)\s/, 'variable'], [/\bfunction\b/, 'function'], [/=>/, 'arrow function'], [/\breturn\b/, 'return'],
@@ -334,7 +360,8 @@
     const inCode = Object.keys(GLOSS).filter((w) => new RegExp('(^|[^\\w.])' + RE(w) + '(?![\\w])', w === 'HTML' || w === 'CSS' || w === 'DOM' ? '' : 'i').test(src) || (w === 'variable' && /\b(let|const|var)\s/.test(src)) || (w === 'event listener' && /addEventListener/.test(src)) || (w === 'string' && /['"`]/.test(src)) || (w === 'comment' && /\/\/|\/\*|<!--/.test(src)));
     el.innerHTML = `<div class="helpv">${inCode.length ? `<button class="hl-words" id="hlw">📖 Words in this file <small>${inCode.length}</small></button>` : ''}${notes ? '' : reading.has(key) ? '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>' : ''}${rows(notes)}</div>`;
     const hw = el.querySelector('#hlw'); if (hw) hw.onclick = () => activate(X.sheet(`<div class="playh"><b>📖 Words in ${esc(file)}</b><small>${inCode.length} to know</small><button data-close aria-label="Close">✕</button></div><div class="glbody">${inCode.map(defOf).filter(Boolean).map(entry).join('')}</div>`));
-    el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openNote(k, lines[k - 1], b.dataset.w ? { terms: b.dataset.w.split('|') } : notes[k]); }));
+    el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openWords(k); }));
+    el.querySelectorAll('.hl-row').forEach((r, i) => { r.onclick = () => openLine(i + 1); });
   }
   // One line of the open file, changed from the help panel: a draft, like typing in the editor.
   function editLine(k, v) {
@@ -356,7 +383,7 @@
       for (const x of r.help || []) if (x && x.n >= 1) n[x.n] = n[x.n] ? { text: n[x.n].text + ' ' + x.text, terms: [...n[x.n].terms, ...(x.terms || [])] } : { text: x.text, terms: x.terms || [] };
       for (const g of r.glossary || []) gloss[g.term.toLowerCase()] = g;
       helpCache.set(key, n); reading.delete(key);
-      if (helpOn && tab === 'files' && file === f) { paint(); if (line && n[line]) openNote(line, src.split('\n')[line - 1], n[line]); }
+      if (helpOn && tab === 'files' && file === f) { paint(); if (line && n[line]) openWords(line); }
     }, (e) => { reading.delete(key); X.toast(e.message); if (helpOn && tab === 'files') paint(); });
   }
 
@@ -388,6 +415,9 @@
       if (helpOn) { helpView($('edh'), src); if (ed) wireCommit(F); return; }
       const ta = $('src'), g = $('gut'), hc = $('hlc');
       ta.onscroll = () => { g.scrollTop = ta.scrollTop; hc.scrollTop = ta.scrollTop; hc.scrollLeft = ta.scrollLeft; };
+      // ✏️ tap a line number: that line in the line editor
+      g.title = 'Tap a line number to open that line';
+      g.onclick = (e) => { const cs = getComputedStyle(g), lh = parseFloat(cs.lineHeight) || 18, n = Math.floor((e.clientY - g.getBoundingClientRect().top + g.scrollTop - parseFloat(cs.paddingTop)) / lh) + 1; if (n >= 1 && n <= ta.value.split('\n').length) openLine(n); };
       ta.oninput = () => { draft = draft || { ...head().files }; draft[file] = ta.value; hc.innerHTML = hl(ta.value, langOf(file)); ta.onscroll(); g.textContent = Array.from({ length: ta.value.split('\n').length }, (_, i) => i + 1).join('\n'); $('bver').textContent = 'v' + head().v + ' · unsaved'; $('cgo').disabled = $('crev').disabled = !dirty(); };
       ta.onkeydown = (e) => { if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('  ', s, ta.selectionEnd, 'end'); ta.oninput(); } if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); run(); } };
       if (ed) wireCommit(F);

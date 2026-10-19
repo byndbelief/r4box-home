@@ -335,3 +335,12 @@ button.gllive{all:unset;cursor:pointer;position:absolute;left:8px;top:7px;paddin
 .lnav{display:flex;justify-content:flex-end;gap:6px;margin-top:2px}
 .lnav button{all:unset;cursor:pointer;padding:7px 13px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font:700 12.5px ui-monospace,monospace;color:var(--teal)}
 .lnav button:disabled{opacity:.3;cursor:default}
+/* ✏️ the line editor and 📖 the glossary, separate */
+.ed .gut{cursor:pointer;pointer-events:auto}.ed .gut:hover{color:var(--teal)}
+.hl-row{cursor:pointer;border-radius:4px}.hl-row:hover{background:#3DD6C60c}
+.lwords{display:flex;flex-wrap:wrap;gap:5px;align-items:center}.lwords:empty{display:none}
+.lwl{font-size:13px;margin-right:2px}
+.lchip{all:unset;cursor:pointer;padding:3px 10px;border-radius:99px;background:#F5C54214;border:1px solid #F5C54240;font:600 12px var(--body);color:#FFD866}
+.glnote.small{font-size:13px;color:var(--muted)}
+.glcode.ro{margin:0}
+.lnav .ledit{margin-right:auto;color:var(--gold);border-color:#F5C54255;background:#F5C54212;font-family:var(--body)}
