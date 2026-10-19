@@ -167,7 +167,7 @@
     const t = line.trim().replace(/[,;]\s*$/, '');
     if (!t || t.startsWith('//')) return null;
     if (lang === 'html') return /^<([\w-]+)[^>]*>.*<\/\1>$|^<(img|input|br|hr)\b[^>]*>$/i.test(t) ? { html: t } : null;
-    if (lang === 'css') { const m = t.match(/^([\w-]+)\s*:\s*(.+)$/); return m ? { css: [m[1], m[2]] } : null; }
+    if (lang === 'css') { const r = t.match(/^([^{}]+)\{([^{}]*)\}$/); if (r) return { rule: [r[1].trim(), r[2]] }; const m = t.match(/^([\w-]+)\s*:\s*(.+)$/); return m ? { css: [m[1], m[2]] } : null; }
     let m, expr = null, key = null;
     if ((m = t.match(/^(?:const|let|var)\s+([\w$]+)\s*=\s*([\s\S]+)$/))) { key = m[1]; expr = m[2]; }
     else if ((m = t.match(/^['"]?([\w$-]+)['"]?\s*:\s*([\s\S]+)$/))) { key = m[1]; expr = m[2]; }
@@ -214,11 +214,13 @@
     })()<\/script>`;
   function peekDoc(pk) {
     if (pk.html) { const css = (draft || head().files)['style.css'] || ''; return `<!doctype html><style>body{margin:0;padding:14px;background:#0D0B1F;color:#fff;font:15px system-ui}${css}</style>${pk.html}<script>parent.postMessage({r4peek:'ok'},'*')<\/script>`; }
+    if (pk.rule) { const [sel, body] = pk.rule, tag = (sel.match(/^[a-z][\w-]*/i) || [''])[0].toLowerCase(), el = /^(button|h1|h2|h3|p|a|li|span|canvas)$/.test(tag) ? tag : 'div';
+      return `<!doctype html><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0D0B1F;color:#fff;font:15px system-ui}.wrap{display:grid;gap:10px;justify-items:center;max-width:92vw}.s{border:1px dashed #ffffff33;min-width:60px;min-height:30px;${body.replace(/[<>]/g, '')}}.s>i{font-style:normal;padding:6px 10px;border-radius:8px;background:#ffffff14}code{color:#ACA5D6;font:12px ui-monospace,monospace}</style><div class="wrap"><code>${esc(sel)}</code><${el} class="s">${el === 'canvas' ? '' : /display\s*:\s*(flex|grid)/.test(body) ? '<i>1</i><i>2</i><i>3</i>' : 'Aa · sample'}</${el}></div><script>parent.postMessage({r4peek:'ok'},'*')<\/script>`; }
     if (pk.css) { const [k, v] = pk.css; return `<!doctype html><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0D0B1F;color:#fff;font:15px system-ui}.s{padding:16px 22px;border-radius:12px;border:1px dashed #ffffff33;${k}:${v.replace(/[<>]/g, '')}}code{display:block;margin-top:8px;color:#ACA5D6;font:12px ui-monospace,monospace;text-align:center}.sw{position:relative;display:block;margin:10px auto 0;width:40px;height:40px;border-radius:8px;border:1px solid #ffffff33;box-shadow:0 0 0 2px #ffffff22;cursor:pointer}.sw input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}</style><div><div class="s">Aa · sample</div><code>${esc(k)}: ${esc(v)}</code>${/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim()) ? `<label class="sw" style="background:${v.trim()}"><input type="color" value="${v.trim().length === 4 ? '#' + v.trim().slice(1).split('').map((x) => x + x).join('') : v.trim()}" data-c="${v.trim()}"></label>` : ''}</div><script>parent.postMessage({r4peek:'ok'},'*');document.addEventListener('input',function(e){var t=e.target;if(t.dataset.c){t.parentNode.style.background=t.value;document.querySelector('.s').style.setProperty(${JSON.stringify(k)},t.value)}});document.addEventListener('change',function(e){var t=e.target;if(t.dataset.c)parent.postMessage({r4color:[t.dataset.c,t.value.toUpperCase(),0]},'*')})<\/script>`; }
     return `<!doctype html><head>${PEEK}</head><body><script>__peek(function(){return (${pk.expr.replace(/<\/script/gi, '<\\/script')}\n)},${JSON.stringify(pk.key)})<\/script></body>`;
   }
 
-  function codeBox(host, d, { code, lang, line, apply, term, onInput }) {
+  function codeBox(host, d, { code, lang, line, span = 1, apply, term, onInput }) {
     // the live preview: the project with this line as it is in the box (or the example on its own),
     // redrawn a moment after you stop typing; a JS-only example shows its console here instead
     const page = !!line || lang !== 'js';
@@ -230,7 +232,7 @@
     const draw = () => { const v = ta.value, r = lit && spot(v, lit, lang); pre.innerHTML = r ? hl(v.slice(0, r[0]), lang).slice(0, -1) + `<mark>${hl(v.slice(r[0], r[1]), lang).slice(0, -1)}</mark>` + hl(v.slice(r[1]), lang).slice(0, -1) : hl(v, lang).slice(0, -1) || ' '; };
     host.mark = (term) => { lit = term; draw(); };
     const mode = host.querySelector('[data-mode]');
-    const label = () => { mode.textContent = peeked && !whole ? '🔍 this line · tap for whole' : '● live · whole project'; mode.hidden = !line; };
+    const label = () => { mode.textContent = peeked && !whole ? '🔍 ' + (span > 1 ? 'this block' : 'this line') + ' · tap for whole' : '● live · whole project'; mode.hidden = !line; };
     const on = (e) => { if (e.source !== fr.contentWindow || !e.data) return;
       if (e.data.r4grid) {
         const [gi, v] = e.data.r4grid, row = '\\[\\s*(?:-?\\d+|true|false)(?:\\s*,\\s*(?:-?\\d+|true|false))*\\s*\\]';
@@ -247,7 +249,7 @@
       if (e.data.r4peek) { if (e.data.r4peek === 'fail' && !whole) { peeked = false; full(); } return; }
       const m = e.data.r4try || e.data.r4log; if (!m) return; out.insertAdjacentHTML('beforeend', `<div class="cl ${m[0]}">${m[0] === 'error' ? '✕' : '›'} ${esc(m[1])}</div>`); };
     addEventListener('message', on); d.addEventListener('close', () => { removeEventListener('message', on); clearTimeout(timer); }, { once: true });
-    const full = () => { const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L[line - 1] = ta.value; F[file] = L.join('\n'); fr.srcdoc = PR.codeDoc(F); label(); };
+    const full = () => { const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L.splice(line - 1, span, ta.value); F[file] = L.join('\n'); fr.srcdoc = PR.codeDoc(F); label(); };
     const run = () => {
       out.innerHTML = ''; const v = ta.value;
       if (line) { const pk = !whole && peekOf(v, lang); peeked = !!pk; if (pk) { fr.srcdoc = peekDoc(pk); label(); } else full(); }
@@ -255,17 +257,22 @@
       if (!page) setTimeout(() => { if (!out.children.length) out.innerHTML = '<div class="cl dim">nothing logged · add console.log(…) to see a value</div>'; }, 900);
     };
     ta.oninput = () => { draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); timer = setTimeout(run, 700); if (onInput) onInput(ta.value); };
-    ta.onkeydown = (e) => { if (line && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); clearTimeout(timer); run(); } };
+    ta.onkeydown = (e) => { if (line && span === 1 && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); clearTimeout(timer); run(); } };
     host.querySelector('.glre').onclick = run;
     mode.onclick = () => { whole = !whole; run(); };
     run();
     // ✦ Ask: Claude, in the Claude tab, about this line (and the word whose card is open), or this word
     host.querySelector('[data-askb]').onclick = () => {
       const open = d.querySelector('.gl.open'), w = (open && open.dataset.term) || term, v = ta.value.trim();
-      const q = line ? `What does line ${line} of ${file} do${w ? `, and what does "${w}" mean there` : ''}?\n${v}` : `Explain "${w}" to me, using my ${file} as the example.`;
+      const q = line ? `What does ${span > 1 ? `lines ${line}–${line + span - 1}` : `line ${line}`} of ${file} do${w ? `, and what does "${w}" mean there` : ''}?\n${v}` : `Explain "${w}" to me, using my ${file} as the example.`;
       d.close(); tab = 'claude'; paint(); claude(q);
     };
-    if (ap) ap.onclick = () => { apply(ta.value); code = ta.value; ap.disabled = true; X.toast('✓ Line ' + line + ' changed: commit when you’re ready.'); };
+    if (ap) ap.onclick = () => {
+      const r = apply(ta.value), was = span;
+      // a block comes back laid out one thing per line, maybe longer or shorter than before
+      if (r && typeof r === 'object') { span = r.span; if (r.text !== ta.value) { ta.value = r.text; draw(); } }
+      code = ta.value; ap.disabled = true; X.toast('✓ ' + (was > 1 ? 'Lines ' + line + '–' + (line + span - 1) : 'Line ' + line) + ' changed: commit when you’re ready.');
+    };
   }
   function activate(d) {
     d.querySelectorAll('.gl[data-term]').forEach((card) => {
@@ -300,19 +307,52 @@
   }
   const NAV = '<div class="lnav"><button data-step="-1" aria-label="Previous line"></button><button data-step="1" aria-label="Next line"></button></div>';
 
+  // A block: a line that ends by opening { [ or ( (a style rule, a function, an if, a list) down to
+  // the line that closes it. Returns its last line, or null if the line doesn't open one.
+  function blockAt(n) {
+    const L = curLines(), first = (L[n - 1] || '').replace(/\s*\/\/[^'"`]*$/, '').trimEnd();
+    if (!/[{[(]$/.test(first) || /^\s*\/\//.test(first)) return null;
+    let depth = 1;
+    for (let i = n; i < L.length; i++) {
+      let q = null; const t = L[i];
+      for (let k = 0; k < t.length; k++) { const c = t[k]; if (q) { if (c === '\\') k++; else if (c === q) q = null; continue; } if (c === '/' && (t[k + 1] === '/' || t[k + 1] === '*')) break; if (`'"\``.includes(c)) q = c; else if ('{[('.includes(c)) depth++; else if ('}])'.includes(c) && --depth === 0) return i + 1; }
+    }
+    return null;
+  }
+  const blockName = (n) => { const t = (curLines()[n - 1] || '').trim().replace(/\s*[{[(]$/, '').replace(/\s*=$/, '').replace(/^(const|let|var)\s+/, '') || 'block'; return t.length > 34 ? t.slice(0, 33) + '…' : t; };
+  // the blocks before / after this one (‹ › in the block editor)
+  const blockStep = (a, b, dir) => { const L = curLines(); if (dir > 0) { for (let i = b + 1; i <= L.length; i++) if (blockAt(i)) return i; } else { for (let i = a - 1; i >= 1; i--) { const e = blockAt(i); if (e && e < a) return i; } } return null; };
+  // ✏️ Block: a whole style rule or function in one box, with its preview, ✦ Ask and ✓ Apply.
+  function openBlock(a) {
+    const b = blockAt(a); if (!b) return openLine(a);
+    const lang = langOf(file), code = curLines().slice(a - 1, b).join('\n');
+    const chips = (v) => { const w = wordsOn(v, lang); return w.length ? `<span class="lwl">📖</span>${w.map((x) => `<button class="lchip" data-word="${esc(x)}">${esc(x)}</button>`).join('')}` : ''; };
+    const d = X.sheet(`<div class="playh"><b>✏️ ${esc(blockName(a))}</b><small>lines ${a}–${b} · ${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
+      <div class="glbody"><div class="lbox"></div><div class="lwords">${chips(code)}</div><p class="note small">Tap a line number in the file to change just one line.</p><div class="lnav"><button data-bstep="-1"></button><button data-bstep="1"></button></div></div>`);
+    let changed = false;
+    const wireChips = () => d.querySelectorAll('[data-word]').forEach((x) => (x.onclick = () => { d.close(); openWord(x.dataset.word, a); }));
+    codeBox(d.querySelector('.lbox'), d, { code, lang, line: a, span: b - a + 1,
+      onInput: (v) => { d.querySelector('.lwords').innerHTML = chips(v); wireChips(); },
+      apply: X.canEdit(p) ? (v) => { changed = true; const r = editRange(a, b - a + 1, v); d.querySelector('.playh small').textContent = `lines ${a}–${a + r.span - 1} · ${file}`; return r; } : null });
+    wireChips();
+    d.querySelectorAll('[data-bstep]').forEach((x) => { const m = blockStep(a, b, +x.dataset.bstep); if (!m) { x.disabled = true; x.textContent = +x.dataset.bstep < 0 ? '‹' : '›'; return; }
+      x.textContent = +x.dataset.bstep < 0 ? '‹ ' + blockName(m) : blockName(m) + ' ›'; x.onclick = () => { d.close(); openBlock(m); }; });
+    d.addEventListener('close', () => { if (changed) paint(); }, { once: true });
+  }
   // ✏️ Line: one line of the file, edited with its live preview (what it makes, or the whole project),
   // ✦ Ask and ✓ Apply; its words are chips that open the glossary.
   function openLine(n) {
     const line = curLines()[n - 1] ?? '', lang = langOf(file), nt = notesNow()?.[n];
     const chips = (v) => { const w = wordsOn(v, lang); return w.length ? `<span class="lwl">📖</span>${w.map((x) => `<button class="lchip" data-word="${esc(x)}">${esc(x)}</button>`).join('')}` : ''; };
     const d = X.sheet(`<div class="playh"><b>✏️ Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
-      <div class="glbody"><div class="lbox"></div>${nt ? `<p class="glnote small">💡 ${marked(nt.text, nt.terms).html}</p>` : ''}<div class="lwords">${chips(line)}</div>${NAV}</div>`);
+      <div class="glbody"><div class="lbox"></div>${nt ? `<p class="glnote small">💡 ${marked(nt.text, nt.terms).html}</p>` : ''}<div class="lwords">${chips(line)}</div>${blockAt(n) ? `<button class="lblock" data-block>⤢ The whole ${esc(blockName(n))} (lines ${n}–${blockAt(n)})</button>` : ''}${NAV}</div>`);
     let changed = false;
     const wireChips = () => d.querySelectorAll('[data-word]').forEach((b) => (b.onclick = () => { d.close(); openWord(b.dataset.word, n); }));
     codeBox(d.querySelector('.lbox'), d, { code: line, lang, line: n,
       onInput: (v) => { d.querySelector('.lwords').innerHTML = chips(v); wireChips(); const g = d.querySelector('.glnote'); if (g) g.classList.add('stale'); },
       apply: X.canEdit(p) ? (v) => { changed = true; if (editLine(n, v)) d.close(); } : null });
     wireChips(); lineNav(d, n, openLine);
+    const bk = d.querySelector('[data-block]'); if (bk) bk.onclick = () => { d.close(); openBlock(n); };
     d.addEventListener('close', () => { if (changed) paint(); }, { once: true });
   }
   // 📖 a line's words: the line as it is, Claude's note if there is one, and a card for each word.
@@ -362,7 +402,7 @@
     el.innerHTML = `<div class="helpv">${inCode.length ? `<button class="hl-words" id="hlw">📖 Words in this file <small>${inCode.length}</small></button>` : ''}${notes ? '' : reading.has(key) ? '<p class="hl-wait">✦ Claude is reading ' + esc(file) + '…</p>' : ''}${rows(notes)}</div>`;
     const hw = el.querySelector('#hlw'); if (hw) hw.onclick = () => activate(X.sheet(`<div class="playh"><b>📖 Words in ${esc(file)}</b><small>${inCode.length} to know</small><button data-close aria-label="Close">✕</button></div><div class="glbody">${inCode.map(defOf).filter(Boolean).map(entry).join('')}</div>`));
     el.querySelectorAll('.hl-note').forEach((b) => (b.onclick = () => { const k = +b.dataset.n; openWords(k); }));
-    el.querySelectorAll('.hl-row').forEach((r, i) => { r.onclick = () => openLine(i + 1); });
+    el.querySelectorAll('.hl-row').forEach((r, i) => { r.onclick = () => (blockAt(i + 1) ? openBlock(i + 1) : openLine(i + 1)); });
   }
   // One line of the open file, changed from the help panel: a draft, like typing in the editor.
   function editLine(k, v) {
@@ -372,6 +412,16 @@
     const old = helpCache.get(file + '\u0000' + before), moved = draft[file].split('\n').length !== L.length; if (old && !moved) helpCache.set(file + '\u0000' + draft[file], old);
     $('bver').textContent = 'v' + head().v + (dirty() ? ' · unsaved' : '');
     return moved;
+  }
+  // Lines k … k+span-1 of the open file replaced (a block from its editor): laid out one thing per line,
+  // and handed back as they now are, so the block editor keeps showing the same block.
+  function editRange(k, span, v) {
+    draft = draft || { ...head().files };
+    const L = (draft[file] ?? '').split('\n'); L.splice(k - 1, span, ...v.split('\n'));
+    const out = ST.one(file, L.join('\n')), M = out.split('\n');
+    draft[file] = out; const nspan = Math.max(1, v.split('\n').length + M.length - L.length);
+    $('bver').textContent = 'v' + head().v + (dirty() ? ' · unsaved' : '');
+    return { span: nspan, text: M.slice(k - 1, k - 1 + nspan).join('\n') };
   }
   // Help starts with the glossary only; Claude reads the file when asked (a question, not a build).
   const reading = new Set();
@@ -402,6 +452,8 @@
     paint(); run(); window.scrollTo(0, 0);
     if (autoAsk) { tab = 'claude'; paint(); claude(autoAsk); }   // an idea that Claude builds: it starts at once
   }
+  // line numbers; a line that opens a block (a style rule, a function…) is marked: tap its code to open it whole
+  const gutter = () => curLines().map((_, i) => blockAt(i + 1) ? `<b class="gb">${i + 1}</b>` : i + 1).join('\n');
   function paint() {
     $('bver').textContent = 'v' + head().v + (dirty() ? ' · unsaved' : '');
     const T = [['files', '📄 Files'], ['claude', '✦ Claude'], ['log', '⎇ Commits']];
@@ -411,7 +463,7 @@
     if (tab === 'files') {
       const src = F[file] ?? '', n = src.split('\n').length;
       el.innerHTML = `<div class="ftabs">${Object.keys(F).map((f) => `<button data-f="${esc(f)}" class="${f === file ? 'on' : ''}">${esc(f)}${draft && draft[f] !== head().files[f] ? ' •' : ''}</button>`).join('')}${ed ? '<button class="nf" id="nf">＋</button>' : ''}<button class="nf help${helpOn ? ' on' : ''}" id="hlp" title="Help me: what each line does">💡 Help</button></div>
-        ${helpOn ? '<div class="ed edh" id="edh"></div>' : `<div class="ed"><pre class="gut" id="gut">${Array.from({ length: n }, (_, i) => i + 1).join('\n')}</pre><div class="edw"><pre class="hlc" id="hlc" aria-hidden="true">${hl(src, langOf(file))}</pre><textarea id="src" spellcheck="false" autocapitalize="off" autocorrect="off" wrap="off"${ed ? '' : ' readonly'}>${esc(src)}</textarea></div></div>`}
+        ${helpOn ? '<div class="ed edh" id="edh"></div>' : `<div class="ed"><pre class="gut" id="gut">${gutter()}</pre><div class="edw"><pre class="hlc" id="hlc" aria-hidden="true">${hl(src, langOf(file))}</pre><textarea id="src" spellcheck="false" autocapitalize="off" autocorrect="off" wrap="off"${ed ? '' : ' readonly'}>${esc(src)}</textarea></div></div>`}
         ${ed ? `<form class="cmt" id="cmt"><input id="cmsg" placeholder="${dirty() ? 'What did you change?' : 'Edit, then commit'}" autocomplete="off"><button class="bb" type="button" id="crev"${dirty() ? '' : ' disabled'}>↺</button><button class="bb share" id="cgo"${dirty() ? '' : ' disabled'}>Commit</button></form>` : ''}`;
       el.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { file = b.dataset.f; paint(); }));
       $('hlp').onclick = () => { helpOn = !helpOn; paint(); };
@@ -421,7 +473,12 @@
       // ✏️ tap a line number: that line in the line editor
       g.title = 'Tap a line number to open that line';
       g.onclick = (e) => { const cs = getComputedStyle(g), lh = parseFloat(cs.lineHeight) || 18, n = Math.floor((e.clientY - g.getBoundingClientRect().top + g.scrollTop - parseFloat(cs.paddingTop)) / lh) + 1; if (n >= 1 && n <= ta.value.split('\n').length) openLine(n); };
-      ta.oninput = () => { draft = draft || { ...head().files }; draft[file] = ta.value; hc.innerHTML = hl(ta.value, langOf(file)); ta.onscroll(); g.textContent = Array.from({ length: ta.value.split('\n').length }, (_, i) => i + 1).join('\n'); $('bver').textContent = 'v' + head().v + ' · unsaved'; $('cgo').disabled = $('crev').disabled = !dirty(); };
+      ta.oninput = () => { draft = draft || { ...head().files }; draft[file] = ta.value; hc.innerHTML = hl(ta.value, langOf(file)); ta.onscroll(); g.innerHTML = gutter(); $('bver').textContent = 'v' + head().v + ' · unsaved'; $('cgo').disabled = $('crev').disabled = !dirty(); };
+      ta.onmousedown = (e) => {
+        if (document.activeElement === ta) return;   // typing already: taps place the cursor
+        const cs = getComputedStyle(ta), lh = parseFloat(cs.lineHeight) || 18, n = Math.floor((e.clientY - ta.getBoundingClientRect().top + ta.scrollTop - parseFloat(cs.paddingTop)) / lh) + 1;
+        if (n >= 1 && blockAt(n)) { e.preventDefault(); openBlock(n); }
+      };
       ta.onkeydown = (e) => { if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('  ', s, ta.selectionEnd, 'end'); ta.oninput(); } if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); run(); } };
       if (ed) wireCommit(F);
       return;
