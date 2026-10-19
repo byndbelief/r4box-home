@@ -27,9 +27,12 @@
   }
   const TYPE_TAB = { game: '🎯 Rules', app: '⚙ Settings', page: '📝 Content', story: '🎞 Panels', toy: '🎛 Pads' };
   // Builder: how deep the bench goes for a person. Maker = kits that grow with the project; Developer = real code too.
-  const BUILDER = [['maker', '🧩 Maker', 'Kits, Claude and parts. Tools unlock as the project grows.'], ['developer', '⌨ Developer', 'Everything in Maker, plus code projects: real files, a console, commits and diffs.']];
-  const builderOf = (u) => { try { const b = localStorage.getItem('r4.builder.' + u.id); if (b) return b; } catch {} return u.role === 'parent' ? 'developer' : 'maker'; };
-  const dev = () => builderOf(viewer) === 'developer';
+  // Builder: how deep the bench goes. Standard is both: kits and code side by side. Maker only keeps
+  // to kits (tools unlock as a project grows; a project can still outgrow its kit); Developer only
+  // starts from code and shows the code of everything.
+  const BUILDER = [['both', '⚒', 'Maker + Developer', 'Standard. Kits and code side by side: start either way, the code is always a tap away.'], ['maker', '🧩', 'Maker only', 'Kits, Claude and parts. Tools unlock as the project grows.'], ['developer', '⌨', 'Developer only', 'Code projects: real files, a console, commits and diffs. No kits.']];
+  const builderOf = (u) => { try { const b = localStorage.getItem('r4.builder.' + u.id); if (BUILDER.some(([id]) => id === b)) return b; } catch {} return 'both'; };
+  const dev = () => builderOf(viewer) !== 'maker', kits = () => builderOf(viewer) !== 'developer';
   const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs, image) => window.R4Build.ask(p, q, files, logs, image), openBench: (id) => openBench(id), markUp, withShot, phoneTest, shareSheet });
   // Bench ⇄ Preview: one switch, always in reach at the bottom of the screen
   function sw(mode, toBench, toPrev, code) {
@@ -126,9 +129,9 @@
     const fam = list.filter((p) => p.owner !== viewer.id && p.published && !(p.collab || []).includes(viewer.id));
     const l = left();
     $('body').innerHTML = `<div class="who"><h2>${dens === 'play' ? 'Make something!' : 'Your projects'}</h2><p>${viewer.role === 'parent' ? 'Start from a kit, then ask Claude to change it.' : `Start from a kit, then ask Claude to change it. <b class="cap">${l} of ${CAP}</b> builds left today.`}</p></div>
-      ${mine.length ? `<div class="plist">${mine.map((p) => card(p, true)).join('')}</div>` : '<p class="note">Nothing yet. Pick a kit below.</p>'}
+      ${mine.length ? `<div class="plist">${mine.map((p) => card(p, true)).join('')}</div>` : `<p class="note">Nothing yet. Pick ${kits() ? 'a kit' : 'a starting point'} below.</p>`}
       ${together.length ? `<h3 class="k">Making together</h3><div class="plist">${together.map((p) => card(p, 'together')).join('')}</div>` : ''}
-      <h3 class="k">Start from a kit</h3><div class="kits">${Object.entries(PR.KITS).filter(([id]) => id !== 'code').map(([id, k]) => `<button class="kit" data-kit="${id}" style="--kc:${PR.KIND[k.kind][2]}"><span class="ke">${k.em}</span><b>${k.name}</b><small>${k.blurb}</small></button>`).join('')}</div>
+      ${kits() ? `<h3 class="k">Start from a kit</h3><div class="kits">${Object.entries(PR.KITS).filter(([id]) => id !== 'code').map(([id, k]) => `<button class="kit" data-kit="${id}" style="--kc:${PR.KIND[k.kind][2]}"><span class="ke">${k.em}</span><b>${k.name}</b><small>${k.blurb}</small></button>`).join('')}</div>` : ''}
       ${dev() && window.CodeBench ? `<h3 class="k">Start from code</h3><div class="kits">${Object.entries(CodeBench.TEMPLATES).map(([id, t]) => `<button class="kit code" data-tpl="${id}" style="--kc:#7DF0C8"><span class="ke">⌨</span><b>${t.name}</b><small>${t.blurb}</small></button>`).join('')}</div>` : ''}
       ${fam.length ? `<h3 class="k">Made by the family</h3><div class="plist">${fam.map((p) => card(p, false)).join('')}</div>` : ''}`;
     $('body').querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => openBench(b.dataset.open)));
@@ -323,7 +326,7 @@
     const VIEWS = [['play', '🧸', 'Play', 'A few big controls'], ['explore', '🧭', 'Explore', 'The main things, a little text'], ['pilot', '✈️', 'Pilot', 'Every instrument at once'], ...(viewer.role === 'parent' ? [['dev', '⌘', 'Developer', 'Everything, condensed, plus the raw data']] : [])];
     const paint = () => {
       $('sbody').innerHTML = `<h3 class="k">View</h3><div class="vset">${VIEWS.map(([id, em, n, b]) => `<button class="vopt${dens === id ? ' on' : ''}" data-view="${id}"><span class="em">${em}</span><b>${n}</b><em>${b}</em></button>`).join('')}</div><p class="note" style="margin:6px 0 0">The same view as your home page.</p>
-        <h3 class="k">Builder</h3><div class="vset">${BUILDER.map(([id, n, b]) => `<button class="vopt${builderOf(viewer) === id ? ' on' : ''}" data-bld="${id}"><span class="em">${n.split(' ')[0]}</span><b>${n.split(' ')[1]}</b><em>${b}</em></button>`).join('')}</div><p class="note" style="margin:6px 0 0">For ${esc(viewer.name)}, in Projects.</p>`;
+        <h3 class="k">Builder</h3><div class="vset">${BUILDER.map(([id, em, n, b]) => `<button class="vopt${builderOf(viewer) === id ? ' on' : ''}${id === 'both' ? ' wide' : ''}" data-bld="${id}"><span class="em">${em}</span><b>${n}</b><em>${b}</em></button>`).join('')}</div><p class="note" style="margin:6px 0 0">For ${esc(viewer.name)}, in Projects.</p>`;
       $('sbody').querySelectorAll('[data-view]').forEach((b) => (b.onclick = () => { try { localStorage.setItem('r4.density.' + viewer.id, b.dataset.view); } catch {} applyDensity(); paint(); }));
       $('sbody').querySelectorAll('[data-bld]').forEach((b) => (b.onclick = () => { try { localStorage.setItem('r4.builder.' + viewer.id, b.dataset.bld); } catch {} paint(); }));
     };

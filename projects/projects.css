@@ -184,3 +184,8 @@ dialog.psheet{max-height:calc(100dvh - 20px - env(safe-area-inset-top) - env(saf
 /* the panel header buttons are .bb (all:unset), which made them inherit the header's pointer-events:none */
 .pvpanel>header>*{pointer-events:auto}
 body:has(.pvpanel .mk) #bsw{display:none}
+
+/* Settings: Maker + Developer (standard) across the top, the two "only" choices under it */
+.vset .vopt.wide{grid-column:1/-1}
+/* the Bench / Preview switch stays out of the way of sub-pages */
+body:has(.subpage) #bsw{display:none}
