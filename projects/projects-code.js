@@ -176,23 +176,27 @@
   }
   const PEEK = `<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0D0B1F;color:#F3F1FF;font:14px system-ui,sans-serif}
     .card{display:grid;gap:8px;padding:12px 14px;border-radius:12px;background:#ffffff0a;border:1px solid #ffffff1c;max-width:92vw}.k{color:#ACA5D6;font:600 12px ui-monospace,monospace}
-    .row{display:flex;gap:10px;align-items:center}.sw{width:30px;height:30px;border-radius:8px;border:1px solid #ffffff33}.big{font:800 40px system-ui}.emo{font-size:56px}
+    .row{display:flex;gap:10px;align-items:center}.sw{position:relative;width:30px;height:30px;border-radius:8px;border:1px solid #ffffff33}.sw.pick{cursor:pointer;width:40px;height:40px;box-shadow:0 0 0 2px #ffffff22}.sw.pick:hover{box-shadow:0 0 0 2px #F5C542}.sw input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:0;padding:0}.big{font:800 40px system-ui}.emo{font-size:56px}
     .grid{display:grid;gap:3px}.cell{width:26px;height:26px;border-radius:4px}.off{background:#ffffff08;border:1px dashed #ffffff18}
     .bars{display:flex;gap:4px;align-items:flex-end;height:90px}.bar{width:18px;background:#3DD6C6;border-radius:3px 3px 0 0}.chip{padding:3px 9px;border-radius:99px;background:#ffffff12}</style>
     <script>(function(){
       var COL=/^(#[0-9a-f]{3,8}|rgba?\\(|hsla?\\()/i, EMO=/^\\p{Extended_Pictographic}/u;
       function esc(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+      var seen={};
+      function sw(c){var m=/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);if(!m)return '<div class="sw" style="background:'+esc(c)+'"></div>';var h=m[1].length===3?m[1].split('').map(function(x){return x+x}).join(''):m[1],k=seen[c.toLowerCase()]=(seen[c.toLowerCase()]||0)+1;return '<label class="sw pick" style="background:'+esc(c)+'" title="Pick a colour"><input type="color" value="#'+h+'" data-c="'+esc(c)+'" data-k="'+(k-1)+'"></label>'}
+      document.addEventListener('input',function(e){if(e.target.dataset.c)e.target.parentNode.style.background=e.target.value});
+      document.addEventListener('change',function(e){var t=e.target;if(t.dataset.c)parent.postMessage({r4color:[t.dataset.c,t.value.toUpperCase(),+t.dataset.k]},'*')});
       function shape(v){return Array.isArray(v)&&v.length&&v.every(function(r){return Array.isArray(r)&&r.length&&r.every(function(x){return typeof x==='number'||typeof x==='boolean'})})}
       function grid(v,c){return '<div class="grid" style="grid-template-columns:repeat('+Math.max.apply(0,v.map(function(r){return r.length}))+',26px)">'+v.map(function(r){return r.map(function(x){return x?'<div class="cell" style="background:'+esc(c||'#3DD6C6')+'"></div>':'<div class="cell off"></div>'}).join('')}).join('')+'</div>'}
       function view(v,key,ctx){
         if(shape(v))return grid(v,ctx&&ctx.color);
-        if(typeof v==='string'&&COL.test(v))return '<div class="row"><div class="sw" style="background:'+esc(v)+'"></div><code>'+esc(v)+'</code></div>';
+        if(typeof v==='string'&&COL.test(v))return '<div class="row">'+sw(v)+'<code>'+esc(v)+'</code></div>';
         if(typeof v==='string')return EMO.test(v)&&v.length<=8?'<div class="emo">'+esc(v)+'</div>':'<div>“'+esc(v)+'”</div>';
         if(typeof v==='number')return '<div class="big">'+v+'</div>';
         if(typeof v==='boolean')return '<div class="big">'+(v?'✓ true':'✗ false')+'</div>';
         if(Array.isArray(v)){
           if(v.length&&v.every(function(x){return typeof x==='number'})){var mx=Math.max.apply(0,v.map(Math.abs))||1;return '<div class="bars">'+v.map(function(x){return '<div class="bar" title="'+x+'" style="height:'+Math.max(4,Math.abs(x)/mx*90)+'px"></div>'}).join('')+'</div>'}
-          if(v.length&&v.every(function(x){return typeof x==='string'&&COL.test(x)}))return '<div class="row">'+v.map(function(x){return '<div class="sw" style="background:'+esc(x)+'"></div>'}).join('')+'</div>';
+          if(v.length&&v.every(function(x){return typeof x==='string'&&COL.test(x)}))return '<div class="row">'+v.map(sw).join('')+'</div>';
           return '<div class="row" style="flex-wrap:wrap">'+v.slice(0,30).map(function(x){return typeof x==='object'&&x?view(x):'<span class="chip">'+esc(typeof x==='string'?x:JSON.stringify(x))+'</span>'}).join('')+'</div>';
         }
         if(v&&typeof v==='object'){
@@ -206,7 +210,7 @@
     })()<\/script>`;
   function peekDoc(pk) {
     if (pk.html) { const css = (draft || head().files)['style.css'] || ''; return `<!doctype html><style>body{margin:0;padding:14px;background:#0D0B1F;color:#fff;font:15px system-ui}${css}</style>${pk.html}<script>parent.postMessage({r4peek:'ok'},'*')<\/script>`; }
-    if (pk.css) { const [k, v] = pk.css; return `<!doctype html><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0D0B1F;color:#fff;font:15px system-ui}.s{padding:16px 22px;border-radius:12px;border:1px dashed #ffffff33;${k}:${v.replace(/[<>]/g, '')}}code{display:block;margin-top:8px;color:#ACA5D6;font:12px ui-monospace,monospace;text-align:center}</style><div><div class="s">Aa · sample</div><code>${esc(k)}: ${esc(v)}</code></div><script>parent.postMessage({r4peek:'ok'},'*')<\/script>`; }
+    if (pk.css) { const [k, v] = pk.css; return `<!doctype html><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0D0B1F;color:#fff;font:15px system-ui}.s{padding:16px 22px;border-radius:12px;border:1px dashed #ffffff33;${k}:${v.replace(/[<>]/g, '')}}code{display:block;margin-top:8px;color:#ACA5D6;font:12px ui-monospace,monospace;text-align:center}.sw{position:relative;display:block;margin:10px auto 0;width:40px;height:40px;border-radius:8px;border:1px solid #ffffff33;box-shadow:0 0 0 2px #ffffff22;cursor:pointer}.sw input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}</style><div><div class="s">Aa · sample</div><code>${esc(k)}: ${esc(v)}</code>${/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim()) ? `<label class="sw" style="background:${v.trim()}"><input type="color" value="${v.trim().length === 4 ? '#' + v.trim().slice(1).split('').map((x) => x + x).join('') : v.trim()}" data-c="${v.trim()}"></label>` : ''}</div><script>parent.postMessage({r4peek:'ok'},'*');document.addEventListener('input',function(e){var t=e.target;if(t.dataset.c){t.parentNode.style.background=t.value;document.querySelector('.s').style.setProperty(${JSON.stringify(k)},t.value)}});document.addEventListener('change',function(e){var t=e.target;if(t.dataset.c)parent.postMessage({r4color:[t.dataset.c,t.value.toUpperCase(),0]},'*')})<\/script>`; }
     return `<!doctype html><head>${PEEK}</head><body><script>__peek(function(){return (${pk.expr.replace(/<\/script/gi, '<\\/script')}\n)},${JSON.stringify(pk.key)})<\/script></body>`;
   }
 
@@ -224,6 +228,12 @@
     const mode = host.querySelector('[data-mode]');
     const label = () => { mode.textContent = peeked && !whole ? '🔍 this line · tap for whole' : '● live · whole project'; mode.hidden = !line; };
     const on = (e) => { if (e.source !== fr.contentWindow || !e.data) return;
+      if (e.data.r4color) {
+        const [old, nw, k] = e.data.r4color, src = ta.value, re = new RegExp(old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        let i = -1, out2 = src.replace(re, (m) => (++i === k ? nw : m));
+        if (out2 === src && k) out2 = src.replace(new RegExp(old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), nw);
+        ta.value = out2; draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); run(); return;
+      }
       if (e.data.r4peek) { if (e.data.r4peek === 'fail' && !whole) { peeked = false; full(); } return; }
       const m = e.data.r4try || e.data.r4log; if (!m) return; out.insertAdjacentHTML('beforeend', `<div class="cl ${m[0]}">${m[0] === 'error' ? '✕' : '›'} ${esc(m[1])}</div>`); };
     addEventListener('message', on); d.addEventListener('close', () => { removeEventListener('message', on); clearTimeout(timer); }, { once: true });
