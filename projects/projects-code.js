@@ -175,10 +175,11 @@
     if (!expr || !balanced(expr) || /^(function|\(.*\)\s*=>|async)\b/.test(expr) || /=>/.test(expr)) return null;
     return { expr, key };
   }
-  const PEEK = `<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0D0B1F;color:#F3F1FF;font:14px system-ui,sans-serif}
+  const PEEK = `<style>html{overflow:hidden}body{margin:0;padding:40px 12px 14px;box-sizing:border-box;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#0D0B1F;color:#F3F1FF;font:14px system-ui,sans-serif}
     .card{display:grid;gap:8px;padding:12px 14px;border-radius:12px;background:#ffffff0a;border:1px solid #ffffff1c;max-width:92vw}.k{color:#ACA5D6;font:600 12px ui-monospace,monospace}
     .row{display:flex;gap:10px;align-items:center}.sw{position:relative;width:30px;height:30px;border-radius:8px;border:1px solid #ffffff33}.sw.pick{cursor:pointer;width:40px;height:40px;box-shadow:0 0 0 2px #ffffff22}.sw.pick:hover{box-shadow:0 0 0 2px #F5C542}.sw input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:0;padding:0}.big{font:800 40px system-ui}.emo{font-size:56px}
     .grid{display:grid;gap:3px}.cell{all:unset;box-sizing:border-box;cursor:pointer;width:26px;height:26px;border-radius:4px;display:grid;place-items:center;font:700 11px ui-monospace,monospace;color:#00000088}.cell.off{background:#ffffff08;border:1px dashed #ffffff22;color:#ffffff44}.cell:hover{outline:2px solid #F5C542}
+    .list{width:100%;max-width:100%}.list .card{display:flex;align-items:center;padding:8px 10px;gap:8px}.list .card .k,.list .card code{display:none}.list{--cs:18px}.list .cell{width:18px;height:18px;font-size:9px}.list .sw.pick{width:26px;height:26px}.list .row{gap:6px}.list code{font-size:11px}
     .bars{display:flex;gap:4px;align-items:flex-end;height:90px}.bar{width:18px;background:#3DD6C6;border-radius:3px 3px 0 0}.chip{padding:3px 9px;border-radius:99px;background:#ffffff12}</style>
     <script>(function(){
       var COL=/^(#[0-9a-f]{3,8}|rgba?\\(|hsla?\\()/i, EMO=/^\\p{Extended_Pictographic}/u;
@@ -190,7 +191,7 @@
       function shape(v){return Array.isArray(v)&&v.length&&v.every(function(r){return Array.isArray(r)&&r.length&&r.every(function(x){return typeof x==='number'||typeof x==='boolean'})})}
       // a shape: each cell shows its value in the code (1 / 0); tap one to flip it, and the line follows
       var grids=[];
-      function grid(v,c){var gi=grids.push(v)-1;return '<div class="grid" data-g="'+gi+'" style="grid-template-columns:repeat('+Math.max.apply(0,v.map(function(r){return r.length}))+',26px)">'+v.map(function(r,ri){return r.map(function(x,ci){return '<button class="cell'+(x?'':' off')+'" data-r="'+ri+'" data-c="'+ci+'" style="'+(x?'background:'+esc(c||'#3DD6C6'):'')+'">'+(typeof x==='boolean'?(x?'true':'false'):x)+'</button>'}).join('')}).join('')+'</div>'}
+      function grid(v,c){var gi=grids.push(v)-1;return '<div class="grid" data-g="'+gi+'" style="grid-template-columns:repeat('+Math.max.apply(0,v.map(function(r){return r.length}))+',var(--cs,26px))">'+v.map(function(r,ri){return r.map(function(x,ci){return '<button class="cell'+(x?'':' off')+'" data-r="'+ri+'" data-c="'+ci+'" style="'+(x?'background:'+esc(c||'#3DD6C6'):'')+'">'+(typeof x==='boolean'?(x?'true':'false'):x)+'</button>'}).join('')}).join('')+'</div>'}
       document.addEventListener('click',function(e){var b=e.target.closest('.cell');if(!b)return;var g=b.closest('.grid'),gi=+g.dataset.g,v=grids[gi].map(function(r){return r.slice()}),r=+b.dataset.r,cc=+b.dataset.c,x=v[r][cc];v[r][cc]=typeof x==='boolean'?!x:(x?0:1);parent.postMessage({r4grid:[gi,v]},'*')});
       function view(v,key,ctx){
         if(shape(v))return grid(v,ctx&&ctx.color);
@@ -201,7 +202,7 @@
         if(Array.isArray(v)){
           if(v.length&&v.every(function(x){return typeof x==='number'})){var mx=Math.max.apply(0,v.map(Math.abs))||1;return '<div class="bars">'+v.map(function(x){return '<div class="bar" title="'+x+'" style="height:'+Math.max(4,Math.abs(x)/mx*90)+'px"></div>'}).join('')+'</div>'}
           if(v.length&&v.every(function(x){return typeof x==='string'&&COL.test(x)}))return '<div class="row">'+v.map(sw).join('')+'</div>';
-          return '<div class="row" style="flex-wrap:wrap">'+v.slice(0,30).map(function(x){return typeof x==='object'&&x?view(x):'<span class="chip">'+esc(typeof x==='string'?x:JSON.stringify(x))+'</span>'}).join('')+'</div>';
+          return '<div class="row list" style="flex-wrap:wrap;justify-content:center;gap:8px">'+v.slice(0,30).map(function(x){return typeof x==='object'&&x?view(x):'<span class="chip">'+esc(typeof x==='string'?x:JSON.stringify(x))+'</span>'}).join('')+'</div>';
         }
         if(v&&typeof v==='object'){
           var keys=Object.keys(v).slice(0,12),sh=keys.filter(function(k){return shape(v[k])});
@@ -210,7 +211,7 @@
         if(typeof v==='function')return '<div class="k">a function</div>';
         return '<div class="k">'+esc(String(v))+'</div>';
       }
-      window.__peek=function(f,key){try{var v=f();document.body.innerHTML=(key?'<div style="display:grid;gap:8px;justify-items:center"><span class="k">'+esc(key)+'</span>':'<div>')+view(v,key)+'</div>';parent.postMessage({r4peek:'ok'},'*')}catch(e){parent.postMessage({r4peek:'fail'},'*')}};
+      window.__peek=function(f,key){try{var v=f();document.body.innerHTML=(key?'<div style="display:grid;gap:8px;justify-items:center"><span class="k">'+esc(key)+'</span>':'<div>')+view(v,key)+'</div>';parent.postMessage({r4peek:'ok',h:document.body.scrollHeight},'*')}catch(e){parent.postMessage({r4peek:'fail'},'*')}};
     })()<\/script>`;
   function peekDoc(pk) {
     if (pk.html) { const css = (draft || head().files)['style.css'] || ''; return `<!doctype html><style>body{margin:0;padding:14px;background:#0D0B1F;color:#fff;font:15px system-ui}${css}</style>${pk.html}<script>parent.postMessage({r4peek:'ok'},'*')<\/script>`; }
@@ -246,10 +247,10 @@
         if (out2 === src && k) out2 = src.replace(new RegExp(old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), nw);
         ta.value = out2; draw(); if (ap) ap.disabled = ta.value === code; clearTimeout(timer); run(); return;
       }
-      if (e.data.r4peek) { if (e.data.r4peek === 'fail' && !whole) { peeked = false; full(); } return; }
+      if (e.data.r4peek) { if (e.data.r4peek === 'fail' && !whole) { peeked = false; full(); } else if (e.data.h && peeked && !whole) fr.style.height = Math.max(160, Math.min(e.data.h + 4, 1200)) + 'px'; return; }
       const m = e.data.r4try || e.data.r4log; if (!m) return; out.insertAdjacentHTML('beforeend', `<div class="cl ${m[0]}">${m[0] === 'error' ? '✕' : '›'} ${esc(m[1])}</div>`); };
     addEventListener('message', on); d.addEventListener('close', () => { removeEventListener('message', on); clearTimeout(timer); }, { once: true });
-    const full = () => { const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L.splice(line - 1, span, ta.value); F[file] = L.join('\n'); fr.srcdoc = PR.codeDoc(F); label(); };
+    const full = () => { const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L.splice(line - 1, span, ta.value); F[file] = L.join('\n'); fr.style.height = ''; fr.srcdoc = PR.codeDoc(F); label(); };
     const run = () => {
       out.innerHTML = ''; const v = ta.value;
       if (line) { const pk = !whole && peekOf(v, lang); peeked = !!pk; if (pk) { fr.srcdoc = peekDoc(pk); label(); } else full(); }
