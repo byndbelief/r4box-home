@@ -5,7 +5,8 @@
    (each project grows as a plant) and the chat (play-test cards). */
 (function () {
   const J = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
-  const shell = (p, body, css = '', js = '') => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:${p.bg};color:#fff;font:16px/1.4 system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}h1{margin:0;font-size:${20 * p.size}px}b{color:${p.color}}${css}</style></head><body>${body}<script>const P=${J(p)};const AC=window.AudioContext?new AudioContext():null;function tone(f,d){if(!AC)return;AC.resume();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;g.gain.setValueAtTime(.12,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+(d||.15));o.connect(g).connect(AC.destination);o.start();o.stop(AC.currentTime+(d||.15))}${js}<\/script></body></html>`;
+  let cap = false;   // kitFiles: build() hands back its parts instead of a page
+  const shell = (p, body, css = '', js = '') => cap ? { p, body, css, js } : `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:${p.bg};color:#fff;font:16px/1.4 system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}h1{margin:0;font-size:${20 * p.size}px}b{color:${p.color}}${css}</style></head><body>${body}<script>const P=${J(p)};const AC=window.AudioContext?new AudioContext():null;function tone(f,d){if(!AC)return;AC.resume();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;g.gain.setValueAtTime(.12,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+(d||.15));o.connect(g).connect(AC.destination);o.start();o.stop(AC.currentTime+(d||.15))}${js}<\/script></body></html>`;
   const KITS = {
     catch: { kind: 'game', em: '🎮', name: 'Catch game', blurb: 'Move to catch falling things.', defaults: { title: 'Catch!', sprite: '🧺', item: '⭐', color: '#F5C542', bg: '#0B0918', speed: 1, size: 1, sound: true },
       build: (p) => shell(p, '<canvas id="c" style="display:block;width:100%;height:100%"></canvas><div id="s" style="position:fixed;top:10px;left:12px;font-weight:800"></div>', '#s{color:' + p.color + ';font-size:' + 18 * p.size + 'px}',
@@ -39,6 +40,38 @@
     mk('essay-timer', 'phoenix_lord', 'timer', 'Essay sprint', true, [[60 * 30, 'Started from Timer app', {}], [60 * 29, '25 minutes, red', { minutes: 25, color: '#FF5A4A', title: 'Essay sprint' }], [60 * 5, 'Bigger numbers', { size: 1.25 }]]),
     Object.assign(mk('beat-pad', 'phoenix_lord', 'drums', 'Beat pad', false, [[200, 'Started from Drum pad', {}], [180, '6 pads', { pads: 6 }], [90, 'Teal pads', { color: '#3DD6C6' }]]), { collab: ['obanai_rocks'] }),
   ];
+  // ---------- every project is code: a kit's page as real files, laid out to be read and changed ----------
+  // A tiny formatter for the kits' compact code: a new line after ; { } (not inside strings or a for's ( )).
+  function prettyJS(src) {
+    let out = '', ind = 0, par = 0, q = null;
+    const nl = () => { out = out.replace(/[ \t]+$/, '') + '\n' + '  '.repeat(Math.max(0, ind)); };
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (q) { out += ch; if (ch === '\\') { out += src[++i]; continue; } if (ch === q) q = null; continue; }
+      if (ch === "'" || ch === '"' || ch === '`') { q = ch; out += ch; continue; }
+      if (ch === '(') par++; if (ch === ')') par--;
+      if (ch === '{') { out += ' {'; ind++; nl(); continue; }
+      if (ch === '}') { ind--; nl(); out += '}'; if (src[i + 1] && !/[),;.]/.test(src[i + 1])) nl(); continue; }
+      if (ch === ';' && !par) { out += ';'; if (src[i + 1] && src[i + 1] !== '}') nl(); continue; }
+      out += ch;
+    }
+    return out.replace(/ \{\n(\s*)\n/g, ' {\n$1').replace(/\n\s*\n/g, '\n').trim() + '\n';
+  }
+  const prettyCSS = (css) => css.replace(/\s*\{\s*/g, ' {\n  ').replace(/;\s*(?=[^}])/g, ';\n  ').replace(/;?\s*\}\s*/g, ';\n}\n').replace(/\{\n  ;\n\}/g, '{}').trim() + '\n';
+  const prettyHTML = (h) => { let d = 1; return h.replace(/>\s*</g, '>\n<').replace(/(<([\w-]+)[^>]*>)\n(<\/\2>)/g, '$1$3').split('\n').map((l) => { if (/^<\//.test(l)) d--; const o = '  '.repeat(Math.max(1, d)) + l; if (/^<(?!\/|!|(?:meta|br|img|input|hr|link)\b)[^>]*[^/]>/.test(l) && !/<\//.test(l)) d++; return o; }).join('\n'); };
+  const TONE = "// a short beep: tone(frequency, seconds)\nconst AC = window.AudioContext ? new AudioContext() : null;\nfunction tone(f, d) {\n  if (!AC) return;\n  AC.resume();\n  const o = AC.createOscillator(), g = AC.createGain();\n  o.frequency.value = f;\n  g.gain.setValueAtTime(.12, AC.currentTime);\n  g.gain.exponentialRampToValueAtTime(.001, AC.currentTime + (d || .15));\n  o.connect(g).connect(AC.destination);\n  o.start();\n  o.stop(AC.currentTime + (d || .15));\n}\n";
+  // the kits' scripts, laid out for reading (the same code the kit runs; its settings live in P)
+  const KIT_JS = {"catch": "const c = document.getElementById('c'),\n  x = c.getContext('2d');\nlet W, H, px, items = [],\n  score = 0,\n  t = 0;\n\nfunction rs() {\n  W = c.width = innerWidth;\n  H = c.height = innerHeight;\n  if (px == null) px = W / 2\n}\nrs();\nonresize = rs;\naddEventListener('pointermove', e => px = e.clientX);\naddEventListener('pointerdown', e => {\n  px = e.clientX;\n  AC && AC.resume()\n});\n\nfunction f() {\n  t++;\n  x.clearRect(0, 0, W, H);\n  if (t % Math.max(8, Math.round(40 / P.speed)) == 0) items.push({\n    x: Math.random() * (W - 40) + 20,\n    y: -20\n  });\n  const sz = 28 * P.size;\n  x.font = sz + 'px serif';\n  x.textAlign = 'center';\n  items.forEach(i => {\n    i.y += 2.2 * P.speed;\n    x.fillText(P.item, i.x, i.y)\n  });\n  items = items.filter(i => {\n    if (i.y > H - 70 && i.y < H - 15 && Math.abs(i.x - px) < sz) {\n      score++;\n      if (P.sound) tone(660 + score * 20, .1);\n      return false\n    }\n    return i.y < H + 30\n  });\n  x.font = sz * 1.5 + 'px serif';\n  x.fillText(P.sprite, px, H - 28);\n  document.getElementById('s').textContent = P.title + '  ·  ' + score;\n  requestAnimationFrame(f)\n}\nf()", "timer": "let left = P.minutes * 60,\n  on = 0,\n  iv;\nconst el = document.getElementById('t'),\n  go = document.getElementById('go');\nconst show = () => el.textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');\nshow();\ngo.onclick = () => {\n  on = !on;\n  go.textContent = on ? 'Pause' : 'Start';\n  clearInterval(iv);\n  if (on) iv = setInterval(() => {\n    left--;\n    show();\n    if (left <= 0) {\n      clearInterval(iv);\n      on = 0;\n      go.textContent = 'Start';\n      if (P.sound) {\n        tone(880, .3);\n        setTimeout(() => tone(1100, .4), 300)\n      }\n      left = P.minutes * 60\n    }\n  }, 1000)\n};\ndocument.getElementById('rs').onclick = () => {\n  clearInterval(iv);\n  on = 0;\n  go.textContent = 'Start';\n  left = P.minutes * 60;\n  show()\n}", "drums": "const F = [196, 262, 330, 392, 440, 523, 587, 659];\ndocument.querySelectorAll('button').forEach(b => b.onpointerdown = () => {\n  tone(F[+b.dataset.i], .25);\n  b.classList.add('hit');\n  setTimeout(() => b.classList.remove('hit'), 120)\n})"};
+  function kitFiles(kit, params) {
+    cap = true; let parts; try { parts = KITS[kit].build(params); } finally { cap = false; }
+    const p = parts.p, base = `html,body{margin:0;height:100%;background:${p.bg};color:#fff;font:16px/1.4 system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}h1{margin:0;font-size:${20 * p.size}px}b{color:${p.color}}`;
+    return {
+      'index.html': `<!doctype html>\n<html>\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width,initial-scale=1">\n  <title>${String(p.title || KITS[kit].name).replace(/</g, '&lt;')}</title>\n</head>\n<body>\n${prettyHTML(parts.body)}\n</body>\n</html>\n`,
+      'style.css': `/* how it looks */\n${prettyCSS(base + parts.css)}`,
+      'main.js': `// ${KITS[kit].name}: its settings, then what it does.\nconst P = ${JSON.stringify(p, null, 2).replace(/</g, '\\u003c')};\n\n${TONE}\n${KIT_JS[kit] ? KIT_JS[kit].trim() + '\n' : parts.js ? prettyJS(parts.js) : '// nothing moves yet: ask Claude to add something\n'}`,
+    };
+  }
+
   window.R4Projects = {
     KITS, KIND,
     all() { try { const s = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(s)) return s; } catch (e) {} return JSON.parse(JSON.stringify(SEED)); },
@@ -47,7 +80,7 @@
     // A version with files is code: every project can outgrow its kit (Claude rebuilds it as code).
     html(p) { const v = p.versions[p.cur]; return v.files || p.kit === 'code' ? codeDoc(v.files || {}) : KITS[p.kit].build(v.params); },
     isCode(p) { return p.kit === 'code' || !!p.versions[p.cur].files; },
-    codeDoc,
+    codeDoc, kitFiles,
     kindOf(p) { return KITS[p.kit].kind; },
   };
 })();

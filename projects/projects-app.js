@@ -30,9 +30,10 @@
   // Builder: how deep the bench goes. Standard is both: kits and code side by side. Maker only keeps
   // to kits (tools unlock as a project grows; a project can still outgrow its kit); Developer only
   // starts from code and shows the code of everything.
-  const BUILDER = [['both', '⚒', 'Maker + Developer', 'Standard. Kits and code side by side: start either way, the code is always a tap away.'], ['maker', '🧩', 'Maker only', 'Kits, Claude and parts. Tools unlock as the project grows.'], ['developer', '⌨', 'Developer only', 'Code projects: real files, a console, commits and diffs. No kits.']];
-  const builderOf = (u) => { try { const b = localStorage.getItem('r4.builder.' + u.id); if (BUILDER.some(([id]) => id === b)) return b; } catch {} return 'both'; };
-  const dev = () => builderOf(viewer) !== 'maker', kits = () => builderOf(viewer) !== 'developer';
+  // Builder: every project is code. Standard: kits and code side by side (start either way). Developer
+  // only: start from code, no kits. (Older choices: "developer" stays; "maker" and "both" are standard.)
+  const devOnly = (u) => { try { return localStorage.getItem('r4.builder.' + u.id) === 'developer'; } catch { return false; } };
+  const dev = () => true, kits = () => !devOnly(viewer);
   const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs, image) => window.R4Build.ask(p, q, files, logs, image), openBench: (id) => openBench(id), explain: (p, f, src) => window.R4Build.explain(p, f, src), sheet: (h) => sheet(h), markUp, withShot, phoneTest, shareSheet });
   // Bench ⇄ Preview: one switch, always in reach at the bottom of the screen
   function sw(mode, toBench, toPrev, code) {
@@ -195,12 +196,14 @@
   }
   function newFromKit(kit) {
     const k = PR.KITS[kit], id = kit + '-' + Date.now().toString(36);
-    const p = { id, owner: viewer.id, kit, name: k.defaults.title, published: false, versions: [{ v: 1, at: Date.now(), note: 'Started from ' + k.name, params: { ...k.defaults } }], cur: 0 };
+    // every project is code: the kit is where it starts, as real files (its settings live in main.js)
+    const p = { id, owner: viewer.id, kit, name: k.defaults.title, published: false, versions: [{ v: 1, at: Date.now(), note: 'Started from ' + k.name, params: { ...k.defaults }, files: PR.kitFiles(kit, k.defaults) }], cur: 0 };
     list.push(p); save(); openBench(id);
   }
   function remix(id) {
     const s = list.find((p) => p.id === id), v = s.versions[s.cur];
-    const p = { id: s.kit + '-' + Date.now().toString(36), owner: viewer.id, kit: s.kit, name: s.name + ' remix', published: false, from: { id: s.id, owner: s.owner, name: s.name }, versions: [{ v: 1, at: Date.now(), note: 'Remixed from ' + byId(s.owner).name + '’s ' + s.name, params: { ...v.params, title: s.name + ' remix' } }], cur: 0 };
+    const files = v.files || PR.kitFiles(s.kit, { ...v.params, title: s.name + ' remix' });
+    const p = { id: s.kit + '-' + Date.now().toString(36), owner: viewer.id, kit: s.kit, name: s.name + ' remix', published: false, from: { id: s.id, owner: s.owner, name: s.name }, versions: [{ v: 1, at: Date.now(), note: 'Remixed from ' + byId(s.owner).name + '’s ' + s.name, params: { ...v.params, title: s.name + ' remix' }, files }], cur: 0 };
     list.push(p); save(); toast('⑂ Remixed. It’s yours to change.'); openBench(p.id);
   }
 
@@ -375,9 +378,9 @@
     const VIEWS = [['play', '🧸', 'Play', 'A few big controls'], ['explore', '🧭', 'Explore', 'The main things, a little text'], ['pilot', '✈️', 'Pilot', 'Every instrument at once'], ...(viewer.role === 'parent' ? [['dev', '⌘', 'Developer', 'Everything, condensed, plus the raw data']] : [])];
     const paint = () => {
       $('sbody').innerHTML = `<h3 class="k">View</h3><div class="vset">${VIEWS.map(([id, em, n, b]) => `<button class="vopt${dens === id ? ' on' : ''}" data-view="${id}"><span class="em">${em}</span><b>${n}</b><em>${b}</em></button>`).join('')}</div><p class="note" style="margin:6px 0 0">The same view as your home page.</p>
-        <h3 class="k">Builder</h3><div class="vset">${BUILDER.map(([id, em, n, b]) => `<button class="vopt${builderOf(viewer) === id ? ' on' : ''}${id === 'both' ? ' wide' : ''}" data-bld="${id}"><span class="em">${em}</span><b>${n}</b><em>${b}</em></button>`).join('')}</div><p class="note" style="margin:6px 0 0">For ${esc(viewer.name)}, in Projects.</p>`;
+        <h3 class="k">Builder</h3><section class="sset"><div class="srow"><div><b>⌨ Developer only</b><small>Start from code, no kits. Off: kits and code side by side (every project is code either way).</small></div><button class="tog${devOnly(viewer) ? ' on' : ''}" id="devT" role="switch" aria-checked="${devOnly(viewer)}"><i></i></button></div></section><p class="note" style="margin:6px 0 0">For ${esc(viewer.name)}, in Projects.</p>`;
       $('sbody').querySelectorAll('[data-view]').forEach((b) => (b.onclick = () => { try { localStorage.setItem('r4.density.' + viewer.id, b.dataset.view); } catch {} applyDensity(); paint(); }));
-      $('sbody').querySelectorAll('[data-bld]').forEach((b) => (b.onclick = () => { try { localStorage.setItem('r4.builder.' + viewer.id, b.dataset.bld); } catch {} paint(); }));
+      $('devT').onclick = () => { try { devOnly(viewer) ? localStorage.removeItem('r4.builder.' + viewer.id) : localStorage.setItem('r4.builder.' + viewer.id, 'developer'); } catch {} paint(); };
     };
     paint();
   };

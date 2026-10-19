@@ -17,8 +17,8 @@
     @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
-  <link rel="stylesheet" href="world/world.css?v=25">
-  <link rel="stylesheet" href="projects/projects.css?v=25">
+  <link rel="stylesheet" href="world/world.css?v=26">
+  <link rel="stylesheet" href="projects/projects.css?v=26">
   <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }</style>
 </head>
 <body>
@@ -28,7 +28,7 @@
 <dialog class="psheet" id="sheet"></dialog>
 </div>
 <script src="world/story-kit.js"></script>
-<script src="projects/projects-data.js?v=25"></script>
+<script src="projects/projects-data.js?v=26"></script>
 <script type="module">
   import { sb, roleOf } from './auth.js';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
@@ -59,6 +59,14 @@
   const fromRow = (r) => ({ id: r.id, owner: r.owner, kit: r.kit, name: r.name, published: r.published, from: r.remix_of || undefined, collab: r.collab || [], requests: r.requests || [], versions: r.versions, cur: r.cur, archived: !!r.archived });
   let list = (rows || []).map(fromRow);
   const last = new Map(list.map((p) => [p.id, JSON.stringify(p)]));
+  // Every project is code: one of mine still showing a kit version (made by an older page) gets the
+  // kit's page as files, as its next version. Its kit versions stay in its history.
+  const toCode = list.filter((p) => p.owner === me && p.kit !== 'code' && !p.versions[p.cur].files);
+  for (const p of toCode) {
+    const v = p.versions[p.cur];
+    p.versions = [...p.versions, { v: Math.max(...p.versions.map((x) => x.v)) + 1, at: Date.now(), by: me, note: 'Now real code: the kit’s page as files', params: v.params, files: window.R4Projects.kitFiles(p.kit, v.params) }];
+    p.cur = p.versions.length - 1;
+  }
   let chain = Promise.resolve();
   function persist(all) {
     list = all;
@@ -79,6 +87,7 @@
   }
   function toastErr(t) { const el = document.createElement('div'); el.className = 'ctoast'; el.textContent = t; document.body.append(el); setTimeout(() => el.remove(), 4000); }
   Object.assign(window.R4Projects, { all: () => list, save: persist });
+  if (toCode.length) persist(list);
 
   window.R4Build = {
     left: built.left,
