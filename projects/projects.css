@@ -366,3 +366,8 @@ button.gllive{all:unset;cursor:pointer;position:absolute;left:8px;top:7px;paddin
 .glcover{all:unset;cursor:pointer;position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(circle at 50% 50%,#3DD6C618,#0D0B1F 70%)}
 .glcover[hidden]{display:none}
 .glcover span{padding:12px 22px;border-radius:999px;background:#3DD6C6;color:#000;font:800 16px Sora,system-ui,sans-serif;box-shadow:0 0 24px -4px #3DD6C688}
+/* the line and block editors: a full-page panel, the preview and the code given room */
+dialog.psheet.full{width:100%;max-width:760px;height:100dvh;max-height:100dvh;margin:0 auto;border:0;border-radius:0;box-sizing:border-box;padding:calc(12px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));overflow-y:auto;align-content:start;box-shadow:none}
+dialog.psheet.full .playh{position:sticky;top:calc(-12px - env(safe-area-inset-top));z-index:3;margin:-12px -16px 0;padding:calc(12px + env(safe-area-inset-top)) 16px 10px;background:#0D0B1F;border-bottom:1px solid var(--line)}
+dialog.psheet.full .glprev .glframe{height:38dvh}
+dialog.psheet.full .glbody{max-height:none;overflow:visible}

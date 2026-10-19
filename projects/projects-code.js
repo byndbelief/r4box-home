@@ -337,7 +337,7 @@
     const lang = langOf(file), code = curLines().slice(a - 1, b).join('\n');
     const chips = (v) => { const w = wordsOn(v, lang); return w.length ? `<span class="lwl">📖</span>${w.map((x) => `<button class="lchip" data-word="${esc(x)}">${esc(x)}</button>`).join('')}` : ''; };
     const d = X.sheet(`<div class="playh"><b>✏️ ${esc(blockName(a))}</b><small>lines ${a}–${b} · ${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
-      <div class="glbody"><div class="lbox"></div><div class="lwords">${chips(code)}</div><p class="note small">Tap a line number in the file to change just one line.</p><div class="lnav"><button data-bstep="-1"></button><button data-bstep="1"></button></div></div>`);
+      <div class="glbody"><div class="lbox"></div><div class="lwords">${chips(code)}</div><p class="note small">Tap a line number in the file to change just one line.</p><div class="lnav"><button data-bstep="-1"></button><button data-bstep="1"></button></div></div>`, { full: true });
     let changed = false;
     const wireChips = () => d.querySelectorAll('[data-word]').forEach((x) => (x.onclick = () => { d.close(); openWord(x.dataset.word, a); }));
     codeBox(d.querySelector('.lbox'), d, { code, lang, line: a, span: b - a + 1,
@@ -354,7 +354,7 @@
     const line = curLines()[n - 1] ?? '', lang = langOf(file), nt = notesNow()?.[n];
     const chips = (v) => { const w = wordsOn(v, lang); return w.length ? `<span class="lwl">📖</span>${w.map((x) => `<button class="lchip" data-word="${esc(x)}">${esc(x)}</button>`).join('')}` : ''; };
     const d = X.sheet(`<div class="playh"><b>✏️ Line ${n}</b><small>${esc(file)}</small><button data-close aria-label="Close">✕</button></div>
-      <div class="glbody"><div class="lbox"></div>${nt ? `<p class="glnote small">💡 ${marked(nt.text, nt.terms).html}</p>` : ''}<div class="lwords">${chips(line)}</div>${blockAt(n) ? `<button class="lblock" data-block>⤢ The whole ${esc(blockName(n))} (lines ${n}–${blockAt(n)})</button>` : ''}${NAV}</div>`);
+      <div class="glbody"><div class="lbox"></div>${nt ? `<p class="glnote small">💡 ${marked(nt.text, nt.terms).html}</p>` : ''}<div class="lwords">${chips(line)}</div>${blockAt(n) ? `<button class="lblock" data-block>⤢ The whole ${esc(blockName(n))} (lines ${n}–${blockAt(n)})</button>` : ''}${NAV}</div>`, { full: true });
     let changed = false;
     const wireChips = () => d.querySelectorAll('[data-word]').forEach((b) => (b.onclick = () => { d.close(); openWord(b.dataset.word, n); }));
     codeBox(d.querySelector('.lbox'), d, { code: line, lang, line: n,

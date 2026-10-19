@@ -34,7 +34,7 @@
   // only: start from code, no kits. (Older choices: "developer" stays; "maker" and "both" are standard.)
   const devOnly = (u) => { try { return localStorage.getItem('r4.builder.' + u.id) === 'developer'; } catch { return false; } };
   const dev = () => true, kits = () => !devOnly(viewer);
-  const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs, image) => window.R4Build.ask(p, q, files, logs, image), openBench: (id) => openBench(id), explain: (p, f, src) => window.R4Build.explain(p, f, src), sheet: (h) => sheet(h), markUp, withShot, phoneTest, shareSheet });
+  const ctx = () => ({ sw, esc, toast, viewer: () => viewer, byId, canEdit, save, ago, left, spend: () => {}, claude: (p, q, files, logs, image) => window.R4Build.ask(p, q, files, logs, image), openBench: (id) => openBench(id), explain: (p, f, src) => window.R4Build.explain(p, f, src), sheet: (h, o) => sheet(h, o), markUp, withShot, phoneTest, shareSheet });
   // Bench ⇄ Preview: one switch, always in reach at the bottom of the screen
   function sw(mode, toBench, toPrev, code) {
     let el = document.getElementById('bsw'); if (!el) { el = document.createElement('div'); el.id = 'bsw'; el.className = 'bswitch'; el.setAttribute('role', 'tablist'); $('app').append(el); }
@@ -377,7 +377,7 @@
   }
 
   // ---------- play, phone test, share ----------
-  function sheet(html) { const d = $('sheet'); d.innerHTML = html; d.showModal(); d.onclick = (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); }; return d; }
+  function sheet(html, o) { const d = $('sheet'); d.classList.toggle('full', !!(o && o.full)); d.innerHTML = html; d.showModal(); d.scrollTop = 0; d.onclick = (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); }; return d; }
   function player(p) { sheet(`<div class="playh"><b>${esc(p.name)}</b><small>by ${esc(byId(p.owner).name)}</small><button data-close aria-label="Close">✕</button></div><iframe class="playf" sandbox="allow-scripts" title="${esc(p.name)}"></iframe>`).querySelector('iframe').srcdoc = PR.html(p); }
   function phoneTest(p) {
     const link = 'https://r4box.com/p/' + p.id;   // 404.html sends it on to projects.html?play=
