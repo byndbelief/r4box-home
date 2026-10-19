@@ -291,3 +291,5 @@ i.t-attr{font-style:normal;color:#B9A6FF}i.t-prop{font-style:normal;color:#7DF0C
 .gled:focus-within>pre.glcode{visibility:hidden}
 .gled:focus-within>textarea.glcode{color:#E6E1FF!important;-webkit-text-fill-color:#E6E1FF}
 .gled>.glcode{word-break:normal;overflow-wrap:anywhere;tab-size:2}
+.glacts .glaskb{border-color:#F5C54255;background:#F5C54212;color:var(--gold)}
+.glacts .glapply{border-color:#3DD6C655;background:#3DD6C612;color:var(--teal)}

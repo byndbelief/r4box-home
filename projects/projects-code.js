@@ -150,16 +150,16 @@
   }
   const defOf = (t) => { const k = t.toLowerCase(), c = gloss[k], s = Object.entries(GLOSS).find(([w]) => w.toLowerCase() === k); return c ? c : s ? { term: s[0], means: s[1][0], example: s[1][1] } : null; };
   const exLang = (x) => (/^\s*</.test(x) ? 'html' : /\{[^}]*:/.test(x) && !/[=(]/.test(x) ? 'css' : 'js');
-  const entry = (d) => `<div class="gl" data-term="${esc(d.term)}" role="button" tabindex="0" aria-expanded="false"><b><span>${esc(d.term)}</span><button class="glask" data-askc aria-label="Ask Claude about ${esc(d.term)}">✦ Ask</button><i class="glchev">⌄</i></b><p>${esc(d.means)}</p><div class="glmore" hidden></div></div>`;
+  const entry = (d) => `<div class="gl" data-term="${esc(d.term)}" role="button" tabindex="0" aria-expanded="false"><b><span>${esc(d.term)}</span><i class="glchev">⌄</i></b><p>${esc(d.means)}</p><div class="glmore" hidden></div></div>`;
   // A word card, opened: where this file uses it, ▶ Try it (the example, editable, run in a sandbox),
   // and ✦ Ask Claude about it (in the Claude tab, about this code).
   const usesOf = (term, src, lang) => { const t = term.toLowerCase(); return src.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => wordsOn(l, lang).some((w) => w.toLowerCase() === t) || new RegExp('(^|[^\\w])' + RE(term) + '(?![\\w])', 'i').test(l)); };
   const RUNNER = "<script>(function(){var o=function(k,a){parent.postMessage({r4try:[k,[].map.call(a,function(x){try{return typeof x==='object'?JSON.stringify(x):String(x)}catch(e){return String(x)}}).join(' ')]},'*')};['log','info','warn','error'].forEach(function(k){console[k]=function(){o(k,arguments)}});addEventListener('error',function(e){o('error',[e.message])})})()<\/script>";
   // The one code box: coloured, editable, ▶ Run in a sandbox (an example on its own; a line of the file
   // inside the whole project, so it runs for real), and ✓ Apply to put an edited line into the file.
-  function codeBox(host, d, { code, lang, line, apply }) {
+  function codeBox(host, d, { code, lang, line, apply, term }) {
     host.innerHTML = `<div class="gled"><pre class="glcode" aria-hidden="true">${hl(code, lang).slice(0, -1) || ' '}</pre><textarea class="glcode" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Code">${esc(code)}</textarea></div>
-      <div class="glacts"><button data-run>▶ Run</button>${apply ? '<button class="glapply" data-apply disabled>✓ Apply</button>' : ''}<small>${apply ? 'Edit, ▶ to try it in the project, ✓ to put it in ' + esc(file) + '.' : 'Edit it and ▶ again: nothing here touches your project.'}</small></div><div class="glout"></div><iframe class="glframe" sandbox="allow-scripts allow-modals" title="Run" hidden></iframe>`;
+      <div class="glacts"><button data-run>▶ Run</button><button class="glaskb" data-askb>✦ Ask</button>${apply ? '<button class="glapply" data-apply disabled>✓ Apply</button>' : ''}<small>${apply ? 'Edit, ▶ to try it in the project, ✓ to put it in ' + esc(file) + '.' : 'Edit it and ▶ again: nothing here touches your project.'}</small></div><div class="glout"></div><iframe class="glframe" sandbox="allow-scripts allow-modals" title="Run" hidden></iframe>`;
     const ta = host.querySelector('textarea'), pre = host.querySelector('pre'), out = host.querySelector('.glout'), fr = host.querySelector('iframe'), ap = host.querySelector('[data-apply]');
     let lit = null;
     const draw = () => { const v = ta.value, r = lit && spot(v, lit, lang); pre.innerHTML = r ? hl(v.slice(0, r[0]), lang).slice(0, -1) + `<mark>${hl(v.slice(r[0], r[1]), lang).slice(0, -1)}</mark>` + hl(v.slice(r[1]), lang).slice(0, -1) : hl(v, lang).slice(0, -1) || ' '; };
@@ -179,13 +179,18 @@
       }
       setTimeout(() => { if (lang === 'js' && !out.children.length) out.innerHTML = '<div class="cl dim">ran, nothing logged · add console.log(…) to see a value</div>'; }, 900);
     };
+    // ✦ Ask: Claude, in the Claude tab, about this line (and the word whose card is open), or this word
+    host.querySelector('[data-askb]').onclick = () => {
+      const open = d.querySelector('.gl.open'), w = (open && open.dataset.term) || term, v = ta.value.trim();
+      const q = line ? `What does line ${line} of ${file} do${w ? `, and what does "${w}" mean there` : ''}?\n${v}` : `Explain "${w}" to me, using my ${file} as the example.`;
+      d.close(); tab = 'claude'; paint(); claude(q);
+    };
     if (ap) ap.onclick = () => { apply(ta.value); code = ta.value; ap.disabled = true; X.toast('✓ Line ' + line + ' changed: commit when you’re ready.'); };
   }
   function activate(d) {
     d.querySelectorAll('.gl[data-term]').forEach((card) => {
-      card.querySelector('.glask').onclick = (e) => { e.stopPropagation(); const term = card.dataset.term; d.close(); tab = 'claude'; paint(); claude(`Explain "${term}" to me, using my ${file} as the example.`); };
       const toggle = (e) => {
-        if (e.target.closest('.glmore, .glask')) return;
+        if (e.target.closest('.glmore')) return;
         const open = card.classList.toggle('open'); card.setAttribute('aria-expanded', open);
         const lb = d.querySelector('.lbox');
         if (lb && lb.mark) { d.querySelectorAll('.gl.open').forEach((x) => { if (x !== card) { x.classList.remove('open'); x.setAttribute('aria-expanded', 'false'); x.querySelector('.glmore').hidden = true; } }); lb.mark(open ? card.dataset.term : null); }
@@ -198,7 +203,7 @@
         if (!inLine && ex) {
           // an example that prints nothing gets a console.log of its last variable, so ▶ shows something
           const xl = exLang(ex), nm = xl === 'js' && !/console\.log/.test(ex) && ([...ex.matchAll(/\b(?:let|const|var)\s+(\w+)|^\s*(\w+)\s*(?:=|\+\+)/gm)].pop() || []).slice(1).find(Boolean);
-          codeBox(more.querySelector('.glbox'), d, { code: nm ? ex + '\nconsole.log(' + nm + ');' : ex, lang: xl });
+          codeBox(more.querySelector('.glbox'), d, { code: nm ? ex + '\nconsole.log(' + nm + ');' : ex, lang: xl, term });
         }
       };
       card.onclick = toggle; card.onkeydown = (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); toggle(e); } };
