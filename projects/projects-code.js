@@ -4,6 +4,7 @@
    files, points at the last error, and adds a few real features as reviewed commits. */
 (function () {
   const PR = window.R4Projects;
+  const ST = window.R4Structure;   // one thing per line (structure.js)
   const TEMPLATES = {
     canvas: { name: 'Canvas game', blurb: 'A game loop, a player, things to catch.', files: {
       'index.html': '<!doctype html>\n<html>\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width,initial-scale=1">\n  <title>My game</title>\n</head>\n<body>\n  <canvas id="c"></canvas>\n  <div id="hud">score <b id="score">0</b></div>\n</body>\n</html>\n',
@@ -56,7 +57,7 @@
   function run_() { run(); }
   function commit(msg, files, by) {
     p.versions = p.versions.slice(0, p.cur + 1);
-    p.versions.push({ v: head().v + 1, at: Date.now(), note: msg, params: {}, files: { ...files }, by: by || X.viewer().id }); p.cur = p.versions.length - 1;
+    p.versions.push({ v: head().v + 1, at: Date.now(), note: msg, params: {}, files: ST.structure(files), by: by || X.viewer().id }); p.cur = p.versions.length - 1;
     draft = null; X.save(); paint();
   }
   addEventListener('message', (e) => { if (!p || !e.data || !e.data.r4log || ![$('pv'), $('pv2')].some((f) => f && f.contentWindow === e.source)) return; logs.push(e.data.r4log); if (logs.length > 80) logs.shift(); paintConsole(); });
@@ -310,7 +311,7 @@
     const wireChips = () => d.querySelectorAll('[data-word]').forEach((b) => (b.onclick = () => { d.close(); openWord(b.dataset.word, n); }));
     codeBox(d.querySelector('.lbox'), d, { code: line, lang, line: n,
       onInput: (v) => { d.querySelector('.lwords').innerHTML = chips(v); wireChips(); const g = d.querySelector('.glnote'); if (g) g.classList.add('stale'); },
-      apply: X.canEdit(p) ? (v) => { editLine(n, v); changed = true; } : null });
+      apply: X.canEdit(p) ? (v) => { changed = true; if (editLine(n, v)) d.close(); } : null });
     wireChips(); lineNav(d, n, openLine);
     d.addEventListener('close', () => { if (changed) paint(); }, { once: true });
   }
@@ -366,10 +367,11 @@
   // One line of the open file, changed from the help panel: a draft, like typing in the editor.
   function editLine(k, v) {
     draft = draft || { ...head().files };
-    const before = draft[file] ?? '', L = before.split('\n'); L[k - 1] = v; draft[file] = L.join('\n');
+    const before = draft[file] ?? '', L = before.split('\n'); L[k - 1] = v; draft[file] = ST.one(file, L.join('\n'));
     // Claude's notes stay with their lines (one line changed, none moved)
-    const old = helpCache.get(file + '\u0000' + before); if (old) helpCache.set(file + '\u0000' + draft[file], old);
+    const old = helpCache.get(file + '\u0000' + before), moved = draft[file].split('\n').length !== L.length; if (old && !moved) helpCache.set(file + '\u0000' + draft[file], old);
     $('bver').textContent = 'v' + head().v + (dirty() ? ' · unsaved' : '');
+    return moved;
   }
   // Help starts with the glossary only; Claude reads the file when asked (a question, not a build).
   const reading = new Set();
@@ -396,6 +398,7 @@
       <div class="prev mini" hidden><iframe id="pv" title="Preview" sandbox="allow-scripts allow-modals" tabindex="-1"></iframe><button class="pcover" id="popen" aria-label="Open the preview"><span>⤢ Open preview</span></button><span class="live">● run</span></div><div class="cons" id="cons"></div>
       <div class="btabs" id="ctabs"></div><div class="tbody" id="ctb"></div></div>`;
     $('crun').onclick = run; $('popen').onclick = openPanel; X.sw('bench', null, openPanel, true); $('cphone').onclick = () => X.phoneTest(p); $('cshare').onclick = () => X.shareSheet(p); $('cshare').hidden = p.owner !== X.viewer().id;
+    if (X.canEdit(p)) { const f = head().files, s = ST.structure(f); if (Object.keys(f).some((k) => f[k] !== s[k])) commit('One thing per line, so each line opens on its own', f, X.viewer().id); }
     paint(); run(); window.scrollTo(0, 0);
     if (autoAsk) { tab = 'claude'; paint(); claude(autoAsk); }   // an idea that Claude builds: it starts at once
   }
@@ -473,7 +476,7 @@
   }
   function create(tpl, ctx, from) {
     const v = ctx.viewer(), t = TEMPLATES[tpl], files = from ? { 'index.html': PR.html(from), 'style.css': '/* extra styles */\n', 'main.js': '// your code runs after the page\nconsole.log(' + JSON.stringify(from.name + ' as code') + ');\n' } : { ...t.files };
-    const p0 = { id: 'code-' + Date.now().toString(36), owner: v.id, kit: 'code', name: from ? from.name + ' (code)' : t.name, published: false, versions: [{ v: 1, at: Date.now(), note: from ? 'Opened ' + from.name + ' as code' : 'Started from ' + t.name, params: {}, files }], cur: 0 };
+    const p0 = { id: 'code-' + Date.now().toString(36), owner: v.id, kit: 'code', name: from ? from.name + ' (code)' : t.name, published: false, versions: [{ v: 1, at: Date.now(), note: from ? 'Opened ' + from.name + ' as code' : 'Started from ' + t.name, params: {}, files: ST.structure(files) }], cur: 0 };
     return p0;
   }
   window.CodeBench = { open, create, TEMPLATES };

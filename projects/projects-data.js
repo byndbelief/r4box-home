@@ -65,11 +65,11 @@
   function kitFiles(kit, params) {
     cap = true; let parts; try { parts = KITS[kit].build(params); } finally { cap = false; }
     const p = parts.p, base = `html,body{margin:0;height:100%;background:${p.bg};color:#fff;font:16px/1.4 system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}h1{margin:0;font-size:${20 * p.size}px}b{color:${p.color}}`;
-    return {
+    return window.R4Structure.structure({
       'index.html': `<!doctype html>\n<html>\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width,initial-scale=1">\n  <title>${String(p.title || KITS[kit].name).replace(/</g, '&lt;')}</title>\n</head>\n<body>\n${prettyHTML(parts.body)}\n</body>\n</html>\n`,
       'style.css': `/* how it looks */\n${prettyCSS(base + parts.css)}`,
       'main.js': `// ${KITS[kit].name}: its settings, then what it does.\nconst P = ${JSON.stringify(p, null, 2).replace(/</g, '\\u003c')};\n\n${TONE}\n${KIT_JS[kit] ? KIT_JS[kit].trim() + '\n' : parts.js ? prettyJS(parts.js) : '// nothing moves yet: ask Claude to add something\n'}`,
-    };
+    });
   }
 
   window.R4Projects = {

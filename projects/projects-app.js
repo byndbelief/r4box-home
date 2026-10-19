@@ -108,7 +108,7 @@
       markUp(pn, $('kpv'), async (text, image) => {
         const q = cur(), r2 = await window.R4Build.ask(q, text, null, null, image);
         chat.push({ me: true, t: '✏️ ' + text }, { t: r2.say, ok: !!(r2.change || r2.files) });
-        if (r2.files) { q.versions = q.versions.slice(0, q.cur + 1); q.versions.push({ v: q.versions[q.versions.length - 1].v + 1, at: Date.now(), note: r2.note, params: {}, files: r2.files, by: viewer.id }); q.cur = q.versions.length - 1; if (r2.name) q.name = r2.name; save(); show(); openBench(q.id, r2.say); }
+        if (r2.files) { q.versions = q.versions.slice(0, q.cur + 1); q.versions.push({ v: q.versions[q.versions.length - 1].v + 1, at: Date.now(), note: r2.note, params: {}, files: window.R4Structure.structure(r2.files), by: viewer.id }); q.cur = q.versions.length - 1; if (r2.name) q.name = r2.name; save(); show(); openBench(q.id, r2.say); }
         else if (r2.change) { commit(q, r2.change, r2.note); show(); }
         return r2.say + (r2.change ? ' (v' + q.versions[q.cur].v + ')' : '');
       }); };
@@ -263,7 +263,7 @@
       chat = chat.filter((m) => !m.wait);
       if (r.files && open === p.id) {
         p.versions = p.versions.slice(0, p.cur + 1);
-        p.versions.push({ v: p.versions[p.versions.length - 1].v + 1, at: Date.now(), note: r.note, params: {}, files: r.files, by: viewer.id }); p.cur = p.versions.length - 1;
+        p.versions.push({ v: p.versions[p.versions.length - 1].v + 1, at: Date.now(), note: r.note, params: {}, files: window.R4Structure.structure(r.files), by: viewer.id }); p.cur = p.versions.length - 1;
         if (r.name) p.name = r.name;
         save(); toast('✦ It outgrew the kit: it’s real code now. Commits can take it back.'); return openBench(p.id, r.say);
       }
