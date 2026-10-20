@@ -474,22 +474,13 @@
     }
 
     // ---------------- signed in ----------------
-    // One sign-in: the game room has no sign-in of its own. Going there, the session
-    // rides along in the URL fragment (never sent to a server; the game room takes it
-    // out of the address at once). Only ever to games.r4box.com.
-    async function go(href) {
+    // The box's apps and the game room (other r4box.com subdomains) open inside open.html, full
+    // screen, so the installed app never leaves r4box.com (Android puts its own address bar on
+    // another address). open.html hands over the sign-in: the door's cookie, the game room's fragment.
+    function go(href) {
       const u = new URL(href);
-      const { data: { session } } = await sb.auth.getSession();   // refreshed if it was stale
-      if (u.protocol === 'https:' && u.hostname === 'games.r4box.com') {
-        if (session) {
-          const t = btoa(JSON.stringify({ a: session.access_token, r: session.refresh_token })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-          const h = u.hash.replace(/^#/, '');
-          u.hash = (h ? h + '&' : '') + 'r4sso=' + t;
-        }
-      } else if (u.protocol === 'https:' && u.hostname.endsWith('.r4box.com') && u.pathname === '/.r4door/enter') {
-        handOver(session);   // the box's door asked for this sign-in
-      }
-      location.assign(u.href);
+      if (u.protocol === 'https:' && u.hostname.endsWith('.r4box.com')) location.assign('/open.html?to=' + encodeURIComponent(u.href));
+      else location.assign(u.href);
     }
     // ---------------- the home ----------------
     // The family world fills the top (together.js: everyone's tree on one ground, roots for
@@ -711,7 +702,7 @@
         e.preventDefault();
         if (!$('hits').hidden && $('hits').querySelector('a.on')) return;   // Enter on a match goes there (below)
         const t = q.value.trim(); if (!t) { q.focus(); return; }
-        if (ME.role === 'parent') { location.href = 'https://os.r4box.com/?task=' + encodeURIComponent(t); return; }
+        if (ME.role === 'parent') { go('https://os.r4box.com/?task=' + encodeURIComponent(t)); return; }
         if (H.off.has('chat')) { hmsg('Chat is turned off for now, so Claude can’t answer here.'); return; }
         try { sessionStorage.setItem('r4.claude.draft', t); } catch {}
         location.href = '/chat.html';
@@ -750,7 +741,7 @@
       const a = e.target.closest('a[href]');
       if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
       if (a.dataset.ask) { e.preventDefault(); if ($('q')?.value.trim()) askFromBar(); else openTutor(); return; }
-      if (a.href.startsWith('https://games.r4box.com/')) { e.preventDefault(); go(a.href); }
+      if (/^https:\/\/[a-z0-9-]+\.r4box\.com\//.test(a.href) && a.target !== '_blank') { e.preventDefault(); go(a.href); }
     });
     function askFromBar() { const t = $('q').value.trim(); $('q').value = ''; $('hits').hidden = true; openTutor(null, t); }
     // The menu: a passkey for this device, the admin page, sign out.

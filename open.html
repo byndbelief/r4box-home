@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="robots" content="noindex">
+  <title>r4box</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- The box's apps (diary, os, term…) and the game room live on their own r4box.com subdomains.
+       Opened from the installed app, Android shows its own address bar for another address; here
+       they open full screen inside r4box.com instead, so the app never leaves home.
+       Only https://<app>.r4box.com is shown; anything that comes back to r4box.com itself (a
+       "back to r4box" link, a sign-in) takes over the whole window again. -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+    iframe { display: block; border: 0; width: 100%; height: 100dvh; padding-top: env(safe-area-inset-top); box-sizing: border-box; background: #000; }
+  </style>
+</head>
+<body>
+<iframe id="app" title="r4box app" allow="fullscreen; clipboard-read; clipboard-write; camera; microphone; autoplay"></iframe>
+<script type="module">
+  import { sb, handOver } from './auth.js?v=115';
+  const fr = document.getElementById('app');
+  let u = null;
+  try { u = new URL(new URLSearchParams(location.search).get('to') || ''); } catch {}
+  if (!u || u.protocol !== 'https:' || !/^[a-z0-9-]+\.r4box\.com$/.test(u.hostname)) location.replace('/');
+  else {
+    const { data: { session } } = await sb.auth.getSession();
+    if (u.hostname === 'games.r4box.com') {
+      // the game room's sign-in rides in the fragment (never sent to a server), as from home
+      if (session) {
+        const t = btoa(JSON.stringify({ a: session.access_token, r: session.refresh_token })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const h = u.hash.replace(/^#/, '');
+        u.hash = (h ? h + '&' : '') + 'r4sso=' + t;
+      }
+    } else if (session) handOver(session);   // the box's door takes the sign-in from this short-lived cookie
+    document.title = u.hostname.split('.')[0] + ' · r4box';
+    fr.onload = () => {
+      // came back to r4box.com (same origin, so readable): that page gets the whole window
+      let here = null; try { here = fr.contentWindow.location.href; } catch {}
+      if (here && here !== 'about:blank') location.replace(here);
+    };
+    fr.src = u.href;
+  }
+</script>
+</body>
+</html>

@@ -25,7 +25,9 @@ self.addEventListener('push', (e) => {
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  const url = new URL(e.notification.data?.url || './', 'https://games.r4box.com/').href;
+  const to = new URL(e.notification.data?.url || './', 'https://games.r4box.com/').href;
+  // a game opens inside r4box.com (open.html), so the installed app keeps no address bar
+  const url = /^https:\/\/[a-z0-9-]+\.r4box\.com\//.test(to) ? new URL('/open.html?to=' + encodeURIComponent(to), self.location.origin).href : to;
   e.waitUntil((async () => {
     // The page is open already (the chat in another tab): bring it forward.
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
