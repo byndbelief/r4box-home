@@ -385,7 +385,7 @@
       $('dig').onclick = async () => { await window.R4Store.dig(p, s.id); live.setSeeds(seedsOf(p)); $('pick').hidden = true; if (!document.body.classList.contains('isfull')) renderHome(p); };
       return;
     }
-    if (h.topic) { full(false); return renderStory(p, h.topic); }
+    if (h.topic) { if (sideMode()) { live.focusTopic(h.topic.id); return storyPanel(p, h.topic, () => { live.light(null); $('pick').hidden = true; }); } full(false); return renderStory(p, h.topic); }
     live.light(null);   // tapped away: the whole tree again, turning
     if (h.tree) return showTree(p);
     $('pick').hidden = true;
@@ -393,8 +393,10 @@
   function showTree(p) {
     const a = access(p), limbs = p.world.topics.filter((x) => x.source === 'tutor');
     $('pick').hidden = false;
-    $('pick').innerHTML = `<h2>🌳 ${a === 'own' ? 'Your tree' : esc(p.name) + '’s tree'} <small>${limbs.length} limb${limbs.length === 1 ? '' : 's'}</small></h2><div class="chips" style="margin-top:10px">${limbs.slice(0, 16).map((x) => `<button data-t="${x.id}">${esc(x.title)}</button>`).join('')}</div>`;
-    $('pick').querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { full(false); renderStory(p, limbs.find((x) => x.id === b.dataset.t)); }));
+    $('pick').innerHTML = `<h2>🌳 ${a === 'own' ? 'Your tree' : esc(p.name) + '’s tree'} <small>${limbs.length} limb${limbs.length === 1 ? '' : 's'}</small></h2><div class="chips" style="margin-top:10px">${limbs.map((x) => `<button data-t="${x.id}">${esc(x.title)}</button>`).join('')}</div>`;
+    $('pick').querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { const t = limbs.find((x) => x.id === b.dataset.t);
+      if (sideMode()) { live.focusTopic(t.id); return storyPanel(p, t, () => { live.light(null); showTree(p); }); }   // on its side: the limb's story in the same panel
+      full(false); renderStory(p, t); }));
   }
   function plantForm(p, at) {
     let kind = 'tutor';
