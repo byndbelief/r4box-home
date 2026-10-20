@@ -134,7 +134,8 @@
     .hquick .hres { top: auto; bottom: calc(100% + 6px); }
     .hquick .hdock { margin-top: 12px; }
     /* which world: mine (the default) or the family's */
-    .wswitch { position: absolute; z-index: 3; top: 10px; left: 50%; transform: translateX(-50%); display: flex; padding: 3px; border-radius: 99px; background: #0D0B1Fcc; border: 1px solid var(--line); backdrop-filter: blur(6px); }
+    .wswitch { position: absolute; z-index: 3; top: calc(env(safe-area-inset-top) + 64px);   /* below the header that sits over the world */
+      left: 50%; transform: translateX(-50%); display: flex; padding: 3px; border-radius: 99px; background: #0D0B1Fcc; border: 1px solid var(--line); backdrop-filter: blur(6px); }
     .wswitch button { all: unset; cursor: pointer; padding: 6px 14px; border-radius: 99px; font: 700 13px/1 var(--body); color: var(--muted); }
     .wswitch button[aria-pressed="true"] { background: var(--violet, #B9A6FF); color: #150F33; }
     /* talk from home: the chat's latest, and a call */
@@ -356,7 +357,7 @@
 
   <script src="diary-tree.js?v=9"></script>
   <script src="ecosystem.js"></script>
-  <script src="together.js?v=2"></script>
+  <script src="together.js?v=3"></script>
   <script type="module">
     import { sb, FAMILY, roleOf, nameOf, handOver } from './auth.js';
     const $ = (id) => document.getElementById(id);
