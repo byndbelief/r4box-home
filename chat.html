@@ -16,7 +16,7 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
   <link rel="stylesheet" href="world/world.css?v=7">
-  <link rel="stylesheet" href="chat.css">
+  <link rel="stylesheet" href="chat.css?v=2">
   <style>
     :root { --teal-ink: #062A26; --hot-soft: #4A2230; --panel-2: #141130; }
     [hidden] { display: none !important; }
@@ -65,11 +65,12 @@
 <div class="quick" id="quick"><button type="button">👍</button><button type="button">❤️</button><button type="button">😂</button><button type="button">🎉</button></div>
 <div class="preview" id="preview" hidden><img id="previewimg" alt="Photo to send"><button id="unphoto" type="button">Remove</button></div>
 <div class="row1"><button class="chipc" id="atclaude" type="button">✦ @claude</button><span class="left" id="left">Write @claude to ask Claude</span></div>
-<form id="send"><button class="ibtn" type="button" id="photo" aria-label="Add a photo">📷</button><input type="file" id="file" accept="image/*" hidden><textarea id="text" rows="1" placeholder="Message the family…" maxlength="4000" aria-label="Message"></textarea><button class="ibtn send" id="go" aria-label="Send">↑</button></form>
+<form id="send"><button class="ibtn" type="button" id="photo" aria-label="Add a photo">📷</button><button class="ibtn" type="button" id="tripbtn" aria-label="Talk about a trip">✈️</button><input type="file" id="file" accept="image/*" hidden><textarea id="text" rows="1" placeholder="Message the family…" maxlength="4000" aria-label="Message"></textarea><button class="ibtn send" id="go" aria-label="Send">↑</button></form>
 </div>
 <div id="call" hidden role="dialog" aria-label="Video call"><div class="stage" id="stage"></div><div class="bar"><button id="callmin" aria-label="Back to the chat">⌄</button><button id="mic" aria-pressed="false" aria-label="Mute">🎤</button><button id="cam" aria-pressed="false" aria-label="Turn camera off">📷</button><button id="flip" aria-label="Switch camera" hidden>🔄</button><button id="hang" class="end" aria-label="Leave the call">✕</button></div></div>
 <dialog class="cdlg" id="pick"><b>📹 Call who?</b><div class="picks" id="picks"></div><div class="row"><button id="pickno">Cancel</button></div></dialog>
 <dialog class="cdlg" id="ring"><b id="ringwho">📹 Video call</b><div style="color:var(--muted);font-size:13px;margin-top:6px" id="ringnote">The family is on a call.</div><div class="row"><button id="ringno">Not now</button><button id="ringyes" style="background:var(--teal);color:var(--teal-ink);border-color:var(--teal)">Join</button></div></dialog>
+<dialog class="cdlg" id="tripdlg"><b>✈️ Talk about a trip</b><div style="color:var(--muted);font-size:13px;margin-top:6px">The chat turns into that trip’s conversation. @claude knows its plan there.</div><div class="picks" id="trippicks"></div><div class="row"><button id="tripno">Cancel</button></div></dialog>
 <dialog class="cdlg" id="del"><b>Delete this message?</b><div style="color:var(--muted);font-size:13px;margin-top:6px">It goes for everyone, with its replies.</div><div class="row"><button id="delno">Cancel</button><button class="bad" id="delyes">Delete</button></div></dialog>
 <div id="viewer" hidden><img id="viewimg" alt=""></div>
 </div>
@@ -152,10 +153,35 @@
     trip = data?.[0] || null;
   }
 
+  // A trip's dates, short: "Dec 3 – 7 · in 44 days"
+  const tripWhen = (r) => { if (!r.starts) return r.place || ''; const f = (d) => new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' });
+    const days = Math.round((new Date(r.starts + 'T12:00:00') - new Date()) / 864e5);
+    return `${f(r.starts)}${r.ends && r.ends !== r.starts ? ' – ' + f(r.ends) : ''}${days > 0 ? ` · in ${days} day${days === 1 ? '' : 's'}` : r.ends && r.ends >= new Date().toISOString().slice(0, 10) ? ' · now' : ''}`; };
+  // Throw a trip in: its card's thread is the chat about that trip (one card per trip; the newest is used).
+  async function talkTrip(id) {
+    let card = [...msgs].reverse().find((x) => !x.reply_to && x.ref?.type === 'trip' && x.ref.id === id);
+    if (!card) {
+      const { data: { session: s } } = await sb.auth.getSession();
+      const r = await fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ref: { type: 'trip', id } }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { toast(j.error || 'Could not open the trip.'); return; }
+      await load(); card = msgs.find((x) => x.id === j.id);
+    }
+    if (card) openThread(card.id);
+  }
+  $('tripbtn').onclick = async () => {
+    const { data } = await sb.from('trips').select('id, name, place, starts, ends').order('starts', { ascending: false, nullsFirst: false });
+    const today = new Date().toISOString().slice(0, 10), list = (data || []).sort((a, b) => ((a.ends && a.ends < today) - (b.ends && b.ends < today)) || String(a.starts || '').localeCompare(String(b.starts || '')));
+    $('trippicks').innerHTML = list.length ? list.map((t) => `<button data-trip="${esc(t.id)}">✈️ ${esc(t.name)}<small style="display:block;color:var(--muted);font-weight:400">${esc(tripWhen(t))}</small></button>`).join('') : '<p style="color:var(--muted)">No trips yet. Start one on the trip page.</p>';
+    $('trippicks').querySelectorAll('[data-trip]').forEach((b) => (b.onclick = () => { $('tripdlg').close(); talkTrip(b.dataset.trip); }));
+    $('tripdlg').showModal();
+  };
+  $('tripno').onclick = () => $('tripdlg').close();
+
   // Where a card goes: the item itself (a shared item, a poll on an item, what Claude added), else the trip's Ideas or Chat.
   const tripUrl = (r) => {
     const item = r.type === 'item' ? r.id : r.type === 'poll' ? r.item : r.type === 'added' ? r.ids?.[0] : null;
-    return `/trip.html?t=${encodeURIComponent(r.trip)}${item ? '&i=' + encodeURIComponent(item) : r.type === 'poll' ? '#chat' : '#ideas'}`;
+    return `/trip.html?t=${encodeURIComponent(r.trip)}${item ? '&i=' + encodeURIComponent(item) : '#ideas'}`;
   };
   // A world opens for its owner and a parent (r4_world says the same).
   const worldUrl = (kid) => (kid === ME.id || ME.role === 'parent' ? `/diary.html?kid=${encodeURIComponent(kid)}` : null);
@@ -179,6 +205,8 @@
         return `<button class="po${mine === k ? ' mine' : ''}" data-vote="${q.id}:${k}" ${q.closed ? 'disabled' : ''} aria-pressed="${mine === k}"><i style="width:${pct}%"></i><span>${mine === k ? '✓ ' : ''}${esc(o)}</span><span class="pn">${w.length ? `${w.length} · ${w.map((v) => initial(v.voter)).join(' ')}` : '0'}</span></button>`; }).join('')}
         <div class="pf"><span>${vs.length} voted</span><a href="${esc(tripUrl(r))}">Open in the trip ↗</a></div></div>`;
     }
+    if (r.type === 'trip') { const n = replies(m.id).length;
+      return `<button class="rcard rtrip" data-thread="${m.id}"><span class="ri">✈️</span><span><small>Trip${tripWhen(r) ? ' · ' + esc(tripWhen(r)) : ''}</small><b>${esc(r.name)}</b><em>${n ? `${n} message${n === 1 ? '' : 's'} · ` : ''}Talk about this trip ›</em></span></button>`; }
     if (r.type === 'project') return `<a class="rcard" href="/projects.html?open=${encodeURIComponent(r.id)}"><span class="ri">${esc(r.emoji || '⚒')}</span><span><small>${esc(r.kind || 'Project')} · by ${esc(nameIn(r.owner))} · play ↗</small><b>${esc(r.name)}</b></span></a>`;
     if (r.type === 'story') {
       const u = worldUrl(r.who), tag = u ? 'a' : 'div';
@@ -190,11 +218,11 @@
     return `<${tag} class="flower"${u ? ` href="${esc(u)}" title="Open the world"` : ''}><i>✿</i>${r.grew === 'new' ? 'A flower sprouted' : 'Its flower grew ' + esc(r.grew || 'a petal')} in ${esc(nameIn(r.who))}’s world · ${esc(r.title)}</${tag}>`; };
 
   // ---- attachments: a big preview the first time you see one, then a thumbnail ----
-  const MEDIA = ['poll', 'item', 'call', 'story', 'added', 'project'];
+  const MEDIA = ['poll', 'item', 'call', 'story', 'added', 'project', 'trip'];
   const isMedia = (m) => !!(m.image || (m.ref && MEDIA.includes(m.ref.type)));
   const kindOf = (m) => (m.image ? 'photo' : ['item', 'added'].includes(m.ref.type) ? 'place' : m.ref.type);
   // The words the server writes for a card ("📍 Taco stand", "🌳 Shared a story: …") aren't words someone said.
-  const auto = (m) => !!m.ref && (m.ref.type === 'call' || m.ref.type === 'story' || (['item', 'poll', 'project'].includes(m.ref.type) && /^(📍|📊|⚒) /.test(m.body || '')));
+  const auto = (m) => !!m.ref && (m.ref.type === 'call' || m.ref.type === 'story' || (['item', 'poll', 'project', 'trip'].includes(m.ref.type) && /^(📍|📊|⚒|✈️) /.test(m.body || '')));
   const words = (m) => (auto(m) ? '' : m.body || '');
   const seenKey = 'r4.chat.seen.' + ME.id;
   let seenSet = new Set(); try { seenSet = new Set(JSON.parse(localStorage.getItem(seenKey) || '[]')); } catch {}
@@ -203,7 +231,7 @@
   function thumb(m) {
     const r = m.ref || {};
     if (m.image) return urls.get(m.image) ? `<img src="${esc(urls.get(m.image))}" alt="">` : '📷';
-    return { poll: '📊', item: '📍', added: '✦', call: '📹', story: '🌳', project: esc(r.emoji || '⚒') }[r.type] || '◇';
+    return { poll: '📊', item: '📍', added: '✦', call: '📹', story: '🌳', trip: '✈️', project: esc(r.emoji || '⚒') }[r.type] || '◇';
   }
   function label(m) {
     const r = m.ref || {};
@@ -212,6 +240,7 @@
     if (r.type === 'added') return [(r.titles || []).join(', '), 'Added to ' + (r.trip_name || 'the trip')];
     if (r.type === 'story') return [r.title || 'Untitled', (r.kind === 'entry' ? 'Journal entry' : 'Story') + ' · ' + nameIn(r.who)];
     if (r.type === 'project') return [r.name, (r.kind || 'Project') + ' · by ' + nameIn(r.owner)];
+    if (r.type === 'trip') return [r.name, 'Trip · ' + tripWhen(r)];
     if (r.type === 'call') return [r.to ? 'Called ' + nameIn(r.to) : 'Video call', callIsLive(m) ? 'Live now' : 'Ended'];
     if (r.type === 'poll') {
       const q = pollOf(r.id); if (!q) return [r.question, 'Poll · ' + (r.trip_name || '')];
@@ -226,7 +255,7 @@
     return refHTML(m.ref, m);
   }
   // Big: the first time, when opened, and a live call (its Join button).
-  const big = (m) => opened.has(m.id) || bigNow.has(m.id) || !seenSet.has(m.id) || callIsLive(m);
+  const big = (m) => opened.has(m.id) || bigNow.has(m.id) || !seenSet.has(m.id) || callIsLive(m) || m.ref?.type === 'trip';   // a trip's card stays a door into its conversation
   const io = new IntersectionObserver((es) => es.forEach((e) => { const id = +e.target.dataset.big; if (e.isIntersecting) e.target._t = setTimeout(() => { markSeen(id); io.unobserve(e.target); }, 900); else clearTimeout(e.target._t); }), { threshold: 0.6 });
   const watchBig = (root) => root.querySelectorAll('[data-big]').forEach((el) => { if (!seenSet.has(+el.dataset.big)) io.observe(el); });
 
@@ -439,8 +468,15 @@
   function renderThread() {
     const root = msgs.find((m) => m.id === sub.root); if (!root) return closeSub();
     const rs = replies(root.id);
-    $('tsum').textContent = `${rs.length} repl${rs.length === 1 ? 'y' : 'ies'} · started by ${who(root)}`;
-    $('tlog').innerHTML = `<div class="troot">${msgHTML(root, null, null, { thread: true })}</div>` + listHTML(rs, { thread: true }) + (thinking && thinking.thread === root.id ? '<div class="think">✦ Claude is thinking…</div>' : '');
+    const tr = root.ref?.type === 'trip' ? root.ref : null;
+    sub.pg.querySelector('header b').textContent = tr ? '✈️ ' + tr.name : 'Thread';
+    $('tsum').textContent = tr ? `${rs.length} message${rs.length === 1 ? '' : 's'} · about this trip` : `${rs.length} repl${rs.length === 1 ? 'y' : 'ies'} · started by ${who(root)}`;
+    // a trip's conversation: the trip up top (dates, its open polls), everything below is about it
+    const top = tr ? `<div class="tripban"><small>Trip${tr.place ? ' · ' + esc(tr.place) : ''}</small><b>${esc(tr.name)}</b><span>${esc(tripWhen(tr))}</span>
+        ${polls.filter((q) => q.trip === tr.id && !q.closed).map((q) => refHTML({ type: 'poll', id: q.id, trip: q.trip, trip_name: tr.name, question: q.question, item: q.item }, root)).join('')}
+        <div class="tbacts"><a href="/trip.html?t=${encodeURIComponent(tr.id)}">Open the trip ↗</a><span>Everything here is about this trip; @claude knows its plan.</span></div></div>`
+      : `<div class="troot">${msgHTML(root, null, null, { thread: true })}</div>`;
+    $('tlog').innerHTML = top + listHTML(rs, { thread: true }) + (thinking && thinking.thread === root.id ? '<div class="think">✦ Claude is thinking…</div>' : '');
     watchBig($('tlog'));
     sub.pg.scrollTop = sub.pg.scrollHeight;
   }
@@ -509,9 +545,9 @@
   const pinsOpen = (on) => { $('pins').classList.toggle('open', on); $('pinsbtn').setAttribute('aria-expanded', on); $('pinsbtn').classList.toggle('on', on); };
   $('pinsbtn').onclick = (e) => { e.stopPropagation(); const on = !$('pins').classList.contains('open'); pinsOpen(on); if (on) setTimeout(() => document.addEventListener('click', function off(ev) { if (!ev.target.closest('#pins')) { pinsOpen(false); document.removeEventListener('click', off); } }), 0); };
   $('pins').addEventListener('click', (e) => { const p = e.target.closest('[data-pin]'); if (!p) return; pinsOpen(false);
-    if (p.dataset.pin === 'trip') { location.href = '/trip.html?t=' + encodeURIComponent(trip.id); return; }
+    if (p.dataset.pin === 'trip') { talkTrip(trip.id); return; }   // the pinned trip opens its conversation here
     const m = [...msgs].reverse().find((x) => x.ref?.type === 'poll' && x.ref.id === +p.dataset.pin);
-    if (m) jump(m.id); else { const q = pollOf(+p.dataset.pin); location.href = `/trip.html?t=${encodeURIComponent(q.trip)}#chat`; } });
+    if (m) jump(m.id); else { const q = pollOf(+p.dataset.pin); location.href = `/trip.html?t=${encodeURIComponent(q.trip)}${q.item ? '&i=' + encodeURIComponent(q.item) : ''}`; } });
   $('srch').onclick = () => openSearch();
 
   // ---- settings: the view, and alerts ----
@@ -808,7 +844,10 @@
   // From the home's ✦ Start Claude: the words wait in the composer as an @claude question.
   try { const d = sessionStorage.getItem('r4.claude.draft'); if (d) { sessionStorage.removeItem('r4.claude.draft'); text.value = '@claude ' + d; grow(text); setTimeout(() => text.focus(), 0); } } catch {}
   applyDensity();
-  if (session) { load(); if (matchMedia('(pointer: fine)').matches) text.focus({ preventScroll: true }); }
+  // ?thread=<id>: straight into that thread (a trip item's "Talk about it" lands here)
+  const wantThread = +new URLSearchParams(location.search).get('thread') || 0;
+  const wantTrip = new URLSearchParams(location.search).get('trip');
+  if (session) { load().then(() => { if (wantTrip) { history.replaceState(null, '', '/chat.html'); talkTrip(wantTrip); } else if (wantThread && msgs.some((x) => x.id === wantThread && !x.reply_to)) { history.replaceState(null, '', '/chat.html'); openThread(wantThread); } }); if (matchMedia('(pointer: fine)').matches) text.focus({ preventScroll: true }); }
 </script>
 </body>
 </html>

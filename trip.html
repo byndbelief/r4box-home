@@ -162,6 +162,7 @@
     #sheet .linkcard span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 13px; margin-top: 2px; }
     #sheet .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; justify-content: flex-start; }
     #sheet .acts a.btn { text-decoration: none; }
+    .sheetpoll { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
     :is(#sheet, .tripchat) h3.k { margin: 22px 0 10px; font: 700 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
     :is(#sheet, .tripchat) .talk { display: grid; gap: 10px; }
     :is(#sheet, .tripchat) .cm { display: flex; gap: 10px; align-items: flex-start; }
@@ -351,7 +352,7 @@
   <section id="trip" hidden>
     <p class="eyebrow">Trip</p>
     <h1 id="name"></h1>
-    <p class="meta"><span id="where"></span><span id="when"></span><span class="count" id="countdown"></span><span id="goingn"></span><button class="link quiet" id="edittrip" hidden>Edit</button><button class="link quiet" id="newtrip2" hidden>＋ New trip</button></p>
+    <p class="meta"><span id="where"></span><span id="when"></span><span class="count" id="countdown"></span><span id="goingn"></span><button class="link quiet" id="edittrip" hidden>Edit</button><button class="link quiet" id="newtrip2" hidden>＋ New trip</button><a class="link quiet" id="talktrip" href="/chat.html">💬 Talk about it</a></p>
     <p class="meta" id="goal" hidden></p>
     <div class="ask">
       <form id="askf"><input id="askq" placeholder="Search the trip, or ask Claude…" autocomplete="off" aria-label="Search the trip, or ask Claude" maxlength="2000"><button class="btn" id="askgo">✦ Ask</button></form>
@@ -383,10 +384,10 @@
   const ME = { id: session?.user.id, role: roleOf(session?.user) };
   const PARENT = ME.role === 'parent';
 
-  let trips = [], trip = null, items = [], family = [], asks = [], comments = [];
+  let trips = [], trip = null, items = [], family = [], asks = [], talks = {};   // talks: item id -> { id, n } its thread in the family chat
   const photoUrls = new Map();   // trip-photos path -> signed URL
   let polls = [], pollVotes = [], deepDone = false;
-  const cc = (id) => comments.filter((c) => c.item === id).length + polls.filter((q) => q.item === id).length;
+  const cc = (id) => (talks[id]?.n || 0) + polls.filter((q) => q.item === id).length;
   const nameOf = (id) => family.find((f) => f.id === id)?.username || '';
 
   // ---- dates ----
@@ -411,8 +412,11 @@
     if (trip) {
       const { data: it } = await sb.from('trip_items').select('*').eq('trip', trip.id).order('created_at');
       items = it || [];
-      const { data: cm } = await sb.from('trip_comments').select('id, item, author, body, created_at').eq('trip', trip.id).order('id');
-      comments = cm || [];
+      // The family chat is the one place to talk: an item's talk is the thread under its card there.
+      const { data: cards } = await sb.from('chat_messages').select('id, ref').eq('ref->>type', 'item').eq('ref->>trip', trip.id).is('reply_to', null).order('id');
+      const { data: reps } = cards?.length ? await sb.from('chat_messages').select('reply_to').in('reply_to', cards.map((c) => c.id)) : { data: [] };
+      talks = {};
+      for (const c of cards || []) { const t = talks[c.ref.id] || (talks[c.ref.id] = { id: c.id, n: 0 }); t.n += (reps || []).filter((r) => r.reply_to === c.id).length; }
       const [{ data: pl }, { data: pv }] = await Promise.all([
         sb.from('trip_polls').select('*').eq('trip', trip.id).order('id'),
         sb.from('trip_poll_votes').select('poll, voter, choice'),
@@ -460,6 +464,7 @@
     // Anyone starts a trip; its starter or a parent edits it (092).
     $('goingn').textContent = `👥 ${travellers()} going`;
     $('edittrip').hidden = !(PARENT || trip.created_by === ME.id); $('newtrip2').hidden = false;
+    $('talktrip').href = '/chat.html?trip=' + encodeURIComponent(trip.id);   // the trip's conversation lives in the family chat
     $('goal').hidden = !trip.goal; $('goal').textContent = trip.goal ? '🎯 ' + trip.goal : '';
     const tab = (location.hash || '#plan').slice(1);
     document.querySelectorAll('.tabs a').forEach((a) => a.setAttribute('aria-current', String(a.hash === '#' + tab)));
@@ -730,12 +735,13 @@
   async function shareToChat(ref) {
     const { data: { session: s } } = await sb.auth.getSession();
     const r = await fetch(FAMILY_CHAT, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ref }) });
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || r.status);
+    return j;
   }
   let builder = null;     // the poll being made: { key, q, opts }
   const tkey = (item) => item || 'trip';
-  const streamOf = (item) => [...comments.filter((c) => (c.item || null) === (item || null)).map((c) => ({ ...c, t: 'c' })),
-    ...polls.filter((q) => (q.item || null) === (item || null)).map((q) => ({ ...q, t: 'p' }))].sort((x, y) => x.created_at.localeCompare(y.created_at));
+  const streamOf = (item) => polls.filter((q) => (q.item || null) === (item || null)).map((q) => ({ ...q, t: 'p' }));   // talk itself is in the family chat
   const initial = (id) => (nameOf(id) || '?')[0].toUpperCase();
   function pollHTML(q) {
     const vs = pollVotes.filter((v) => v.poll === q.id), mine = vs.find((v) => v.voter === ME.id)?.choice;
@@ -764,7 +770,7 @@
         ${pb.opts.map((o, n) => `<input data-f="po${n}" class="po-in" data-n="${n}" maxlength="80" placeholder="Option ${n + 1}" value="${esc(o)}">`).join('')}
         <div class="row2">${pb.opts.length < 6 ? '<button type="button" class="padd" data-addopt="1">＋ Option</button>' : ''}<span class="grow"></span>
           <button type="button" class="btn" data-pbcancel="1">Cancel</button><button type="button" class="btn p" data-pbgo="1">Post poll</button></div></div>` : ''}
-      <form class="say" data-say="${k}"><button type="button" class="pollbtn" data-pollnew="1" aria-label="Take a poll">📊</button><textarea data-f="say" rows="1" maxlength="2000" placeholder="${esc(placeholder)}" aria-label="Message">${esc(drafts[k] || '')}</textarea><button aria-label="Send">↑</button></form>`;
+      ${pb ? '' : '<button type="button" class="btn" data-pollnew="1">📊 Take a poll</button>'}`;
   }
   const rerender = (item) => (item ? renderSheet() : render());
   function wireTalk(root, item) {
@@ -782,12 +788,8 @@
     });
     root.querySelectorAll('[data-closepoll]').forEach((b) => b.onclick = async () => { await sb.from('trip_polls').update({ closed: true }).eq('id', +b.dataset.closepoll); load(); });
     root.querySelectorAll('[data-unpoll]').forEach((b) => b.onclick = async () => { if (confirm('Delete this poll and its votes?')) { await sb.from('trip_polls').delete().eq('id', +b.dataset.unpoll); load(); } });
-    const t = q(`form[data-say="${k}"] textarea`);
-    const grow = () => { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; };
-    t.oninput = () => { drafts[k] = t.value; grow(); }; grow();
-    q('[data-pollnew]').onclick = () => {
-      builder = builder && builder.key === k ? null : { key: k, q: t.value.trim(), opts: ['Yes', 'No'] };
-      if (builder) { drafts[k] = ''; }
+    if (q('[data-pollnew]')) q('[data-pollnew]').onclick = () => {
+      builder = { key: k, q: '', opts: ['Yes', 'No'] };
       rerender(item); root.querySelector('.pq-in')?.focus();
     };
     const pb = q(`[data-pb="${k}"]`);
@@ -807,28 +809,11 @@
         builder = null; await load(); toBottom(item);
       };
     }
-    q(`form[data-say="${k}"]`).onsubmit = async (e) => {
-      e.preventDefault();
-      const body = t.value.trim(); if (!body) return;
-      t.disabled = true;
-      const { error } = await sb.from('trip_comments').insert({ trip: trip.id, item: item || null, body });
-      t.disabled = false;
-      if (error) { alert('Could not send: ' + error.message); return; }
-      drafts[k] = ''; await load(); toBottom(item);
-      root.querySelector(`form[data-say="${k}"] textarea`)?.focus();
-    };
   }
   function toBottom(item) {
     if (item) { const b = $('sheet').querySelector('.body'); if (b) b.scrollTop = b.scrollHeight; }
     else window.scrollTo({ top: document.body.scrollHeight });
   }
-  // The trip's own chat: everything that isn't about one item.
-  function chat() {
-    $('view').innerHTML = `<div class="tripchat"><p class="note">The whole trip, all together. Each idea and booking also has its own discussion on its page.</p>
-      ${talkHTML(null, 'No messages yet. Say hi, or take a poll: 📊 next to the message box.')}${composerHTML(null, 'Message the family…')}</div>`;
-    wireTalk($('view'), null);
-  }
-
   // ---- one item, in full: pictures, notes, link, actions and the family's discussion ----
   const PREVIEW = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/link-preview';
   const linkify = (t) => esc(t).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48)}${u.length > 60 ? '…' : ''}</a>`);
@@ -889,14 +874,14 @@
             ${i.kind === 'idea' ? '<button class="btn" id="shplan">Put in the plan</button>' : ''}
             ${maps ? `<a class="btn" href="${esc(maps)}" target="_blank" rel="noopener noreferrer">📍 Open in Maps</a>` : ''}
             ${canEdit ? '<button class="btn" id="shphoto">📷 Add photo</button>' : ''}
-            <button class="btn" id="shshare">💬 Share to family chat</button>
+            <button class="btn p" id="shshare">💬 ${talks[i.id] ? `Talk about it${talks[i.id].n ? ` · ${talks[i.id].n}` : ''}` : 'Talk about it in the family chat'}</button>
             ${!ytId(i.video) && i.kind !== 'booking' && canEdit ? '<button class="btn" id="shfindvid">✦ Find a video</button>' : ''}
           </div>
-          <h3 class="k">Discussion${talk.length ? ` · ${talk.length}` : ''}</h3>
-          ${talkHTML(i.id, 'No comments yet. What does everyone think? Or take a poll.')}
+          <h3 class="k">Polls${talk.length ? ` · ${talk.length}` : ''}</h3>
+          ${talkHTML(i.id, 'No polls yet. Votes show here and in the family chat.')}
         </div>
       </div>
-      ${composerHTML(i.id, 'Say something about this…')}
+      <div class="sheetpoll">${composerHTML(i.id, '')}</div>
     </div>`;
     const S = (id) => $('sheet').querySelector('#' + id);
     S('shx').onclick = () => { open = null; $('sheet').close(); };
@@ -905,10 +890,11 @@
     if (S('shbook')) S('shbook').onclick = () => { $('sheet').close(); edit({ ...i, kind: 'booking', _from: i.id }); };
     if (S('shplan')) S('shplan').onclick = () => { $('sheet').close(); edit({ ...i, kind: 'plan', _from: i.id }); };
     if (S('shphoto')) S('shphoto').onclick = () => $('photofile').click();
+    // Talk: the thread under the item's card in the family chat (its card is posted the first time).
     S('shshare').onclick = async () => {
       const b = S('shshare'); b.disabled = true;
-      try { await shareToChat({ type: 'item', id: i.id }); b.textContent = '✓ Shared to the family chat'; }
-      catch (e) { alert("Couldn't share: " + e.message); b.disabled = false; }
+      try { const id = talks[i.id]?.id || (await shareToChat({ type: 'item', id: i.id })).id; location.href = '/chat.html?thread=' + id; }
+      catch (e) { alert("Couldn't open the chat: " + e.message); b.disabled = false; }
     };
     if (S('shvid')) S('shvid').onclick = () => {
       S('shvid').innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${ytId(i.video)}?autoplay=1&rel=0&playsinline=1" title="${esc(i.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
