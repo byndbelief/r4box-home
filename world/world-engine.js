@@ -31,19 +31,25 @@
     }
     const home = (anim = true) => go({ x: L.WW / 2, y: L.gy - (VH * 0.4) / kStart, k: kStart }, anim);
     function clamp(c) {
-      const k = Math.max(kMin, Math.min(kMax, c.k)), hw = VW / 2 / k, hh = VH / 2 / k;
-      return { k, x: hw * 2 >= L.WW ? L.WW / 2 : Math.max(hw, Math.min(L.WW - hw, c.x)), y: hh * 2 >= L.WH ? L.WH / 2 : Math.max(hh, Math.min(L.WH - hh, c.y)) };
+      const k = Math.max(kMin, Math.min(kMax, c.k)), hw = VW / 2 / k, hh = VH / 2 / k, cb = covered() / k;   // under a card the world may scroll up past its foot
+      return { k, x: hw * 2 >= L.WW ? L.WW / 2 : Math.max(hw, Math.min(L.WW - hw, c.x)), y: hh * 2 >= L.WH ? L.WH / 2 + cb / 2 : Math.max(hh, Math.min(L.WH - hh + cb, c.y)) };
     }
     // one limb lit, turned to face you, held still, and the camera in close on it (above the card
     // when full screen, where the card covers the bottom of the world)
     function lightLimb(id) {
       lit = id; if (!tree || !tree.select) return;
       tree.select(id); const b = tree.limb && tree.limb(id); if (!b) return;
-      const side = matchMedia('(orientation: landscape) and (max-height: 600px)').matches;   // a phone on its side: the card is a panel beside the world
-      const full = !!cv.closest('.full') && !side, k = Math.max(kStart * 2.2, Math.min(kMax, VW / (b.w * 1.2 + 30), VH * (full ? 0.5 : 0.9) / (b.h * 1.15 + 20)));
-      const up = full ? VH * 0.22 / k : 0;
-      go({ x: L.tree.x + b.x + b.w / 2, y: L.tree.y + b.y + b.h / 2 + up, k }, true);
+      aim(() => { const cov = covered(), vh = VH - cov, k = Math.max(kStart * (cov ? 1.2 : 2.2), Math.min(kMax, VW / (b.w * 1.2 + 30), vh * 0.9 / (b.h * 1.15 + 20)));
+        return { x: L.tree.x + b.x + b.w / 2, y: L.tree.y + b.y + b.h / 2, k }; });
     }
+    // full screen, the card over the bottom of the world (a phone upright): how much of it, in px
+    function covered() {
+      const p = document.getElementById('pick'); if (!p || p.hidden || !cv.closest('.full')) return 0;
+      const a = p.getBoundingClientRect(), c = cv.getBoundingClientRect();
+      return a.left < c.left + c.width / 2 && a.right > c.left + c.width / 2 ? Math.max(0, Math.min(VH * 0.8, c.bottom - a.top)) : 0;
+    }
+    // the camera onto a spot, centred in what the card leaves visible; after the card has drawn
+    function aim(f) { requestAnimationFrame(() => { if (dead) return; const c = f(), b = covered(); go({ x: c.x, y: c.y + b / 2 / c.k, k: c.k }, true); }); }
     function go(c, anim) { const to = clamp(c); if (!anim || still) { cam = to; tween = null; } else tween = { from: { ...cam }, to, t0: performance.now(), dur: 520 }; }
     const toWorld = (sx, sy) => ({ x: cam.x + (sx - VW / 2) / cam.k, y: cam.y + (sy - VH / 2) / cam.k });
     function zoomAt(sx, sy, f, anim) { const w = toWorld(sx, sy), k = Math.max(kMin, Math.min(kMax, cam.k * f)); go({ k, x: w.x - (sx - VW / 2) / k, y: w.y - (sy - VH / 2) / k }, anim); }
@@ -158,13 +164,13 @@
       // one moment on a lit limb: ringed, and the camera in close on its bud
       showEvent(id) { const ev = evById[String(id)]; if (!ev || !tree) return; sel = ev;
         const n = tree.nodes().find((x) => x.id.slice(1) === String(id)); if (!n) return;
-        go({ x: n.x + L.tree.x, y: n.y + L.tree.y, k: Math.max(cam.k, kStart * 5) }, true); },
+        aim(() => ({ x: n.x + L.tree.x, y: n.y + L.tree.y, k: Math.max(cam.k, kStart * 5) })); },
       setSeeds(s) { seeds = s; const c = cam; build(); cam = c; },
       zoomBy(f) { zoomAt(VW / 2, VH / 2, f, true); }, reset() { home(true); },
       light(id) { lit = id || null; if (tree && tree.select) { tree.select(lit); tree.hold(!!lit); } },   // null: the whole tree lit again, turning
       focusTopic(id) { if (L.tutor.some((t) => t.id === id)) return lightLimb(id); this.light(null); const o = L.objs.find((x) => x.topic && x.topic.id === id); if (o) return go({ x: o.hit.x, y: o.hit.y, k: Math.max(kStart * 2.2, Math.min(kMax, VW / (o.hit.r * 3.4))) }, true);
         if (L.tutor.some((t) => t.id === id)) go({ x: L.tree.x + L.tree.w / 2, y: L.tree.y + L.tree.h * 0.45, k: kStart * 1.5 }, true); },
-      focus(h) { if (h.topic && L.tutor.some((t) => t.id === h.topic.id)) return lit === h.topic.id && h.event ? undefined : lightLimb(h.topic.id); /* a bud on the limb already lit: stay as close as you are */ this.light(null); const p = h.at || (h.obj && h.obj.hit) || null; if (p) go({ x: p.x, y: p.y, k: Math.max(cam.k, kStart * 2.4) }, true); },
+      focus(h) { if (h.topic && L.tutor.some((t) => t.id === h.topic.id)) { if (lit !== h.topic.id || !h.event) return lightLimb(h.topic.id); const p = h.at; if (p) aim(() => ({ x: p.x, y: p.y, k: cam.k })); return; } /* a bud on the limb already lit: as close as you are, in view */ this.light(null); const p = h.at || (h.obj && h.obj.hit) || null; if (p) aim(() => ({ x: p.x, y: p.y, k: Math.max(cam.k, kStart * 2.4) })); },
     };
   };
 })();
