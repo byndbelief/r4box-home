@@ -416,6 +416,15 @@
     .dens-play .opt { padding: 16px; } .dens-play .opt .ot b { font-size: 18px; } .dens-play .opt .dot { width: 28px; height: 28px; }
     .dens-play .gallery { grid-template-columns: minmax(0, 1fr); } .dens-play .tile { aspect-ratio: 16 / 10; } .dens-play .tile .tt b { font-size: 19px; }
     .dens-play .ask input { font-size: 18px; padding: 16px 18px; } .dens-play .btn { font-size: 16px; }
+    .over { margin: 10px 0 0; } .orow { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; }
+    .obtn { all: unset; box-sizing: border-box; cursor: pointer; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; position: relative; overflow: hidden; }
+    .obtn b { flex: none; } .obtn span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+    .obtn i { flex: none; font-style: normal; color: var(--faint); font-size: 11px; transition: transform .2s; } .obtn.on { border-color: #ffffff33; } .obtn.on i { transform: rotate(180deg); }
+    .obtn .mbar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #F5C54240; } .obtn .mbar i { display: block; height: 100%; background: var(--teal); transform: none; }
+    .obtn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+    body .over .going, body .over .est { margin: 6px 0 0; } body .over .going h2 { display: none; } body .over .est h2 { display: none; }
+    body .over .est { display: block; }
+    .dens-play .over [data-over="est"] { display: none; }
     .types { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
     .types .ty { display: block; cursor: pointer; position: relative; min-width: 0; }
     .types .ty input { position: absolute; inset: 0; width: 1px; height: 1px; padding: 0; opacity: 0; pointer-events: none; }
@@ -474,6 +483,7 @@
     </div>
     <div id="answer"></div>
     <details class="asks" id="asks" hidden><summary>Recent asks</summary><div id="asklist"></div></details>
+    <div class="over" id="over"></div>
     <nav class="tabs" aria-label="Trip sections">
       <a href="#plan">Plan</a><a href="#ideas">Ideas</a><a href="#bookings" id="tabbook">Bookings</a><a href="#packing" id="tabpack">Packing</a>
     </nav>
@@ -590,13 +600,14 @@
     const n = trip.starts ? Math.round((D(trip.starts) - D(iso(new Date()))) / 86400000) : null;
     $('countdown').textContent = n == null ? '' : n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow!' : n === 0 ? 'today!' : trip.ends && trip.ends >= iso(new Date()) ? 'happening now' : '';
     // Anyone starts a trip; its starter or a parent edits it (092).
-    $('goingn').textContent = `👥 ${travellers()} going`;
+    $('goingn').hidden = true;
     $('edittrip').hidden = !(PARENT || trip.created_by === ME.id); $('newtrip2').hidden = false;
     $('talktrip').href = '/chat.html?trip=' + encodeURIComponent(trip.id);   // the trip's conversation lives in the family chat
     $('goal').hidden = !trip.goal; $('goal').textContent = trip.goal ? '🎯 ' + trip.goal : '';
     const tab = (location.hash || '#plan').slice(1);
     document.querySelectorAll('.tabs a').forEach((a) => a.setAttribute('aria-current', String(a.hash === '#' + tab)));
-    ({ plan, ideas, bookings, packing }[tab] || plan)();   // the trip-wide chat tab is gone: talk in the family chat, or on an item's own page
+    ({ plan, ideas, bookings, packing }[tab] || plan)();
+    overview();   // the trip-wide chat tab is gone: talk in the family chat, or on an item's own page
     $('asks').hidden = !asks.length;
     $('asklist').innerHTML = asks.map((a) => `<p><b>${esc(nameOf(a.asker))}:</b> ${esc(a.text)}<br>✦ ${esc(a.reply || '')}</p>`).join('');
   }
@@ -821,7 +832,7 @@
     // Everything else: places to go, food to try, other ideas.
     const rest = list.filter((i) => !CHOICES.includes(i.topic));
     const groups = [...Object.keys(TOPIC).filter((t) => !CHOICES.includes(t)), null].map((t) => ({ t, its: rest.filter((i) => (TOPIC[i.topic] ? i.topic : null) === t) })).filter((g) => g.its.length);
-    $('view').innerHTML = goingHTML() + estimateHTML() + card
+    $('view').innerHTML = card
       + (groups.length ? groups.map((g) => { const k = 'g:' + (g.t || 'none'); return `<details class="topic fold" id="topic-${g.t || 'none'}" data-fold="${k}"${isOpen(k) ? ' open' : ''}><summary><span class="grow"><h3>${g.t ? TOPIC[g.t].join(' ') : 'More ideas'}</h3><span class="sum">${g.its.length} idea${g.its.length === 1 ? '' : 's'}: ${esc(g.its.slice(0, 3).map((i) => i.title).join(', '))}</span></span><span class="chev" aria-hidden="true">⌄</span></summary>
           ${['food', 'activities', 'pick'].includes(g.t) ? `<div class="gallery">${g.its.map(tile).join('')}</div>`
             : `<div class="list">${g.its.map((i) => itemRow(i, { tm: null, meta: [`added by ${esc(nameOf(i.created_by) || 'someone')}`] })).join('')}</div>`}</details>`; }).join('')
@@ -838,7 +849,6 @@
     }));
     $('addidea').onclick = () => edit({ kind: 'idea' });
     $('view').querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); view(items.find((i) => i.id === b.dataset.more)); });
-    wireGoing();
     $('view').querySelectorAll('[data-compare]').forEach((b) => b.onclick = () => openFlights());
     $('view').querySelectorAll('[data-openpart]').forEach((b) => b.onclick = () => openPart(b.dataset.openpart));
     // A leg or piece on its own: the builder opens on just that one.
@@ -1176,14 +1186,25 @@
     trip.going = going; render();
   }
   function wireGoing() {
-    $('view').querySelectorAll('[data-gofam]').forEach((b) => b.onclick = () => {
+    $('over').querySelectorAll('[data-gofam]').forEach((b) => b.onclick = () => {
       const ids = new Set(goingIds()); ids.has(b.dataset.gofam) ? ids.delete(b.dataset.gofam) : ids.add(b.dataset.gofam);
       if (!ids.size && !guests().length) { alert('Someone has to go!'); return; }
       saveGoing({ members: [...ids], guests: guests() });
     });
-    $('view').querySelectorAll('[data-unguest]').forEach((b) => b.onclick = () => saveGoing({ members: goingIds(), guests: guests().filter((_, n) => n !== +b.dataset.unguest) }));
+    $('over').querySelectorAll('[data-unguest]').forEach((b) => b.onclick = () => saveGoing({ members: goingIds(), guests: guests().filter((_, n) => n !== +b.dataset.unguest) }));
     const f = $('addguest');
     if (f) f.onsubmit = (e) => { e.preventDefault(); const v = f.querySelector('input').value.trim(); if (!v) return; saveGoing({ members: goingIds(), guests: [...guests(), v.slice(0, 40)].slice(0, 12) }); };
+  }
+
+  // Who's going and the estimate, above the tabs on every tab: a line each, tap to open.
+  let overPane = null;   // 'go' | 'est' | null
+  function overview() {
+    const x = estimate(), all = x.d + x.e, names = [...family.filter((f) => goingIds().includes(f.id)).map((f) => f.username), ...guests()];
+    const btn = (k, inner) => `<button type="button" class="obtn${overPane === k ? ' on' : ''}" data-over="${k}" aria-expanded="${overPane === k}">${inner}<i aria-hidden="true">⌄</i></button>`;
+    $('over').innerHTML = `<div class="orow">${btn('go', `👥 <b>${travellers()} going</b><span>${esc(names.join(', '))}</span>`)}${x.rows.length ? btn('est', `💰 <b>${money(all)}</b><span>est. · ${money(all / x.n)} pp</span><em class="mbar"><i style="width:${all ? (x.d / all) * 100 : 0}%"></i></em>`) : ''}</div>
+      ${overPane === 'go' ? goingHTML() : overPane === 'est' && x.rows.length ? estimateHTML() : ''}`;
+    $('over').querySelectorAll('[data-over]').forEach((b) => b.onclick = () => { overPane = overPane === b.dataset.over ? null : b.dataset.over; overview(); });
+    if (overPane === 'go') wireGoing();
   }
 
   // ---- the running estimate: what's picked or booked, and the cheapest option where nothing is yet ----
