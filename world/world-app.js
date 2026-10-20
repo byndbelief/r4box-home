@@ -346,8 +346,9 @@
     const top = $('worldBox').getBoundingClientRect().bottom + window.scrollY - 8; window.scrollTo({ top: Math.max(0, top - 60), behavior: 'smooth' });
   }
 
-  // a phone on its side, full screen: the panel is on the right, so a whole story fits in it and the world stays
-  const sideMode = () => document.body.classList.contains('isfull') && matchMedia('(orientation:landscape) and (max-height:600px)').matches;
+  // full screen: a story opens in the card (the panel on the right on a phone on its side, the sheet along
+  // the bottom upright), and the world stays
+  const inFull = () => document.body.classList.contains('isfull');
   function markMoment(id, scroll) {
     let hit = null;
     $('pick').querySelectorAll('[data-ev]').forEach((li) => { const on = li.dataset.ev === String(id); li.classList.toggle('on', on); if (on) hit = li; });
@@ -384,7 +385,7 @@
         <div class="row"><button class="ghost" id="allOf">Read its story ›</button></div>
         ${read && t.id ? (() => { const s = topicState(p, t), rest = s.evs.filter((x) => x !== e).slice().reverse().slice(0, 30);   // the rest of its story: shown in the side panel (a phone on its side)
           return rest.length ? `<div class="pmore"><h3>The rest of its story · ${s.evs.length} moment${s.evs.length === 1 ? '' : 's'}</h3><ul>${rest.map((x) => `<li><small>${esc(short(x.day))} · ${esc(KIND[x.kind] || x.kind)}</small>${esc(evText(x) || '·')}</li>`).join('')}</ul></div>` : ''; })() : ''}`;
-      $('allOf').onclick = () => (sideMode() && t.id ? storyPanel(p, t, () => pickWorld(p, h)) : (full(false), renderStory(p, t)));
+      $('allOf').onclick = () => (inFull() && t.id ? storyPanel(p, t, () => pickWorld(p, h)) : (full(false), renderStory(p, t)));
       return;
     }
     if (h.seed) {
@@ -395,7 +396,7 @@
       $('dig').onclick = async () => { await window.R4Store.dig(p, s.id); live.setSeeds(seedsOf(p)); $('pick').hidden = true; if (!document.body.classList.contains('isfull')) renderHome(p); };
       return;
     }
-    if (h.topic) { if (sideMode()) { live.focusTopic(h.topic.id); return storyPanel(p, h.topic, () => { live.light(null); $('pick').hidden = true; }); } full(false); return renderStory(p, h.topic); }
+    if (h.topic) { if (inFull()) { live.focusTopic(h.topic.id); return storyPanel(p, h.topic, () => { live.light(null); $('pick').hidden = true; }); } full(false); return renderStory(p, h.topic); }
     live.light(null);   // tapped away: the whole tree again, turning
     if (h.tree) return showTree(p);
     $('pick').hidden = true;
@@ -405,7 +406,7 @@
     $('pick').hidden = false;
     $('pick').innerHTML = `<h2>🌳 ${a === 'own' ? 'Your tree' : esc(p.name) + '’s tree'} <small>${limbs.length} limb${limbs.length === 1 ? '' : 's'}</small></h2><div class="chips" style="margin-top:10px">${limbs.map((x) => `<button data-t="${x.id}">${esc(x.title)}</button>`).join('')}</div>`;
     $('pick').querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { const t = limbs.find((x) => x.id === b.dataset.t);
-      if (sideMode()) { live.focusTopic(t.id); return storyPanel(p, t, () => { live.light(null); showTree(p); }); }   // on its side: the limb's story in the same panel
+      if (inFull()) { live.focusTopic(t.id); return storyPanel(p, t, () => { live.light(null); showTree(p); }); }   // full screen: the limb's story in the same card
       full(false); renderStory(p, t); }));
   }
   function plantForm(p, at) {

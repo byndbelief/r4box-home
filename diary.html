@@ -9,7 +9,7 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="world/world.css?v=12">
+  <link rel="stylesheet" href="world/world.css?v=13">
   <style>
     @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
@@ -128,7 +128,7 @@
         ? 'What you learn with the tutor grows your tree. Chat questions become flowers, games you finish become bushes, and trips hang in the sky as stars. It’s built every night.'
         : esc(owner.username) + '’s world is built every night from what they ask Claude, the games they finish and the trips they plan.'}</p></div>`);
     }
-    const s = document.createElement('script'); s.src = 'world/world-app.js?v=13'; document.body.append(s);
+    const s = document.createElement('script'); s.src = 'world/world-app.js?v=14'; document.body.append(s);
   }
   // ---- a parent's own world: the Clearing diary, from the box ----
   const BOX = 'https://diary.r4box.com';
@@ -170,7 +170,7 @@
       },
     };
     $('body').innerHTML = '';
-    const s = document.createElement('script'); s.src = 'world/world-app.js?v=13'; document.body.append(s);
+    const s = document.createElement('script'); s.src = 'world/world-app.js?v=14'; document.body.append(s);
     if (d.builtAt) document.querySelector('main').insertAdjacentHTML('beforeend', `<p class="built">Built ${new Date(d.builtAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${d.ideas.length} ideas · ${d.events.length} events · from the box</p>`);
   }
   if (session) load();

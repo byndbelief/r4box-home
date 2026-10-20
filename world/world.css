@@ -517,3 +517,10 @@ header button,header a,header input,header select,header label{pointer-events:au
   body.isfull .pick{bottom:0;width:min(560px,100vw);border-radius:18px 18px 0 0;border-bottom-width:0;padding-bottom:max(14px,env(safe-area-inset-bottom));max-height:52dvh}
   body.isfull:has(.pick:not([hidden])) .world.full .legend{display:none}
 }
+/* a whole story in the sheet (full screen, a phone upright): compact chapters */
+@media not all and (orientation:landscape) and (max-height:600px){
+  body.isfull .pick .pstory{margin-top:10px;gap:8px}
+  body.isfull .pick .pstory .chap{padding:10px 12px;border-radius:12px;box-shadow:none}
+  body.isfull .pick .pstory .chap::before{top:15px}
+  body.isfull .pick .pstory .evs{font-size:13px}
+}
