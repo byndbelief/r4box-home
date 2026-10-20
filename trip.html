@@ -256,6 +256,8 @@
     .legrow { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
     .legrow .n { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--body); background: #ffffff10; color: var(--muted); }
     .legrow.ok .n { background: var(--teal); color: var(--teal-ink); }
+    .legrow[role=button] { cursor: pointer; position: relative; padding-right: 26px; } .legrow[role=button]:hover { border-color: #ffffff33; }
+    .legrow[role=button]::after { content: "›"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: 18px; }
     .legrow b { font-size: 14.5px; } .legrow small { color: var(--muted); font-size: 13px; }
     .legedit { display: grid; grid-template-columns: 26px minmax(0, 1fr) 14px minmax(0, 1fr); gap: 8px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
     .legedit .n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 12px/1 var(--body); background: #ffffff10; color: var(--muted); }
@@ -363,6 +365,7 @@
     .dens-pilot .legrow { grid-template-columns: auto max-content minmax(0, 1fr); padding: 5px 8px; gap: 0 8px; border-radius: 9px; } .dens-pilot .legrow .n { grid-row: auto; }
     .dens-pilot .legrow small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .dens-pilot .legrow .n { width: 20px; height: 20px; font-size: 10.5px; }
     .dens-pilot .legrow b { font-size: 13px; } .dens-pilot .legrow small { font-size: 12px; }
+    .dens-pilot .legrow[role=button] { padding-right: 24px; }
     .dens-pilot .topic { margin-top: 10px; } .dens-pilot .day { margin-top: 10px; }
     .dens-pilot .list { gap: 4px; }
     .dens-pilot .item { padding: 7px 10px; border-radius: 10px; gap: 2px; }
@@ -813,6 +816,10 @@
     wireGoing();
     $('view').querySelectorAll('[data-compare]').forEach((b) => b.onclick = () => openFlights());
     $('view').querySelectorAll('[data-openpart]').forEach((b) => b.onclick = () => openPart(b.dataset.openpart));
+    // A leg or piece on its own: the builder opens on just that one.
+    const tap = (el, go) => { el.onclick = go; el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; };
+    $('view').querySelectorAll('[data-openleg]').forEach((el) => tap(el, () => openFlights(+el.dataset.openleg)));
+    $('view').querySelectorAll('[data-openpiece]').forEach((el) => tap(el, () => { const [t, n] = el.dataset.openpiece.split(':'); openPart(t, +n); }));
     $('view').querySelectorAll('[data-setuppart]').forEach((b) => b.onclick = () => setupPart(b.dataset.setuppart));
     $('view').querySelectorAll('[data-setupflights]').forEach((b) => b.onclick = () => askFlights(`Set up the flights for this trip: first check every city it visits (the place, the plan, the ideas and bookings), not just the main one; if it isn't clear, ask instead of guessing. Then set the flight plan from the chosen dates and places${trip.origin ? ' (the family travels from ' + trip.origin + ')' : ''}, every flight the trip takes in order, then find 3 to 5 options for each leg as flight ideas with flight kind 'leg'. Leave everything else as it is.`));
     $('view').querySelectorAll('[data-others]').forEach((b) => b.onclick = () => { const t = b.dataset.others; showOthers.has(t) ? showOthers.delete(t) : showOthers.add(t); render(); });
@@ -1218,6 +1225,7 @@
   const sumD = (c, f) => c.reduce((s2, i) => s2 + f(i.details || {}), 0);
   const avg = (c, f) => c.reduce((s2, i) => s2 + (f(i.details || {}) ?? 0), 0) / (c.length || 1);
   let flyMode = 'flights';   // which builder the full-screen panel is showing
+  let only = null;           // the one leg or piece it shows, when opened from its row (null: all of them)
   const pf = { t: null, on: new Set(), modes: new Set(), sort: 'price' };
   const pickLine = (t, i) => { const d = i?.details || {}, tot = totalOf(i);
     if (!i) return '';
@@ -1233,13 +1241,14 @@
     const sum = picked === plan.length ? `<span class="sum ok">✓ ${plan.length === 1 ? esc(pickLine(t, partPick(t, 0))) : `all ${plan.length} picked · ${money(tot)}`}</span>` : `<span class="sum">${picked} of ${plan.length} picked</span>`;
     return `<details class="choice fold" id="topic-${t}" data-fold="${t}"${isOpen(t) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC[t][0]} ${name} ${picked === plan.length ? '<small>✓ picked</small>' : ''}</h3>${sum}</span><span class="chev" aria-hidden="true">⌄</span></summary>
       <div class="opts"><button type="button" class="btn p" data-openpart="${t}" style="justify-self:start">${TOPIC[t][0]} Open the ${name.toLowerCase()} builder</button>
-      ${plan.map((x, n) => { const p2 = partPick(t, n), c = partOpts(t, n).length; return `<div class="legrow${p2 ? ' ok' : ''}"><span class="n">${p2 ? '✓' : n + 1}</span><b>${esc(x.label)}</b>
+      ${plan.map((x, n) => { const p2 = partPick(t, n), c = partOpts(t, n).length; return `<div class="legrow${p2 ? ' ok' : ''}" data-openpiece="${t}:${n}" role="button" tabindex="0" aria-label="Pick for ${esc(x.label)}"><span class="n">${p2 ? '✓' : n + 1}</span><b>${esc(x.label)}</b>
         <small>${p2 ? esc(pickLine(t, p2)) : `${c} option${c === 1 ? '' : 's'} to pick from`}</small></div>`; }).join('')}</div></details>`;
   }
   function setupPart(t) {
     askFlights(`Set up the ${t} plan for this trip: retire the old ${t} options you found, set_plan with the pieces it needs (from ${TOPIC.flights ? 'the flight plan' : TOPIC.route ? 'the route' : 'where we leave from'}, the chosen dates and the events), then find 3 or 4 options per piece as ${t} ideas with details { seg, ... } filled in. Leave everything else as it is.`);
   }
-  function openPart(t) {
+  function openPart(t, n = null) {
+    only = n;
     if (pf.t !== t) { pf.t = t; pf.on = new Set(); pf.modes = new Set(); pf.sort = 'price'; }
     flyMode = t; renderPartBuilder(); if (!$('fly').open) $('fly').showModal();
   }
@@ -1283,6 +1292,8 @@
   function renderPartBuilder() {
     const t = flyMode, plan = partPlan(t), cfg = PB[t]; if (!plan) { $('fly').close(); return; }
     const mayChoose = canChoose(), wasDone = partDone(t);
+    if (only != null && !plan[only]) only = null;
+    const one = only != null;
     const modes = t === 'transport' ? [...new Set(items.filter((i) => i.topic === t && i.details?.mode).map((i) => i.details.mode))] : [];
     const keep = (i) => { const d = i.details || {}; return cfg.toggles.every(([k, , f]) => !pf.on.has(k) || f(d)) && (!pf.modes.size || pf.modes.has(d.mode)); };
     const sortBy = (a, b) => { const x = a.details || {}, y = b.details || {};
@@ -1300,17 +1311,17 @@
     const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}>${label}</button>`;
     const tot = plan.reduce((s2, _, n) => s2 + (totalOf(partPick(t, n)) || 0), 0), np = plan.filter((_, n) => partPick(t, n)).length;
     $('fly').innerHTML = `<div class="wrap">
-      <header class="sh"><b>${TOPIC[t][0]} ${esc(TOPIC[t][1])}</b><button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
+      <header class="sh"><b>${TOPIC[t][0]} ${one ? esc(plan[only].label) : esc(TOPIC[t][1])}</b>${one && plan.length > 1 ? '<button class="btn" id="flyall">All</button>' : ''}<button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
       <div class="filters">
         ${cfg.toggles.length ? `<div class="frow"><small>Only show</small>${cfg.toggles.map(([k, label]) => chip(pf.on.has(k), `data-ptog="${k}"`, label)).join('')}</div>` : ''}
         ${modes.length > 1 ? `<div class="frow"><small>Ways to go</small>${modes.map((m) => chip(pf.modes.has(m), `data-pmode="${m}"`, esc(MODE[m] || m))).join('')}</div>` : ''}
         <div class="frow"><small>Sort</small>${cfg.sorts.map(([k, label]) => chip(pf.sort === k, `data-psort="${k}"`, label)).join('')}</div></div>
       <div class="list">
-        ${uniq.length ? `<div><h3 class="k" style="margin:0 0 8px">Suggested combinations</h3><div class="combos">${uniq.map((x) => { const on = x.c.map((i) => i.id).join() === current;
+        ${uniq.length && !one ? `<div><h3 class="k" style="margin:0 0 8px">Suggested combinations</h3><div class="combos">${uniq.map((x) => { const on = x.c.map((i) => i.id).join() === current;
           return `<div class="combo${on ? ' on' : ''}"><h4>${esc(x.label)}<small>${money(price(x.c))}</small></h4>
             <ul>${x.c.map((i, n) => `<li><b>${esc(plan[n].label)}</b> ${esc(pickLine(t, i))}</li>`).join('')}</ul>
             ${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-puse="${x.c.map((i) => i.id).join(',')}" ${on ? 'disabled' : ''}>${on ? '✓ Your picks' : 'Use these'}</button>` : ''}</div>`; }).join('')}</div></div>` : ''}
-        ${plan.map((x, n) => { const opts = partOpts(t, n).filter(keep).sort(sortBy), all = partOpts(t, n).length;
+        ${plan.map((x, n) => { if (one && n !== only) return ''; const opts = partOpts(t, n).filter(keep).sort(sortBy), all = partOpts(t, n).length;
           return `<div class="legsec"><h3><span>${plan.length > 1 ? `${n + 1} · ` : ''}${esc(x.label)}</span><small>${x.date ? esc(nice(x.date)) + (x.until ? ' – ' + esc(nice(x.until)) : '') : ''}</small></h3>
             ${opts.map((i) => partCard(t, i, n, x.pick === i.id, mayChoose)).join('') || `<p class="note">${all ? 'Nothing matches these filters.' : 'No options for this yet.'}</p>`}
             ${mayChoose ? `<button class="btn" data-pmore="${n}" ${flyBusy ? 'disabled' : ''} style="margin-top:8px">${flyBusy ? '✦ Looking…' : `✦ Find ${all ? 'more ' : ''}options for this`}</button>` : ''}</div>`; }).join('')}
@@ -1318,6 +1329,7 @@
       <div class="totals"><div><b>${np ? money(tot) : '–'}</b><small>${np} of ${plan.length} picked${np ? ' · the family’s total for these' : ''}</small></div><button class="btn p" id="flydone">Done</button></div></div>`;
     const F = (id) => $('fly').querySelector('#' + id);
     F('flyx').onclick = F('flydone').onclick = () => $('fly').close();
+    if (F('flyall')) F('flyall').onclick = () => { only = null; renderPartBuilder(); };
     $('fly').querySelectorAll('[data-ptog]').forEach((b) => b.onclick = () => { const k = b.dataset.ptog; pf.on.has(k) ? pf.on.delete(k) : pf.on.add(k); renderPartBuilder(); });
     $('fly').querySelectorAll('[data-pmode]').forEach((b) => b.onclick = () => { const k = b.dataset.pmode; pf.modes.has(k) ? pf.modes.delete(k) : pf.modes.add(k); renderPartBuilder(); });
     $('fly').querySelectorAll('[data-psort]').forEach((b) => b.onclick = () => { pf.sort = b.dataset.psort; renderPartBuilder(); });
@@ -1325,7 +1337,7 @@
     $('fly').querySelectorAll('[data-ppick]').forEach((b) => b.onclick = async () => {
       const [n, id] = b.dataset.ppick.split(':'), p2 = plan.map((x) => ({ ...x }));
       p2[+n].pick = p2[+n].pick === id ? null : id;
-      if (await savePartPlan(t, p2, wasDone)) { render(); if ($('fly').open) renderPartBuilder(); }
+      if (await savePartPlan(t, p2, wasDone)) { render(); if (one && p2[+n].pick) $('fly').close(); else if ($('fly').open) renderPartBuilder(); }
     });
     $('fly').querySelectorAll('[data-puse]').forEach((b) => b.onclick = async () => {
       const ids = b.dataset.puse.split(','), p2 = plan.map((x, n) => ({ ...x, pick: ids[n] }));
@@ -1349,7 +1361,7 @@
     const sum = picked === plan.length ? `<span class="sum ok">✓ ${plan.length} flights · ${money(pp * travellers())} for ${travellers()}</span>` : `<span class="sum">${picked} of ${plan.length} flights picked</span>`;
     return `<details class="choice fold" id="topic-flights" data-fold="flights"${isOpen(k) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC.flights[0]} ${TOPIC.flights[1]} ${picked === plan.length ? '<small>✓ picked</small>' : ''}</h3>${sum}</span><span class="chev" aria-hidden="true">⌄</span></summary>
       <div class="opts"><button type="button" class="btn p" data-compare="1" style="justify-self:start">✈️ Open the flight builder</button>
-      ${plan.map((l, n) => { const p2 = pickOf(n); return `<div class="legrow${p2 ? ' ok' : ''}"><span class="n">${p2 ? '✓' : n + 1}</span><b>${esc(legLabel(l))} · ${esc(nice(l.date))}</b>
+      ${plan.map((l, n) => { const p2 = pickOf(n); return `<div class="legrow${p2 ? ' ok' : ''}" data-openleg="${n}" role="button" tabindex="0" aria-label="Pick the flight for ${esc(legLabel(l))}"><span class="n">${p2 ? '✓' : n + 1}</span><b>${esc(legLabel(l))} · ${esc(nice(l.date))}</b>
         <small>${p2 ? esc(legLine(p2)) + (ppOf(p2) != null ? ' · ' + money(ppOf(p2)) + ' pp' : '') : `${legOpts(n).length} option${legOpts(n).length === 1 ? '' : 's'} to pick from`}</small></div>`; }).join('')}</div></details>`;
   }
   async function savePlan(plan, wasDone) {
@@ -1409,6 +1421,8 @@
     if (legEdit) { renderLegEditor(); return; }
     const plan = planOf(); if (!plan) { $('fly').close(); return; }
     const n0 = travellers(), mayChoose = canChoose();
+    if (only != null && !plan[only]) only = null;
+    const one = only != null;
     const okStops = (i) => fs.stops === 'any' || (i.flight?.legs?.[0]?.stops ?? 9) <= +fs.stops;
     const sortBy = (a, b) => fs.sort === 'fast' ? (minOf(a) ?? 1e9) - (minOf(b) ?? 1e9) : fs.sort === 'early' ? (toMin(a.flight?.legs?.[0]?.depart) ?? 1e9) - (toMin(b.flight?.legs?.[0]?.depart) ?? 1e9) : (ppOf(a) ?? 1e9) - (ppOf(b) ?? 1e9);
     // Suggested combinations: one option per leg, every combination scored (a few legs of a few options each).
@@ -1436,16 +1450,16 @@
     const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}>${label}</button>`;
     const tp = plan.reduce((s2, _, n) => s2 + (ppOf(pickOf(n)) || 0), 0), tm = plan.reduce((s2, _, n) => s2 + (minOf(pickOf(n)) || 0), 0), np = plan.filter((_, n) => pickOf(n)).length;
     $('fly').innerHTML = `<div class="wrap">
-      <header class="sh"><b>✈️ ${esc([plan[0].from, ...plan.map((l) => l.to)].join(' → '))}</b>${mayChoose ? '<button class="btn" id="legedit">Edit flights</button>' : ''}<button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
+      <header class="sh"><b>✈️ ${one ? `Leg ${only + 1} · ${esc(legLabel(plan[only]))}` : esc([plan[0].from, ...plan.map((l) => l.to)].join(' → '))}</b>${one ? '<button class="btn" id="flyall">All legs</button>' : mayChoose ? '<button class="btn" id="legedit">Edit flights</button>' : ''}<button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
       <div class="filters"><div class="frow"><small>Stops</small>${chip(fs.stops === 'any', 'data-fstops="any"', 'Any')}${chip(fs.stops === '0', 'data-fstops="0"', 'Nonstop')}${chip(fs.stops === '1', 'data-fstops="1"', '1 stop or fewer')}</div>
         <div class="frow"><small>Sort each leg</small>${chip(fs.sort === 'price', 'data-fsort="price"', 'Cheapest')}${chip(fs.sort === 'fast', 'data-fsort="fast"', 'Fastest')}${chip(fs.sort === 'early', 'data-fsort="early"', 'Earliest')}</div></div>
       <div class="list">
-        ${uniq.length ? `<div><h3 class="k" style="margin:0 0 8px">Suggested combinations</h3><div class="combos">${uniq.map((x) => { const on = x.c.map((i) => i.id).join() === current;
+        ${uniq.length && !one ? `<div><h3 class="k" style="margin:0 0 8px">Suggested combinations</h3><div class="combos">${uniq.map((x) => { const on = x.c.map((i) => i.id).join() === current;
           return `<div class="combo${on ? ' on' : ''}"><h4>${esc(x.label)}<small>${money(x.pp * n0)}</small></h4>
             <ul>${x.c.map((i, n) => { const l = i.flight.legs[0] || {}; return `<li><b>${esc(legLabel(plan[n]))}</b> ${esc((i.flight.airlines || [])[0] || '')} ${esc(l.depart || '')}–${esc(l.arrive || '')}${l.arrive_plus ? '+1' : ''} · ${l.stops ? l.stops + ' stop' : 'nonstop'}</li>`; }).join('')}</ul>
             <span class="meta">${money(x.pp)} per person · ${hm(x.min)} in the air${x.stops ? ` · ${x.stops} stop${x.stops > 1 ? 's' : ''}` : ' · all nonstop'}</span>
             ${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-usecombo="${x.c.map((i) => i.id).join(',')}" ${on ? 'disabled' : ''}>${on ? '✓ Your flights' : 'Use these flights'}</button>` : ''}</div>`; }).join('')}</div></div>` : ''}
-        ${plan.map((l, n) => { const opts = legOpts(n).filter(okStops).sort(sortBy), all = legOpts(n).length;
+        ${plan.map((l, n) => { if (one && n !== only) return ''; const opts = legOpts(n).filter(okStops).sort(sortBy), all = legOpts(n).length;
           return `<div class="legsec"><h3><span>Leg ${n + 1} · ${esc(legLabel(l))}</span><small>${esc(nice(l.date))}</small></h3>
             ${opts.map((i) => legCard(i, n)).join('') || `<p class="note">${all ? 'No option matches the stops filter.' : 'No options for this leg yet.'}</p>`}
             ${mayChoose ? `<button class="btn" data-legmore="${n}" ${flyBusy ? 'disabled' : ''} style="margin-top:8px">${flyBusy ? '✦ Looking…' : `✦ Find ${all ? 'more' : ''} flights for this leg`}</button>` : ''}</div>`; }).join('')}
@@ -1454,13 +1468,14 @@
     const F = (id) => $('fly').querySelector('#' + id);
     F('flyx').onclick = F('flydone').onclick = () => $('fly').close();
     if (F('legedit')) F('legedit').onclick = () => { legEdit = plan.map((l, n) => ({ ...l, was: n })); renderLegEditor(); };
+    if (F('flyall')) F('flyall').onclick = () => { only = null; renderBuilder(); };
     $('fly').querySelectorAll('[data-fstops]').forEach((b) => b.onclick = () => { fs.stops = b.dataset.fstops; renderBuilder(); });
     $('fly').querySelectorAll('[data-fsort]').forEach((b) => b.onclick = () => { fs.sort = b.dataset.fsort; renderBuilder(); });
     $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => { $('fly').close(); view(items.find((i) => i.id === b.dataset.fmore)); });
     $('fly').querySelectorAll('[data-legpick]').forEach((b) => b.onclick = async () => {
       const [n, id] = b.dataset.legpick.split(':'), p2 = plan.map((l) => ({ ...l }));
       p2[+n].pick = p2[+n].pick === id ? null : id;
-      if (await savePlan(p2, wasDone)) { render(); if ($('fly').open) renderBuilder(); }
+      if (await savePlan(p2, wasDone)) { render(); if (one && p2[+n].pick) $('fly').close(); else if ($('fly').open) renderBuilder(); }   // one leg on its own: picked, done
     });
     $('fly').querySelectorAll('[data-usecombo]').forEach((b) => b.onclick = async () => {
       const ids = b.dataset.usecombo.split(','), p2 = plan.map((l, n) => ({ ...l, pick: ids[n] }));
@@ -1497,7 +1512,7 @@
         <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div>
       <div class="lm"><b>${hm(l.minutes)}</b> · ${l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}${l.via?.length ? ' via ' + l.via.map(esc).join(', ') : ''}` : 'Nonstop'}</div></div>`;
   }
-  function openFlights() { flyMode = 'flights'; legEdit = null; planOf() ? renderBuilder() : renderFlights(); if (!$('fly').open) $('fly').showModal(); }
+  function openFlights(n = null) { flyMode = 'flights'; legEdit = null; only = n; planOf() ? renderBuilder() : renderFlights(); if (!$('fly').open) $('fly').showModal(); }
   function renderFlights() {
     const all = items.filter((i) => i.kind === 'idea' && i.topic === 'flights').map(flightInfo);
     const good = all.filter((x) => x.ok), need = all.filter((x) => !x.ok);
