@@ -323,11 +323,62 @@
     dialog h2 { margin: 0; font: 800 20px/1.2 var(--display); }
     /* The view (⚙ Settings on the home page, one for every app). Pilot: every instrument, packed
        tighter. Explore: the main things, less small print. Play: a few big controls. */
-    .dens-pilot .item { padding: 10px 12px; border-radius: 12px; gap: 4px; } .dens-pilot .item .ttl { font-size: 15px; } .dens-pilot .item .notes { font-size: 13.5px; }
-    .dens-pilot .list { gap: 6px; } .dens-pilot .opt { padding: 9px 10px; gap: 10px; } .dens-pilot .opts { gap: 6px; }
-    .dens-pilot .tabs a { padding: 7px 12px; font-size: 14px; } .dens-pilot .going, .dens-pilot .est, .dens-pilot .choices { padding: 12px 14px; }
-    .dens-pilot .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .dens-pilot .tile { aspect-ratio: 1; }
-    @media (max-width: 480px) { .dens-pilot .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    /* Pilot: a cockpit. Small type, one-line rows, two-column numbers, every section on a few lines. */
+    .dens-pilot { font-size: 14px; }
+    .dens-pilot .page { padding-top: max(10px, env(safe-area-inset-top)); }
+    .dens-pilot .mark { font-size: 16px; } .dens-pilot header select { padding: 6px 10px; font-size: 13.5px; }
+    .dens-pilot .eyebrow { margin: 12px 0 4px; font-size: 10.5px; }
+    .dens-pilot h1 { font-size: 22px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dens-pilot .meta { margin-top: 4px; gap: 2px 10px; font-size: 12.5px; }
+    .dens-pilot .ask { margin-top: 8px; } .dens-pilot .ask input { padding: 8px 12px; font-size: 14px; border-radius: 10px; } .dens-pilot .ask .btn { padding: 0 12px; border-radius: 10px; font-size: 13.5px; }
+    .dens-pilot .answer { padding: 8px 10px; font-size: 13.5px; }
+    .dens-pilot .tabs { margin: 8px 0 2px; padding: 5px 0; gap: 4px; } .dens-pilot .tabs a { padding: 5px 11px; font-size: 13px; }
+    .dens-pilot .btn { padding: 5px 10px; font-size: 13px; border-radius: 9px; }
+    .dens-pilot .add { padding: 4px 2px; font-size: 13px; }
+    .dens-pilot .going, .dens-pilot .est, .dens-pilot .choices { padding: 9px 11px; border-radius: 13px; margin: 4px 0 6px; }
+    .dens-pilot .going { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+    .dens-pilot .going h2 { margin: 0 4px 0 0; font-size: 13px; gap: 6px; } .dens-pilot .going h2 small { font-size: 12px; }
+    .dens-pilot .going .ppl { display: contents; }
+    .dens-pilot .going .who { padding: 2px 8px 2px 2px; font-size: 12px; gap: 4px; } .dens-pilot .going .who .av { width: 18px; height: 18px; font-size: 9px; }
+    .dens-pilot .going form { margin: 0; flex: 1 1 140px; } .dens-pilot .going form input { padding: 4px 8px; font-size: 12.5px; } .dens-pilot .going form .btn { padding: 2px 9px; }
+    .dens-pilot .est h2 { margin: 0; font-size: 13px; }
+    .dens-pilot .est { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; align-items: baseline; } .dens-pilot .est > :not(h2):not(.big) { grid-column: 1 / -1; }
+    .dens-pilot .est .big { justify-content: flex-end; gap: 8px; } .dens-pilot .est .big b { font-size: 18px; } .dens-pilot .est .big small { font-size: 11.5px; }
+    .dens-pilot .est .bar { height: 4px; margin: 6px 0 3px; } .dens-pilot .est .legend { font-size: 11px; margin-bottom: 4px; }
+    .dens-pilot .est ul { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
+    .dens-pilot .est li { padding: 4px 0; font-size: 12.5px; gap: 0 6px; } .dens-pilot .est li small { font-size: 11px; } .dens-pilot .est li em { font-size: 10px; }
+    .dens-pilot .est > .note, .dens-pilot .choices > p { display: none; }
+    .dens-pilot .choices > h2 { font-size: 14px; }
+    .dens-pilot details.fold > summary { padding: 6px 0; gap: 8px; }
+    .dens-pilot details.fold > summary .grow { display: flex; align-items: baseline; gap: 8px; }
+    .dens-pilot details.fold > summary .grow h3 { flex: none; } .dens-pilot details.fold > summary .sum { flex: 1; min-width: 0; margin: 0; font-size: 12.5px; }
+    .dens-pilot details.fold > summary .chev { width: 22px; height: 22px; font-size: 11px; }
+    .dens-pilot .choices details.fold:first-of-type { margin-top: 6px; }
+    .dens-pilot details.fold > .opts, .dens-pilot details.fold > .list, .dens-pilot details.fold > .booked { margin-bottom: 8px; }
+    .dens-pilot .choice h3, .dens-pilot .topic h3, .dens-pilot .day h3 { font-size: 11.5px; margin-bottom: 4px; }
+    .dens-pilot .opts { gap: 4px; } .dens-pilot .opt { padding: 6px 8px; gap: 8px; border-radius: 10px; align-items: center; }
+    .dens-pilot .opt .dot { width: 16px; height: 16px; margin: 0; } .dens-pilot .opt.on .dot::after { font-size: 10px; }
+    .dens-pilot .opt .ot b { font-size: 13.5px; } .dens-pilot .opt .ot span { font-size: 12px; -webkit-line-clamp: 1; }
+    .dens-pilot .opt .more { font-size: 12px; } .dens-pilot .opt .thumb { width: 36px; height: 36px; }
+    .dens-pilot .legrow { grid-template-columns: auto max-content minmax(0, 1fr); padding: 5px 8px; gap: 0 8px; border-radius: 9px; } .dens-pilot .legrow .n { grid-row: auto; }
+    .dens-pilot .legrow small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .dens-pilot .legrow .n { width: 20px; height: 20px; font-size: 10.5px; }
+    .dens-pilot .legrow b { font-size: 13px; } .dens-pilot .legrow small { font-size: 12px; }
+    .dens-pilot .topic { margin-top: 10px; } .dens-pilot .day { margin-top: 10px; }
+    .dens-pilot .list { gap: 4px; }
+    .dens-pilot .item { padding: 7px 10px; border-radius: 10px; gap: 2px; }
+    .dens-pilot .item .ttl { font-size: 13.5px; } .dens-pilot .item .tm { font-size: 12px; } .dens-pilot .item .cost { font-size: 12.5px; }
+    .dens-pilot .item .notes { font-size: 12.5px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+    .dens-pilot .item .meta { font-size: 11.5px; gap: 2px 10px; } .dens-pilot .item .foot { padding-top: 6px; margin-top: 2px; }
+    .dens-pilot .item .thumb { width: 40px; height: 40px; }
+    .dens-pilot .build { padding: 8px 10px; margin: 2px 0 8px; border-radius: 12px; } .dens-pilot .build b { font-size: 13.5px; } .dens-pilot .build span { display: none; }
+    .dens-pilot .gallery { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-bottom: 6px; }
+    @media (max-width: 480px) { .dens-pilot .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (min-width: 760px) { .dens-pilot .gallery { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+    .dens-pilot .tile { aspect-ratio: 1; border-radius: 10px; } .dens-pilot .tile .tt { left: 6px; right: 6px; bottom: 6px; }
+    .dens-pilot .tile .tt b { font-size: 11.5px; -webkit-line-clamp: 2; } .dens-pilot .tile .tags { margin-top: 3px; } .dens-pilot .tile .tags span { font-size: 10px; padding: 1px 5px; }
+    .dens-pilot .tile .play { width: 22px; height: 22px; top: 5px; right: 5px; font-size: 10px; }
+    .dens-pilot .total { padding: 8px 10px; font-size: 13px; }
+    .dens-pilot .packs { gap: 6px; } .dens-pilot .pack { padding: 8px 10px; } .dens-pilot .pack label { padding: 2px 0; font-size: 13.5px; } .dens-pilot .pack h3 { font-size: 13px; margin-bottom: 4px; }
     .dens-explore .est ul, .dens-explore .est .legend, .dens-explore .est > .note, .dens-explore .item .meta { display: none; }
     .dens-explore .item .notes { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .dens-play { font-size: 17px; }
