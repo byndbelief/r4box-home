@@ -68,6 +68,13 @@
     .add { all: unset; cursor: pointer; color: var(--muted); font-weight: 700; padding: 8px 2px; }
     .dayacts { display: flex; flex-wrap: wrap; gap: 4px 18px; }
     .add.fill { color: var(--gold); }
+    .gplace { margin: 0 0 4px; }
+    .gpics { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0 0 6px; }
+    .gpics figure { flex: none; width: min(78%, 340px); margin: 0; position: relative; scroll-snap-align: start; }
+    .gpics img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 14px; display: block; background: var(--panel); }
+    .gpics figcaption { position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: 99px; background: #000a; font-size: 11px; color: #fffc; }
+    .gpics figcaption a { color: inherit; text-decoration: none; }
+    .gline { display: block; margin: 2px 2px 8px; font-size: 13px; color: var(--muted); text-decoration: none; } .gline b { color: var(--gold); }
     .build { display: flex; gap: 12px; align-items: center; margin: 4px 0 18px; padding: 14px; border-radius: 16px; background: linear-gradient(160deg, #F5C54222, var(--panel) 60%); border: 1px solid #F5C54255; }
     .build div { flex: 1; min-width: 0; } .build b { display: block; font-size: 15px; } .build span { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
     .build .btn { flex: none; }
@@ -858,6 +865,27 @@
       } catch {}
     }
   }
+  // Google Maps photos for a place (place-photos): fetched fresh each time a card opens (kept
+  // only while this page is open), with each photo's author, the rating and the Maps link.
+  const PLACE_FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/place-photos';
+  const gcache = new Map();
+  async function showGPlace(i) {
+    let g = gcache.get(i.id);
+    if (!g) {
+      try {
+        const { data: { session: s } } = await sb.auth.getSession();
+        g = await (await fetch(PLACE_FN, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ item: i.id }) })).json();
+      } catch { return; }
+      if (g && !g.error) gcache.set(i.id, g);
+    }
+    if (!g || g.off || g.none || g.error || open !== i.id) return;
+    const body = $('sheet').querySelector('.body'); if (!body || body.querySelector('.gplace')) return;
+    const el = document.createElement('div'); el.className = 'gplace';
+    el.innerHTML = `${(g.photos || []).length ? `<div class="gpics">${g.photos.map((p) => `<figure><img src="${esc(p.src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"><figcaption>${p.by ? (p.byUrl ? `<a href="${esc(p.byUrl)}" target="_blank" rel="noopener noreferrer">${esc(p.by)}</a>` : esc(p.by)) : 'Google Maps'}</figcaption></figure>`).join('')}</div>` : ''}
+      ${g.maps ? `<a class="gline" href="${esc(g.maps)}" target="_blank" rel="noopener noreferrer">${g.rating ? `<b>★ ${Number(g.rating).toFixed(1)}</b>${g.ratings ? ` (${Number(g.ratings).toLocaleString()})` : ''} · ` : ''}${esc(g.name || 'This place')} on Google Maps ↗</a>` : ''}`;
+    body.prepend(el);
+    const mb = $('sheet').querySelector('#shmaps'); if (mb && g.maps) mb.href = g.maps;   // straight to the place, not a search
+  }
   function renderSheet() {
     const i = items.find((x) => x.id === open);
     if (!i) { $('sheet').close(); return; }
@@ -893,7 +921,7 @@
             ${isChoice && mayChoose ? `<button class="btn p" id="shchoose">${i.chosen ? 'Undo choice' : '✓ Choose this'}</button>` : ''}
             ${i.kind === 'idea' && i.chosen && PARENT && ['flights', 'stay', 'tickets', 'transport'].includes(i.topic) ? '<button class="btn p" id="shbook">Booked it</button>' : ''}
             ${i.kind === 'idea' ? '<button class="btn" id="shplan">Put in the plan</button>' : ''}
-            ${maps ? `<a class="btn" href="${esc(maps)}" target="_blank" rel="noopener noreferrer">📍 Open in Maps</a>` : ''}
+            ${maps ? `<a class="btn" id="shmaps" href="${esc(maps)}" target="_blank" rel="noopener noreferrer">📍 Open in Maps</a>` : ''}
             ${canEdit ? '<button class="btn" id="shphoto">📷 Add photo</button>' : ''}
             <button class="btn p" id="shshare">💬 ${talks[i.id] ? `Talk about it${talks[i.id].n ? ` · ${talks[i.id].n}` : ''}` : 'Talk about it in the family chat'}</button>
             ${!ytId(i.video) && i.kind !== 'booking' && canEdit ? '<button class="btn" id="shfindvid">✦ Find a video</button>' : ''}
@@ -906,6 +934,7 @@
     </div>`;
     const S = (id) => $('sheet').querySelector('#' + id);
     S('shx').onclick = () => { open = null; $('sheet').close(); };
+    if (place && i.kind !== 'pack') showGPlace(i);
     if (S('shedit')) S('shedit').onclick = () => { $('sheet').close(); edit(i); };
     if (S('shchoose')) S('shchoose').onclick = async () => { const { error } = await sb.rpc('trip_choose', { p_item: i.id, p_on: !i.chosen }); if (error) alert(error.message); else load(); };
     if (S('shbook')) S('shbook').onclick = () => { $('sheet').close(); edit({ ...i, kind: 'booking', _from: i.id }); };
