@@ -413,3 +413,4 @@ button.pe{all:unset;box-sizing:border-box;flex:none;width:40px;height:40px;borde
 /* 📖 a word's card, under the chips of a line or block editor */
 .lchip.on{background:#F5C54238;border-color:#FFD866;color:#fff}
 .lword:empty{display:none}.lword{margin-top:8px}
+.plist{grid-template-columns:minmax(0,1fr)}.plist>.pcard{min-width:0}
