@@ -492,3 +492,19 @@ header button,header a,header input,header select,header label{pointer-events:au
   body.isfull .pick .pmore li{font-size:10px;line-height:1.4;color:var(--muted)}
   body.isfull .pick .pmore li small{display:block;font-size:9px;color:var(--faint,#7A73A8);font-weight:700}
 }
+/* the side panel: a whole story (Read its story) in the same small type */
+@media (orientation:landscape) and (max-height:600px){
+  body.isfull .pick .pstory{margin-top:10px;padding-left:11px;gap:6px}
+  body.isfull .pick .pstory .chap{padding:7px 9px;border-radius:10px;box-shadow:none}
+  body.isfull .pick .pstory .chap::before{left:-17px;top:11px;width:8px;height:8px}
+  body.isfull .pick .pstory .ch .n{font-size:8.5px}
+  body.isfull .pick .pstory .ch b{font-size:11px}
+  body.isfull .pick .pstory .ch .r{font-size:9px}
+  body.isfull .pick .pstory .marks{margin-top:5px;gap:3px}
+  body.isfull .pick .pstory .marks i{width:6px;height:6px}
+  body.isfull .pick .pstory .marks span{font-size:9px}
+  body.isfull .pick .pstory .lead{font-size:10px;margin-top:5px}
+  body.isfull .pick .pstory .evs{gap:5px;margin-top:6px;font-size:10px;line-height:1.4}
+  body.isfull .pick .pstory .evs span{font-size:9px}
+  body.isfull .pick .pstory li{margin:0}
+}

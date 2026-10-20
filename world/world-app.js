@@ -346,6 +346,21 @@
     const top = $('worldBox').getBoundingClientRect().bottom + window.scrollY - 8; window.scrollTo({ top: Math.max(0, top - 60), behavior: 'smooth' });
   }
 
+  // a phone on its side, full screen: the panel is on the right, so a whole story fits in it and the world stays
+  const sideMode = () => document.body.classList.contains('isfull') && matchMedia('(orientation:landscape) and (max-height:600px)').matches;
+  function storyPanel(p, t, back) {
+    const read = canRead(p, storyId(p, t)), s = topicState(p, t), [emoji, , what] = REALM[t.source], chs = K.chapters(s.evs);
+    $('pick').innerHTML = `<div class="row" style="margin-top:0"><button class="ghost" id="pback">‹ Back</button></div>
+      <h2>${emoji} ${esc(t.title)} <small>${what} · started ${esc(short(t.created))} · ${s.evs.length} moment${s.evs.length === 1 ? '' : 's'}${s.done ? ' · finished' : s.resting ? ' · resting' : ''}</small></h2>
+      ${read ? '' : '<p>You see how it grew. What happened in each moment stays private unless it’s shared.</p>'}
+      <ol class="story pstory">${chs.slice().reverse().map((c) => `<li class="chap ${c.key}${read ? ' open' : ''}" data-chap><div class="ch"><span class="n">Chapter ${c.n}</span><b>${c.name}</b><span class="r">${esc(K.range(c.start, c.end))}</span></div>
+        <div class="marks">${c.evs.map((e) => `<i style="background:${FAMC[e.kind] || '#B9A6FF'};--s:${(0.7 + (+e.effort || 1) * 0.12).toFixed(2)}"></i>`).join('')}<span>${c.days} day${c.days === 1 ? '' : 's'}</span></div>
+        ${read ? `<p class="lead">${esc(evText(c.evs[c.evs.length - 1]))}</p><ul class="evs">${c.evs.slice().reverse().map((e) => `<li><span>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</span>${esc(evText(e))}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
+    $('pback').onclick = back;
+    $('pick').querySelectorAll('[data-chap]').forEach((el) => (el.onclick = () => el.classList.toggle('open')));
+    $('pick').scrollTop = 0;
+  }
+
   const kindWord = { tutor: ['🌳', 'Something to learn', 'grows into a limb on your tree'], chat: ['✿', 'A wonder', 'grows into a flower'], trip: ['✶', 'Somewhere to go', 'hangs in the sky as stars'] };
   function pickWorld(p, h) {
     if (h.topic && h.topic.project) { location.href = '/projects.html?open=' + encodeURIComponent(h.topic.project); return; }
@@ -359,7 +374,7 @@
         <div class="row"><button class="ghost" id="allOf">Read its story ›</button></div>
         ${read && t.id ? (() => { const s = topicState(p, t), rest = s.evs.filter((x) => x !== e).slice().reverse().slice(0, 30);   // the rest of its story: shown in the side panel (a phone on its side)
           return rest.length ? `<div class="pmore"><h3>The rest of its story · ${s.evs.length} moment${s.evs.length === 1 ? '' : 's'}</h3><ul>${rest.map((x) => `<li><small>${esc(short(x.day))} · ${esc(KIND[x.kind] || x.kind)}</small>${esc(evText(x) || '·')}</li>`).join('')}</ul></div>` : ''; })() : ''}`;
-      $('allOf').onclick = () => { full(false); renderStory(p, t); };
+      $('allOf').onclick = () => (sideMode() && t.id ? storyPanel(p, t, () => pickWorld(p, h)) : (full(false), renderStory(p, t)));
       return;
     }
     if (h.seed) {
