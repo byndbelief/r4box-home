@@ -133,15 +133,19 @@
     .hquick .hcmd { margin-top: 0; }
     .hquick .hres { top: auto; bottom: calc(100% + 6px); }
     .hquick .hdock { margin-top: 12px; }
+    /* which world: mine (the default) or the family's */
+    .wswitch { position: absolute; z-index: 3; top: 10px; left: 50%; transform: translateX(-50%); display: flex; padding: 3px; border-radius: 99px; background: #0D0B1Fcc; border: 1px solid var(--line); backdrop-filter: blur(6px); }
+    .wswitch button { all: unset; cursor: pointer; padding: 6px 14px; border-radius: 99px; font: 700 13px/1 var(--body); color: var(--muted); }
+    .wswitch button[aria-pressed="true"] { background: var(--violet, #B9A6FF); color: #150F33; }
     /* talk from home: the chat's latest, and a call */
     .htalk { display: flex; gap: 8px; margin-top: 10px; }
     .htalk button { all: unset; cursor: pointer; box-sizing: border-box; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
-    .hpeek { position: relative; flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; padding: 10px 12px; font-size: 13.5px; }
+    .htalk .hpeek { position: relative; flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; padding: 10px 12px; font-size: 13.5px; }
     .hpeek b { flex: none; color: var(--violet); } .hpeek span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
     .hpeek .badge { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--hot, #FF5A4A); color: #fff; font: 700 11px/18px var(--body); text-align: center; font-style: normal; }
-    .hvid { flex: none; padding: 0 14px; font-size: 18px; font-weight: 700; display: grid; place-items: center; }
-    .hvid.live { background: var(--teal); color: var(--teal-ink, #062A26); border-color: var(--teal); font-size: 14px; animation: hvpulse 1.6s ease-in-out infinite; }
-    .hvid.mine { color: var(--teal); border-color: #3DD6C688; font-size: 14px; }
+    .htalk .hvid { flex: none; padding: 0 14px; font-size: 18px; font-weight: 700; display: grid; place-items: center; }
+    .htalk .hvid.live { background: var(--teal); color: var(--teal-ink, #062A26); border-color: var(--teal); font-size: 14px; animation: hvpulse 1.6s ease-in-out infinite; }
+    .htalk .hvid.mine { color: var(--teal); border-color: #3DD6C688; font-size: 14px; }
     @keyframes hvpulse { 50% { box-shadow: 0 0 0 6px #3DD6C633; } }
     @media (prefers-reduced-motion: reduce) { .hvid.live { animation: none; } }
     dialog.qd { border: 1px solid var(--line); border-radius: 18px; background: #0D0B1F; color: var(--ink); padding: 14px; width: min(420px, calc(100% - 24px)); box-shadow: 0 20px 50px #000c; }
@@ -314,7 +318,7 @@
       <button class="gear" id="gear" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">⚙</button></header>
     <div class="gmenu" id="gmenu" role="menu" hidden></div>
     <div class="hero">
-      <div class="world" id="worldBox"><canvas id="cv" aria-label="The family world: everyone's tree on one ground"></canvas><div class="pick" id="pick" hidden></div></div>
+      <div class="world" id="worldBox"><div class="wswitch" id="wswitch" role="group" aria-label="Which world"><button data-w="me">My world</button><button data-w="family">Family</button></div><canvas id="cv" aria-label="The family world: everyone's tree on one ground"></canvas><div class="pick" id="pick" hidden></div></div>
       <div class="hquick" id="hquick"></div>
       <button class="hmore" id="hmore" aria-label="More: today, chat, apps, the family"><i></i></button>
     </div>
@@ -352,7 +356,7 @@
 
   <script src="diary-tree.js?v=9"></script>
   <script src="ecosystem.js"></script>
-  <script src="together.js"></script>
+  <script src="together.js?v=2"></script>
   <script type="module">
     import { sb, FAMILY, roleOf, nameOf, handOver } from './auth.js';
     const $ = (id) => document.getElementById(id);
@@ -580,6 +584,7 @@
     // The ground: each person's tree, plus what they share as roots (games) and stars (trips).
     // Their own game and trip topics stay in their worlds; the shared ones come from the
     // game room's results and the trips' who's going.
+    const worldMode = () => { try { return localStorage.getItem('r4.world.' + ME.id) === 'family' ? 'family' : 'me'; } catch { return 'me'; } };
     function drawWorld() {
       const today = iso(new Date());
       const ground = fam().map((p) => ({ ...p, world: { topics: p.world.topics.filter((t) => t.source === 'tutor'), events: p.world.events } }));
@@ -594,8 +599,11 @@
         const id = 'trip-' + t.id;
         p.world.topics.push({ id, slug: id, source: 'trip', title: t.name, stage: 'explored', created: today, trip: t.id });
       }
+      // My world (the default) or the family's, on one ground; the choice stays on this device.
+      const mode = worldMode();
+      $('wswitch').querySelectorAll('[data-w]').forEach((b) => { b.setAttribute('aria-pressed', String(b.dataset.w === mode)); b.onclick = () => { try { localStorage.setItem('r4.world.' + ME.id, b.dataset.w); } catch {} $('pick').hidden = true; drawWorld(); }; });
       if (live) live.destroy();
-      live = window.mountTogether($('cv'), ground, { onPick: pickWorld });
+      live = window.mountTogether($('cv'), mode === 'me' ? ground.filter((p) => p.id === ME.id) : ground, { onPick: pickWorld, solo: mode === 'me' });
     }
     function worldLink(p) {
       if (p.id === ME.id) return ME.role === 'parent' ? 'https://diary.r4box.com/' : '/diary.html';

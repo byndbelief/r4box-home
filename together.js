@@ -5,7 +5,7 @@
    - Roots: under the ground, one thread per thing two or more people share (same slug).
      Games run teal, trips gold. A pulse travels each root, faster the more it was done together.
    - Shared trips: one star polygon in the sky, with threads down to each crown that was there.
-   mountTogether(canvas, family, { onPick }) -> { destroy }
+   mountTogether(canvas, family, { onPick, solo }) -> { destroy }   (solo: just one world, drawn big)
    onPick gets { person } for a tree, { shared } for a root or star, or null. */
 (function () {
   const TAU = Math.PI * 2, FLOW = ['#3DD6C6', '#C9FFF8', '#B9A6FF', '#F5C542', '#FF5A4A'];
@@ -44,7 +44,7 @@
       const b = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
       W = Math.max(1, b.width); H = Math.max(1, b.height);
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const groundY = H * 0.78, slots = trees.length === 3 ? [[0.2, 0.4, 0.5], [0.5, 0.46, 0.62], [0.8, 0.4, 0.5]] : [[0.5, 0.5, 0.6]];
+      const groundY = H * 0.78, slots = trees.length === 3 ? [[0.2, 0.4, 0.5], [0.5, 0.46, 0.62], [0.8, 0.4, 0.5]] : trees.length === 2 ? [[0.3, 0.44, 0.56], [0.7, 0.44, 0.56]] : opts.solo ? [[0.5, 0.86, 0.7]] : [[0.5, 0.5, 0.6]];   // solo: one world, big
       const tr = trees.map((t, i) => { const [fx, fw, fh] = slots[i]; const w = W * fw, h = H * fh; return { ...t, x: W * fx - w / 2, y: groundY - h, w, h, base: { x: W * fx, y: groundY } }; });
       tr.forEach((t) => Object.assign(t.box.style, { left: cv.offsetLeft + t.x + 'px', top: cv.offsetTop + t.y + 'px', width: t.w + 'px', height: t.h + 'px' }));
       const baseOf = (pi) => tr.find((t) => t.pi === pi).base, crownOf = (pi) => { const t = tr.find((x) => x.pi === pi); return { x: t.base.x, y: t.y + t.h * 0.18 }; };
