@@ -511,3 +511,9 @@ header button,header a,header input,header select,header label{pointer-events:au
 /* a moment in the side panel's story that is ringed on its limb */
 .pick .pstory .evs li{cursor:pointer;border-radius:6px;margin:0 -5px;padding:2px 5px}
 .pick .pstory .evs li.on{background:#F5C5421f;box-shadow:inset 2px 0 0 #F5C542}
+/* full screen, a phone upright: the card is a sheet on the bottom edge (no gap under it); the legend
+   it would sit on steps aside while it's open */
+@media not all and (orientation:landscape) and (max-height:600px){
+  body.isfull .pick{bottom:0;width:min(560px,100vw);border-radius:18px 18px 0 0;border-bottom-width:0;padding-bottom:max(14px,env(safe-area-inset-bottom));max-height:52dvh}
+  body.isfull:has(.pick:not([hidden])) .world.full .legend{display:none}
+}
