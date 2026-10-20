@@ -133,6 +133,30 @@
     .hquick .hcmd { margin-top: 0; }
     .hquick .hres { top: auto; bottom: calc(100% + 6px); }
     .hquick .hdock { margin-top: 12px; }
+    /* talk from home: the chat's latest, and a call */
+    .htalk { display: flex; gap: 8px; margin-top: 10px; }
+    .htalk button { all: unset; cursor: pointer; box-sizing: border-box; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
+    .hpeek { position: relative; flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; padding: 10px 12px; font-size: 13.5px; }
+    .hpeek b { flex: none; color: var(--violet); } .hpeek span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+    .hpeek .badge { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--hot, #FF5A4A); color: #fff; font: 700 11px/18px var(--body); text-align: center; font-style: normal; }
+    .hvid { flex: none; padding: 0 14px; font-size: 18px; font-weight: 700; display: grid; place-items: center; }
+    .hvid.live { background: var(--teal); color: var(--teal-ink, #062A26); border-color: var(--teal); font-size: 14px; animation: hvpulse 1.6s ease-in-out infinite; }
+    .hvid.mine { color: var(--teal); border-color: #3DD6C688; font-size: 14px; }
+    @keyframes hvpulse { 50% { box-shadow: 0 0 0 6px #3DD6C633; } }
+    @media (prefers-reduced-motion: reduce) { .hvid.live { animation: none; } }
+    dialog.qd { border: 1px solid var(--line); border-radius: 18px; background: #0D0B1F; color: var(--ink); padding: 14px; width: min(420px, calc(100% - 24px)); box-shadow: 0 20px 50px #000c; }
+    dialog.qd::backdrop { background: #000b; }
+    dialog.qd header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; position: static; padding: 0; background: none; border: 0; }
+    dialog.qd header b { font: 800 16px/1 var(--display); } dialog.qd header a { color: var(--teal); font-weight: 700; font-size: 13px; text-decoration: none; }
+    .qlog { max-height: min(50dvh, 380px); overflow: auto; display: grid; gap: 6px; padding: 2px; }
+    .qlog p { margin: 0; padding: 7px 10px; border-radius: 12px; background: #141130; font-size: 14px; overflow-wrap: anywhere; justify-self: start; max-width: 85%; }
+    .qlog p b { display: block; font-size: 11.5px; color: var(--violet); } .qlog p.me { justify-self: end; background: #3DD6C61f; } .qlog p.c b { color: var(--gold, #F5C542); } .qlog .none { color: var(--muted); background: none; }
+    #qsend { display: flex; gap: 8px; margin-top: 10px; } #qsend input { flex: 1; min-width: 0; box-sizing: border-box; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: #000; color: var(--ink); font: inherit; font-size: 16px; }
+    #qsend button, .qd .qx { all: unset; cursor: pointer; padding: 0 14px; border-radius: 12px; background: var(--teal); color: #062A26; font-weight: 800; display: grid; place-items: center; }
+    .qd .qx { background: none; color: var(--muted); padding: 4px 6px; font-size: 18px; }
+    .qnote { margin: 6px 0 0; font-size: 12px; color: var(--muted); min-height: 1em; }
+    .cpicks { display: grid; gap: 7px; margin-top: 4px; } .cpicks button { all: unset; cursor: pointer; display: flex; gap: 10px; align-items: center; padding: 11px 12px; border-radius: 13px; border: 1px solid var(--line); background: #141130; font-weight: 700; }
+    .cpicks .dot { width: 10px; height: 10px; border-radius: 50%; }
     .hquick .hgo input { padding-right: 52px; } .hquick .hgo:has(#hsd) input { padding-right: 96px; }
     .hquick .hgo .hacts { position: absolute; right: 6px; top: 0; height: 46px; margin: 0; display: flex; align-items: center; gap: 4px; }
     .hquick .hgo .hacts button { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 10px; font-size: 16px; }
@@ -294,6 +318,8 @@
       <div class="hquick" id="hquick"></div>
       <button class="hmore" id="hmore" aria-label="More: today, chat, apps, the family"><i></i></button>
     </div>
+    <dialog class="qd" id="qchat" aria-label="Family chat"><header><b>💬 Family</b><span><a href="/chat.html">Open the chat ›</a> <button class="qx" onclick="this.closest('dialog').close()" aria-label="Close">✕</button></span></header><div class="qlog" id="qlog"></div><form id="qsend"><input id="qtext" maxlength="4000" placeholder="Message the family… (@claude to ask)" autocomplete="off" aria-label="Message"><button aria-label="Send">↑</button></form><p class="qnote" id="qnote"></p></dialog>
+    <dialog class="qd" id="cpick" aria-label="Video call"><header><b>📹 Call who?</b><button class="qx" onclick="this.closest('dialog').close()" aria-label="Close">✕</button></header><div class="cpicks" id="cpicks"></div></dialog>
     <main class="hpage" id="hpage">
       <div id="htop"></div>
       <div class="card flags" id="flags" hidden></div>
@@ -655,7 +681,8 @@
       const dock = (list, big, small) => `<div class="hdock${big ? ' big' : ''}">${list.map((a) => `<a href="${a.href}" style="--c:${a.c}"${a.ask ? ' data-ask="1"' : ''}>${glyph(a)}<b>${a.k}</b>${small ? `<small class="${a.hot ? 'hot' : ''}">${esc(a.s)}</small>` : ''}${a.badge ? `<span class="badge">${a.badge > 99 ? '99+' : a.badge}</span>` : ''}</a>`).join('')}</div>`;
       $('hquick').innerHTML = `${play ? '' : `<form class="hcmd hgo" id="hgo"><input id="q" placeholder="${parent ? 'Where to? Or what should Claude do?' : 'Where to? Ask Claude, or name a seed…'}" autocomplete="off" aria-label="Where to, or start Claude"><div class="hres" id="hits" hidden></div>
           <div class="hacts"><button type="submit" class="hclaude" aria-label="Start Claude" title="Start Claude">✦</button>${parent ? '' : '<button type="button" class="hseed" id="hsd" aria-label="Plant seed" title="Plant seed">🌱</button>'}</div><p class="hmsg" id="hmsg" hidden></p></form>`}
-        ${dock(QUICK, play, false)}`;
+        ${dock(QUICK, play, false)}
+        ${H.off.has('chat') ? '' : talkBar()}`;
       $('htop').innerHTML = `<div class="vpick"><button class="vbtn" id="vbtn" aria-haspopup="menu" aria-expanded="false" aria-label="View: ${cur.name}"><span>${cur.em}</span>${cur.name}<i>▾</i></button>
           <div class="vmenu" id="vmenu" role="menu" hidden><p>View</p>${DENSITY.map((d) => `<button role="menuitemradio" aria-checked="${d.id === dens}" data-dens="${d.id}" class="${d.id === dens ? 'on' : ''}"><span>${d.em}</span><b>${d.name}</b><em>${d.blurb}</em></button>`).join('')}</div></div>
         ${play ? '' : `<div class="htoday">${today.filter(Boolean).map((t) => `<a href="${t.href}" style="--c:${t.c}"><span class="g">${t.g}</span><span><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span></a>`).join('')}</div>`}`;
@@ -664,6 +691,66 @@
         ${play ? '' : `<h3 class="k">Recent</h3><div class="hrecent">${recent.length ? recent.map((r) => `<a href="${r.href}"><span class="g" style="color:${r.c}">${r.g}</span><span class="t">${esc(r.t)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span><span class="a">${agoOf(r.at)}</span></a>`).join('') : '<div class="hempty">Nothing new this week.</div>'}</div>`}
         ${familyCard()}`;
       wireHome(APPS);
+    }
+
+    // ---- talk from home: the latest in the family chat (tap: a quick chat right here) and 📹 ----
+    const CHAT_FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/family-chat';
+    const said = (m) => (m.ref && ({ poll: '📊 Poll', item: '📍 Trip place', call: '📹 Video call', story: '🌳 Shared a story', added: '✦ Added to a trip', project: '⚒ ' + (m.ref.name || 'A project'), trip: '✈️ ' + (m.ref.name || 'A trip') }[m.ref.type])) || m.body || (m.image ? '📷 Photo' : '');
+    function talkBar() {
+      const m = H.msgs.find((x) => !x.reply_to);
+      return `<div class="htalk"><button class="hpeek" id="hpeek" aria-label="Chat with the family">${m ? `<b>${esc(m.is_claude ? 'Claude' : nm(m.author))}</b><span>${esc(said(m))}</span>` : '<span>Say something to the family…</span>'}${H.unread ? `<i class="badge">${H.unread > 99 ? '99+' : H.unread}</i>` : ''}</button><button class="hvid" id="hvid" aria-label="Video call">📹</button></div>`;
+    }
+    // The quick chat: the last messages and a box to write in; everything else is in the chat itself.
+    async function quickChat() {
+      const d = $('qchat');
+      const draw = () => {
+        const list = H.msgs.filter((x) => !x.reply_to).slice(0, 14).reverse();
+        $('qlog').innerHTML = list.map((m) => `<p class="${m.author === ME.id ? 'me' : ''}${m.is_claude ? ' c' : ''}"><b>${esc(m.is_claude ? 'Claude' : nm(m.author))}</b>${esc(said(m))}</p>`).join('') || '<p class="none">No messages yet. Say hi.</p>';
+        $('qlog').scrollTop = $('qlog').scrollHeight;
+      };
+      const refresh = async () => { const { data } = await sb.from('chat_messages').select('id, author, is_claude, body, image, ref, reply_to, created_at').order('id', { ascending: false }).limit(30); if (data) { H.msgs = data; draw(); } };
+      draw(); d.showModal(); refresh();
+      const tick = setInterval(refresh, 4000); d.onclose = () => { clearInterval(tick); sb.from('chat_reads').upsert({ user_id: ME.id, read_at: new Date().toISOString() }).then(() => {}, () => {}); H.unread = 0; renderHome(); };
+      $('qsend').onsubmit = async (e) => {
+        e.preventDefault();
+        const t = $('qtext').value.trim(); if (!t) return;
+        $('qtext').disabled = true;
+        const { data: { session: s } } = await sb.auth.getSession();
+        const r = await fetch(CHAT_FN, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ text: t }) }).catch(() => null);
+        $('qtext').disabled = false;
+        if (!r || !r.ok) { $('qnote').textContent = 'Couldn’t send. Try again.'; return; }
+        $('qtext').value = ''; $('qnote').textContent = /@claude\b/i.test(t) ? '✦ Claude is thinking… the answer shows here.' : ''; refresh(); $('qtext').focus();
+      };
+    }
+    // Calls: the call lives in call.html, over whatever page you're on (it keeps this page under it).
+    const callShell = () => { try { return window.top !== window && window.top.R4Call ? window.top.R4Call : null; } catch { return null; } };
+    let callLine = null;
+    function watchCalls() {
+      if (callLine) return;
+      callLine = sb.channel('family-call', { config: { private: true, presence: { key: crypto.randomUUID() } } });
+      callLine.on('presence', { event: 'sync' }, paintCall).subscribe();
+      setInterval(paintCall, 4000);
+    }
+    const onCall = () => Object.values(callLine?.presenceState() || {}).map((v) => v[0]?.user).filter(Boolean);
+    function paintCall() {
+      const b = $('hvid'); if (!b) return;
+      const sh = callShell(), mine = !!sh?.inCall(), on = [...new Set(onCall())];
+      b.classList.toggle('live', !mine && on.length > 0); b.classList.toggle('mine', mine);
+      b.textContent = mine ? '📹 On call' : on.length ? `📹 Join · ${on.length}` : '📹';
+      b.setAttribute('aria-label', mine ? 'Show the call' : on.length ? 'Join the video call' : 'Video call');
+    }
+    function goCall(to) {
+      const sh = callShell(); if (sh) { sh.join(to || null); return; }
+      window.top.location.assign(`/call.html?join=${encodeURIComponent(to || '')}&page=${encodeURIComponent(location.pathname + location.search)}`);
+    }
+    function callPick() {
+      const sh = callShell();
+      if (sh?.inCall()) { sh.show(); return; }
+      if (onCall().length) { goCall(null); return; }   // one is on: straight in
+      const others = fam().filter((p) => p.id !== ME.id);
+      $('cpicks').innerHTML = others.map((p) => `<button data-to="${p.id}"><i class="dot" style="background:${p.dot}"></i>${esc(p.name)}</button>`).join('') + (others.length > 1 ? '<button data-to="">👥 Everyone</button>' : '');
+      $('cpicks').querySelectorAll('[data-to]').forEach((b) => (b.onclick = () => { $('cpick').close(); goCall(b.dataset.to); }));
+      $('cpick').showModal();
     }
 
     function familyCard() {
@@ -679,6 +766,7 @@
     }
 
     function wireHome(APPS) {
+      if ($('hpeek')) { $('hpeek').onclick = quickChat; $('hvid').onclick = callPick; watchCalls(); paintCall(); }
       $('hmore').onclick = () => $('hpage').scrollIntoView({ behavior: 'smooth' });   // the same as swiping up
       const vb = $('vbtn'), vm = $('vmenu');
       vb.onclick = (e) => { e.stopPropagation(); const open = vm.hidden; vm.hidden = !open; vb.setAttribute('aria-expanded', String(open));
