@@ -39,7 +39,7 @@
     <div id="body"><p class="note">Loading your world…</p></div>
   </main>
 </div>
-<script src="world/story-kit.js"></script>
+<script src="world/story-kit.js?v=2"></script>
 <script src="diary-tree.js?v=10"></script>
 <script src="world/world-parts.js"></script>
 <script src="world/world-layout.js"></script>
@@ -121,6 +121,7 @@
     };
     window.FAMILY = owner.id === me.id ? [ownerP] : [viewerP, ownerP];
     window.R4_VIEWER = viewerP.id;
+    window.R4_VIEW_HOME = true;   // the view is set in ⚙ Settings on the home page
     window.R4_SOLO = { person: ownerP.id, title: owner.id === me.id ? 'my world' : 'world', density: 'explore' };
     $('body').innerHTML = '';
     if (!w.topics.length) {
@@ -128,7 +129,7 @@
         ? 'What you learn with the tutor grows your tree. Chat questions become flowers, games you finish become bushes, and trips hang in the sky as stars. It’s built every night.'
         : esc(owner.username) + '’s world is built every night from what they ask Claude, the games they finish and the trips they plan.'}</p></div>`);
     }
-    const s = document.createElement('script'); s.src = 'world/world-app.js?v=14'; document.body.append(s);
+    const s = document.createElement('script'); s.src = 'world/world-app.js?v=15'; document.body.append(s);
   }
   // ---- a parent's own world: the Clearing diary, from the box ----
   const BOX = 'https://diary.r4box.com';
@@ -157,6 +158,7 @@
     window.R4_VIEWER = id;
     window.R4Store = { shared: () => ({}), setShared() {}, seeds: () => [] };
     let cards = null;
+    window.R4_VIEW_HOME = true;
     window.R4_SOLO = {
       person: id, title: 'diary', density: 'dev', noSeeds: true, noShare: true,
       cards: [
@@ -170,7 +172,7 @@
       },
     };
     $('body').innerHTML = '';
-    const s = document.createElement('script'); s.src = 'world/world-app.js?v=14'; document.body.append(s);
+    const s = document.createElement('script'); s.src = 'world/world-app.js?v=15'; document.body.append(s);
     if (d.builtAt) document.querySelector('main').insertAdjacentHTML('beforeend', `<p class="built">Built ${new Date(d.builtAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${d.ideas.length} ideas · ${d.events.length} events · from the box</p>`);
   }
   if (session) load();

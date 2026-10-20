@@ -459,9 +459,9 @@
     addEventListener('popstate', shut); pg.querySelector('.sb').onclick = () => history.back();
     const VIEWS = [['play', '🧸', 'Play', 'A few big controls'], ['explore', '🧭', 'Explore', 'The main things, a little text'], ['pilot', '✈️', 'Pilot', 'Every instrument at once'], ...(viewer.role === 'parent' ? [['dev', '⌘', 'Developer', 'Everything, condensed, plus the raw data']] : [])];
     const paint = () => {
-      $('sbody').innerHTML = `<h3 class="k">View</h3><div class="vset">${VIEWS.map(([id, em, n, b]) => `<button class="vopt${dens === id ? ' on' : ''}" data-view="${id}"><span class="em">${em}</span><b>${n}</b><em>${b}</em></button>`).join('')}</div><p class="note" style="margin:6px 0 0">The same view as your home page.</p>
+      const cur = VIEWS.find(([id]) => id === dens) || VIEWS[1];
+      $('sbody').innerHTML = `<h3 class="k">View</h3><section class="sset"><a class="srow" href="/#settings" style="color:inherit;text-decoration:none"><div><b>${cur[1]} ${cur[2]}</b><small>One view for every app: change it in ⚙ Settings on the home page</small></div><span aria-hidden="true">›</span></a></section>
         <h3 class="k">Builder</h3><section class="sset"><div class="srow"><div><b>⌨ Developer only</b><small>Start from code, no kits. Off: kits and code side by side (every project is code either way).</small></div><button class="tog${devOnly(viewer) ? ' on' : ''}" id="devT" role="switch" aria-checked="${devOnly(viewer)}"><i></i></button></div></section><p class="note" style="margin:6px 0 0">For ${esc(viewer.name)}, in Projects.</p>`;
-      $('sbody').querySelectorAll('[data-view]').forEach((b) => (b.onclick = () => { try { localStorage.setItem('r4.density.' + viewer.id, b.dataset.view); } catch {} applyDensity(); paint(); }));
       $('devT').onclick = () => { try { devOnly(viewer) ? localStorage.removeItem('r4.builder.' + viewer.id) : localStorage.setItem('r4.builder.' + viewer.id, 'developer'); } catch {} paint(); };
     };
     paint();

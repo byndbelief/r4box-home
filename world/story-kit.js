@@ -59,7 +59,9 @@
     { id: 'dev', name: 'Developer', em: '⌘', blurb: 'Everything, condensed, plus the raw data' },
   ];
   const densityByAge = (age) => (age == null ? 'explore' : age < 9 ? 'play' : age < 15 ? 'explore' : 'pilot');
-  const densityOf = (p) => { const v = localStorage.getItem('r4.density.' + p.id); return v === 'alien' ? 'dev' : DENSITY.some((d) => d.id === v) ? v : densityByAge(p.age); };
-  const setDensity = (p, v) => (v ? localStorage.setItem('r4.density.' + p.id, v) : localStorage.removeItem('r4.density.' + p.id));
+  // The view is one setting per account (r4.density.<account id>), the one ⚙ Settings on the home page sets.
+  const vkey = (p) => 'r4.density.' + (p.uid || p.id);
+  const densityOf = (p) => { let v = null; try { v = localStorage.getItem(vkey(p)) ?? localStorage.getItem('r4.density.' + p.id); } catch {} return v === 'alien' ? 'dev' : DENSITY.some((d) => d.id === v) ? v : densityByAge(p.age); };
+  const setDensity = (p, v) => { try { v ? localStorage.setItem(vkey(p), v) : localStorage.removeItem(vkey(p)); } catch {} };
   window.StoryKit = { DENSITY, densityByAge, densityOf, setDensity, dn, iso, today, streak, lastDays, chapters, range, isShared, setShared, sharedAll: all, goalsOf, setGoals };
 })();

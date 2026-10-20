@@ -21,7 +21,7 @@
   $('worldBox').after($('legend'));
   const SOLO = window.R4_SOLO || null;
   let viewer = byId(window.R4_VIEWER) || (SOLO && byId(SOLO.person)) || F[0], view = SOLO ? { kind: 'world', id: SOLO.person } : { kind: 'together' }, live = null;
-  if (SOLO) { document.body.classList.add('solo'); if (!localStorage.getItem('r4.density.' + viewer.id) && SOLO.density) K.setDensity(viewer, SOLO.density); }
+  if (SOLO) { document.body.classList.add('solo'); if (!window.R4_VIEW_HOME && !localStorage.getItem('r4.density.' + viewer.id) && SOLO.density) K.setDensity(viewer, SOLO.density); }
 
   const access = (p) => (p.id === viewer.id ? 'own' : viewer.role === 'parent' ? 'names' : 'none');
   const realmName = (p, k) => (k === 'tutor' && p.id === 'dad_commander' ? 'Ideas' : REALM[k][1]);
@@ -62,6 +62,8 @@
     if (access(p) !== 'own') return '';
     const auto = K.densityByAge(p.age);
     const cur = K.DENSITY.find((d) => d.id === dens);
+    // On r4box.com the view is one setting for every app, set on the home page: link there instead of a menu.
+    if (window.R4_VIEW_HOME) return `<div class="vpick"><a class="vbtn" href="/#settings" aria-label="View: ${cur.name}. Change it in Settings on the home page"><span>${cur.em}</span>${cur.name}<i>›</i></a></div>`;
     return `<div class="vpick"><button class="vbtn" id="vbtn" aria-haspopup="menu" aria-expanded="false" aria-label="View: ${cur.name}"><span>${cur.em}</span>${cur.name}<i>▾</i></button><div class="vmenu" id="vmenu" role="menu" hidden><p>View</p>${K.DENSITY.map((d) => `<button role="menuitemradio" aria-checked="${d.id === dens}" data-dens="${d.id}" class="${d.id === dens ? 'on' : ''}"><span>${d.em}</span><b>${d.name}${d.id === auto ? ' <small>for your age</small>' : ''}</b><em>${d.blurb}</em></button>`).join('')}</div></div>`;
   }
   function wireDensity(p, redraw) {

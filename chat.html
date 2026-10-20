@@ -33,7 +33,6 @@
     .ibtn:disabled { opacity: .5; cursor: default; }
     #callbtn.incall { color: var(--teal); border-color: #3DD6C655; }
     .alertsrow small a { color: var(--teal); }
-    .vset { display: grid; gap: 6px; }
     /* the call (kept from before: a tile per person with their video, you in the corner) */
     #call .tile { display: block; background: #08061A; }
     #call .tile video { width: 100%; height: 100%; object-fit: cover; display: block; background: #08061A; }
@@ -107,7 +106,7 @@
 
   function toast(t) { const el = document.createElement('div'); el.className = 'ctoast'; el.textContent = t; document.body.append(el); setTimeout(() => el.remove(), 3200); }
 
-  // ---- view (the shared density: r4.density.<id>, the same picker as the home) ----
+  // ---- view (the shared density: r4.density.<id>, set in ⚙ Settings on the home page) ----
   const DENSITY = [
     { id: 'play', name: 'Play', em: '🧸', blurb: 'Big text and a quick emoji row' },
     { id: 'explore', name: 'Explore', em: '🧭', blurb: 'Roomy, the main things' },
@@ -567,9 +566,9 @@
   async function paintSettings() {
     const el = $('sbody'); if (!el) return;
     const d = dens(), al = await alertsState();
-    el.innerHTML = `<h3 class="k">View</h3><div class="vset">${DENSITY.map((x) => `<button class="vopt${x.id === d ? ' on' : ''}" data-view="${x.id}" aria-pressed="${x.id === d}"><span class="em">${x.em}</span><b>${x.name}</b><em>${x.blurb}</em></button>`).join('')}</div><p class="note" style="margin:6px 0 0">The same view as your home page.</p>
+    const cur = DENSITY.find((x) => x.id === d);
+    el.innerHTML = `<h3 class="k">View</h3><section class="sset"><a class="srow" href="/#settings" style="color:inherit;text-decoration:none"><div><b>${cur.em} ${cur.name}</b><small>One view for every app: change it in ⚙ Settings on the home page</small></div><span aria-hidden="true">›</span></a></section>
       <h3 class="k">Chat</h3><section class="sset"><div class="srow alertsrow"><div><b>Alerts</b><small>${al.why}</small></div>${al.can ? `<button class="tog${al.on ? ' on' : ''}" id="alTog" role="switch" aria-checked="${al.on}"${al.on ? ' disabled' : ''}><i></i></button>` : ''}</div></section>`;
-    el.querySelectorAll('[data-view]').forEach((b) => (b.onclick = () => { try { localStorage.setItem('r4.density.' + ME.id, b.dataset.view); } catch {} applyDensity(); render(false); paintSettings(); }));
     $('alTog')?.addEventListener('click', async () => { await turnOnAlerts(); paintSettings(); });
   }
   $('gear').onclick = openSettings;

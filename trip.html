@@ -321,6 +321,22 @@
     dialog .row { display: flex; gap: 10px; } dialog .row > * { flex: 1; }
     dialog .acts { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
     dialog h2 { margin: 0; font: 800 20px/1.2 var(--display); }
+    /* The view (⚙ Settings on the home page, one for every app). Pilot: every instrument, packed
+       tighter. Explore: the main things, less small print. Play: a few big controls. */
+    .dens-pilot .item { padding: 10px 12px; border-radius: 12px; gap: 4px; } .dens-pilot .item .ttl { font-size: 15px; } .dens-pilot .item .notes { font-size: 13.5px; }
+    .dens-pilot .list { gap: 6px; } .dens-pilot .opt { padding: 9px 10px; gap: 10px; } .dens-pilot .opts { gap: 6px; }
+    .dens-pilot .tabs a { padding: 7px 12px; font-size: 14px; } .dens-pilot .going, .dens-pilot .est, .dens-pilot .choices { padding: 12px 14px; }
+    .dens-pilot .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .dens-pilot .tile { aspect-ratio: 1; }
+    @media (max-width: 480px) { .dens-pilot .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .dens-explore .est ul, .dens-explore .est .legend, .dens-explore .est > .note, .dens-explore .item .meta { display: none; }
+    .dens-explore .item .notes { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .dens-play { font-size: 17px; }
+    .dens-play .est, .dens-play #asks, .dens-play .item .meta, .dens-play .item .notes, .dens-play .opt .ot span, .dens-play .choices > p, .dens-play .build span,
+    .dens-play [data-setuppart], .dens-play [data-compare], .dens-play .going form, .dens-play .tile .tags, .dens-play #goal { display: none; }
+    .dens-play .tabs a { flex: 1 0 auto; text-align: center; padding: 12px; font-size: 16px; } .dens-play .item { padding: 18px; } .dens-play .item .ttl { font-size: 19px; }
+    .dens-play .opt { padding: 16px; } .dens-play .opt .ot b { font-size: 18px; } .dens-play .opt .dot { width: 28px; height: 28px; }
+    .dens-play .gallery { grid-template-columns: minmax(0, 1fr); } .dens-play .tile { aspect-ratio: 16 / 10; } .dens-play .tile .tt b { font-size: 19px; }
+    .dens-play .ask input { font-size: 18px; padding: 16px 18px; } .dens-play .btn { font-size: 16px; }
     .types { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
     .types .ty { display: block; cursor: pointer; position: relative; min-width: 0; }
     .types .ty input { position: absolute; inset: 0; width: 1px; height: 1px; padding: 0; opacity: 0; pointer-events: none; }
@@ -402,6 +418,15 @@
   await gateApp(session?.user, 'trip');
   const ME = { id: session?.user.id, role: roleOf(session?.user) };
   const PARENT = ME.role === 'parent';
+  // The view: one setting for every app (r4.density.<id>, ⚙ Settings on the home page). Developer is Pilot here.
+  function applyView() {
+    let v = null; try { v = localStorage.getItem('r4.density.' + ME.id); } catch {}
+    if (!['play', 'explore', 'pilot', 'dev'].includes(v)) v = PARENT ? 'pilot' : 'explore';
+    document.body.classList.remove('dens-play', 'dens-explore', 'dens-pilot'); document.body.classList.add('dens-' + (v === 'dev' ? 'pilot' : v));
+  }
+  applyView();
+  addEventListener('storage', (e) => { if (e.key === 'r4.density.' + ME.id) applyView(); });   // changed in another tab
+  addEventListener('pageshow', applyView); document.addEventListener('visibilitychange', () => { if (!document.hidden) applyView(); });   // back from the home page
 
   let trips = [], trip = null, items = [], family = [], asks = [], talks = {};   // talks: item id -> { id, n } its thread in the family chat
   const photoUrls = new Map();   // trip-photos path -> signed URL

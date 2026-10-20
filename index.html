@@ -125,6 +125,13 @@
     .gmenu button, .gmenu a { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: block; padding: 10px 12px; border-radius: 11px; font-size: 14px; font-weight: 700; }
     .gmenu button:hover, .gmenu a:hover { background: #ffffff0c; }
     .gmenu small { display: block; font-weight: 600; font-size: 11.5px; color: var(--faint); }
+    .gmenu { width: 250px; }
+    .gmenu > p { margin: 6px 12px 4px; font: 700 10.5px/1.3 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+    .gmenu > p small { display: inline; letter-spacing: 0; text-transform: none; font-weight: 500; }
+    .gmenu hr { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; }
+    .gmenu .gview button { display: grid; grid-template-columns: 28px 1fr; column-gap: 8px; align-items: center; padding: 8px 10px; }
+    .gmenu .gview span { grid-row: span 2; font-size: 19px; text-align: center; } .gmenu .gview b { font-size: 14px; } .gmenu .gview em { font-style: normal; font-weight: 500; font-size: 12px; color: var(--muted); }
+    .gmenu .gview button.on { background: #ffffff12; box-shadow: inset 2px 0 0 var(--teal); }
     /* the first screen: the world, then Claude and four apps; the rest is a swipe up */
     .hero { display: flex; flex-direction: column; height: 100dvh; min-height: 520px; }
     .world { position: relative; overflow: hidden; flex: 1; min-height: 240px; }
@@ -170,7 +177,6 @@
     @keyframes hmore { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
     @media (prefers-reduced-motion: reduce) { .hmore i { animation: none; } }
     .hpage { border-top: 1px solid var(--line); }
-    .hpage .vpick { display: flex; justify-content: flex-end; }
     .dens-pilot .hquick .hgo .hacts { height: 38px; } .dens-pilot .hquick .hgo .hacts button { width: 30px; height: 30px; }
     .world canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
     .legend { position: absolute; z-index: 2; left: 16px; right: 16px; bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
@@ -188,15 +194,6 @@
     .hhead > div:first-child { flex: 1; min-width: 0; }
     .hhead h2 { margin: 0; font: 800 24px/1.05 var(--display); letter-spacing: -.03em; }
     .hhead p { margin: 3px 0 0; font-size: 12.5px; color: var(--faint); }
-    .vpick { position: relative; flex: none; }
-    .vbtn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px 0 8px; border-radius: 99px; border: 1px solid var(--line); background: #ffffff0a; font: 700 13px/1 var(--body); white-space: nowrap; }
-    .vbtn span { font-size: 16px; } .vbtn i { font-style: normal; font-size: 11px; color: var(--faint); }
-    .vmenu { position: absolute; z-index: 15; right: 0; top: calc(100% + 6px); width: 230px; padding: 6px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 14px 32px #000b; }
-    .vmenu p { margin: 6px 10px; font: 700 10.5px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
-    .vmenu button { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 28px 1fr; column-gap: 8px; align-items: center; padding: 9px 10px; border-radius: 11px; }
-    .vmenu button span { grid-row: span 2; font-size: 20px; text-align: center; }
-    .vmenu button b { font-size: 14px; } .vmenu button em { font-style: normal; font-size: 12px; color: var(--muted); }
-    .vmenu button.on { background: #ffffff12; } .vmenu button:hover { background: #ffffff0c; }
     .hcmd { position: relative; margin-top: 12px; }
     .hcmd input { min-height: 46px; padding: 0 16px; border-radius: 14px; background: var(--panel); }
     .hres { position: absolute; z-index: 8; left: 0; right: 0; top: calc(100% + 6px); padding: 5px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 14px 30px #000b; }
@@ -527,6 +524,7 @@
       { id: 'play', name: 'Play', em: '🧸', blurb: 'A few big controls' },
       { id: 'explore', name: 'Explore', em: '🧭', blurb: 'The main things, a little text' },
       { id: 'pilot', name: 'Pilot', em: '✈️', blurb: 'Every instrument at once' },
+      { id: 'dev', name: 'Developer', em: '⌘', blurb: 'Pilot, plus the details', parent: true },
     ];
     const iso = (d) => d.toISOString().slice(0, 10);
     const dn = (d) => Math.round(Date.parse(String(d).slice(0, 10) + 'T00:00:00Z') / 864e5);
@@ -556,6 +554,7 @@
       await loadHome();
       if (role === 'parent') showFlags();
       if (location.hash === '#tutor' && role !== 'parent') openTutor();
+      if (location.hash === '#settings') { history.replaceState(null, '', '/'); setTimeout(() => $('gear').click(), 0); }   // from another app's "change the view"
       offerPasskey();
     }
 
@@ -628,7 +627,9 @@
       box.hidden = false;
     }
 
-    function densityOf() { try { const v = localStorage.getItem('r4.density.' + ME.id); if (DENSITY.some((d) => d.id === v)) return v; } catch {} return ME.role === 'parent' ? 'pilot' : 'explore'; }
+    // The view (r4.density.<id>, on this device) is one setting for every app, set from ⚙ Settings here.
+    function viewOf() { try { const v = localStorage.getItem('r4.density.' + ME.id); if (DENSITY.some((d) => d.id === v && (!d.parent || ME.role === 'parent'))) return v; } catch {} return ME.role === 'parent' ? 'pilot' : 'explore'; }
+    function densityOf() { const v = viewOf(); return v === 'dev' ? 'pilot' : v; }   // the home shows Developer as Pilot
     function renderHome() {
       const parent = ME.role === 'parent', dens = densityOf(), play = dens === 'play', tight = dens === 'pilot';
       $('home').classList.remove('dens-play', 'dens-explore', 'dens-pilot'); $('home').classList.add('dens-' + dens);
@@ -678,7 +679,6 @@
         ...H.mine.filter((e) => e.summary).slice(0, 4).map((e) => ({ g: parent ? '✎' : '🌳', c: '#B9A6FF', t: e.summary, sub: titleOf[e.topic], at: e.day + 'T20:00:00', href: '/diary.html' })),
       ].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, tight ? 9 : 6);
 
-      const cur = DENSITY.find((d) => d.id === dens);
       const glyph = (a) => `<span class="g${a.emoji ? ' emoji' : ''}">${a.g}</span>`;
       // The family chat: the last few messages (not thread replies), straight into the chat.
       const line = (m) => (m.ref && ({ poll: '📊 Poll', item: '📍 Trip place', call: '📹 Video call', story: '🌳 Shared a story', added: '✦ Added to a trip', project: '⚒ ' + (m.ref.name || 'A project') }[m.ref.type])) || m.body || (m.image ? '📷 Photo' : '');
@@ -692,9 +692,7 @@
           <div class="hacts"><button type="submit" class="hclaude" aria-label="Start Claude" title="Start Claude">✦</button>${parent ? '' : '<button type="button" class="hseed" id="hsd" aria-label="Plant seed" title="Plant seed">🌱</button>'}</div><p class="hmsg" id="hmsg" hidden></p></form>`}
         ${dock(QUICK, play, false)}
         ${H.off.has('chat') ? '' : talkBar()}`;
-      $('htop').innerHTML = `<div class="vpick"><button class="vbtn" id="vbtn" aria-haspopup="menu" aria-expanded="false" aria-label="View: ${cur.name}"><span>${cur.em}</span>${cur.name}<i>▾</i></button>
-          <div class="vmenu" id="vmenu" role="menu" hidden><p>View</p>${DENSITY.map((d) => `<button role="menuitemradio" aria-checked="${d.id === dens}" data-dens="${d.id}" class="${d.id === dens ? 'on' : ''}"><span>${d.em}</span><b>${d.name}</b><em>${d.blurb}</em></button>`).join('')}</div></div>
-        ${play ? '' : `<div class="htoday">${today.filter(Boolean).map((t) => `<a href="${t.href}" style="--c:${t.c}"><span class="g">${t.g}</span><span><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span></a>`).join('')}</div>`}`;
+      $('htop').innerHTML = `${play ? '' : `<div class="htoday">${today.filter(Boolean).map((t) => `<a href="${t.href}" style="--c:${t.c}"><span class="g">${t.g}</span><span><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span></a>`).join('')}</div>`}`;
       $('hrest').innerHTML = `${chatCard}<h3 class="k">Apps</h3>
         ${dock(play ? PLAY : APPS, play, !play)}
         ${play ? '' : `<h3 class="k">Recent</h3><div class="hrecent">${recent.length ? recent.map((r) => `<a href="${r.href}"><span class="g" style="color:${r.c}">${r.g}</span><span class="t">${esc(r.t)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span><span class="a">${agoOf(r.at)}</span></a>`).join('') : '<div class="hempty">Nothing new this week.</div>'}</div>`}
@@ -777,10 +775,6 @@
     function wireHome(APPS) {
       if ($('hpeek')) { $('hpeek').onclick = quickChat; $('hvid').onclick = callPick; watchCalls(); paintCall(); }
       $('hmore').onclick = () => $('hpage').scrollIntoView({ behavior: 'smooth' });   // the same as swiping up
-      const vb = $('vbtn'), vm = $('vmenu');
-      vb.onclick = (e) => { e.stopPropagation(); const open = vm.hidden; vm.hidden = !open; vb.setAttribute('aria-expanded', String(open));
-        if (open) setTimeout(() => document.addEventListener('click', function off() { vm.hidden = true; vb.setAttribute('aria-expanded', 'false'); document.removeEventListener('click', off); }), 0); };
-      vm.querySelectorAll('[data-dens]').forEach((b) => (b.onclick = () => { try { localStorage.setItem('r4.density.' + ME.id, b.dataset.dens); } catch {} renderHome(); }));
       const fc = $('famcard');
       fc.querySelector('.ctxh').onclick = () => { const o = !fc.classList.contains('open'); fc.classList.toggle('open', o); fc.querySelector('.ctxh').setAttribute('aria-expanded', String(o)); };
       fc.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => { pickWorld({ shared: live.shared[+b.dataset.s] }); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
@@ -841,17 +835,20 @@
       if (/^https:\/\/[a-z0-9-]+\.r4box\.com\//.test(a.href) && a.target !== '_blank') { e.preventDefault(); go(a.href); }
     });
     function askFromBar() { const t = $('q').value.trim(); $('q').value = ''; $('hits').hidden = true; openTutor(null, t); }
-    // The menu: a passkey for this device, the admin page, sign out.
+    // Settings: the view every app follows, a passkey for this device, the admin page, sign out.
     $('gear').onclick = (e) => {
       e.stopPropagation();
-      const m = $('gmenu'), open = m.hidden;
-      m.innerHTML = `${window.PublicKeyCredential && sb.auth.registerPasskey ? '<button data-g="key">Add a passkey<small>Face ID or fingerprint on this device</small></button>' : ''}
+      const m = $('gmenu'), open = m.hidden, v = viewOf();
+      m.innerHTML = `<p>View <small>every app, on this device</small></p><div class="gview" role="radiogroup" aria-label="View">${DENSITY.filter((d) => !d.parent || ME?.role === 'parent').map((d) => `<button role="radio" aria-checked="${d.id === v}" data-view="${d.id}" class="${d.id === v ? 'on' : ''}"><span>${d.em}</span><b>${d.name}</b><em>${d.blurb}</em></button>`).join('')}</div><hr>
+        ${window.PublicKeyCredential && sb.auth.registerPasskey ? '<button data-g="key">Add a passkey<small>Face ID or fingerprint on this device</small></button>' : ''}
         ${ME?.role === 'parent' ? '<button data-g="limits">Tutor limits<small>Questions a day, opening hours</small></button><a href="/admin.html">Admin<small>Box health, kids & Claude, devices</small></a>' : ''}
         <button data-g="out">Sign out</button>`;
       m.hidden = !open; $('gear').setAttribute('aria-expanded', String(open));
       if (open) setTimeout(() => document.addEventListener('click', function off(ev) { if (!m.contains(ev.target)) { m.hidden = true; $('gear').setAttribute('aria-expanded', 'false'); document.removeEventListener('click', off); } }), 0);
     };
     $('gmenu').onclick = async (e) => {
+      const vb = e.target.closest('[data-view]');
+      if (vb) { e.stopPropagation(); try { localStorage.setItem('r4.density.' + ME.id, vb.dataset.view); } catch {} $('gmenu').querySelectorAll('[data-view]').forEach((x) => { x.classList.toggle('on', x === vb); x.setAttribute('aria-checked', String(x === vb)); }); renderHome(); return; }
       const b = e.target.closest('[data-g]'); if (!b) return;
       $('gmenu').hidden = true;
       if (b.dataset.g === 'out') await sb.auth.signOut();
