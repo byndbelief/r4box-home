@@ -321,6 +321,13 @@
     dialog .row { display: flex; gap: 10px; } dialog .row > * { flex: 1; }
     dialog .acts { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
     dialog h2 { margin: 0; font: 800 20px/1.2 var(--display); }
+    .types { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+    .types .ty { display: block; cursor: pointer; position: relative; min-width: 0; }
+    .types .ty input { position: absolute; inset: 0; width: 1px; height: 1px; padding: 0; opacity: 0; pointer-events: none; }
+    .types .ty span { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); height: 100%; box-sizing: border-box; }
+    .types .ty small { color: var(--muted); font-weight: 500; font-size: 12px; }
+    .types .ty input:checked + span { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
+    .types .ty input:focus-visible + span { outline: 1px dashed var(--muted); outline-offset: 3px; }
     .note { color: var(--muted); font-size: 13px; }
     /* search the trip, or ask Claude */
     .ask { position: relative; margin: 18px 0 0; }
@@ -358,13 +365,13 @@
     <p class="eyebrow">Trips</p>
     <h1>No trip yet</h1>
     <p class="meta" id="nonetext"></p>
-    <p><button class="btn p" id="newtrip" hidden>Start a trip</button></p>
+    <p><button class="btn p" id="newtrip" hidden>Start a plan</button></p>
   </section>
 
   <section id="trip" hidden>
-    <p class="eyebrow">Trip</p>
+    <p class="eyebrow" id="eyebrow">Trip</p>
     <h1 id="name"></h1>
-    <p class="meta"><span id="where"></span><span id="when"></span><span class="count" id="countdown"></span><span id="goingn"></span><button class="link quiet" id="edittrip" hidden>Edit</button><button class="link quiet" id="newtrip2" hidden>＋ New trip</button><a class="link quiet" id="talktrip" href="/chat.html">💬 Talk about it</a></p>
+    <p class="meta"><span id="where"></span><span id="when"></span><span class="count" id="countdown"></span><span id="goingn"></span><button class="link quiet" id="edittrip" hidden>Edit</button><button class="link quiet" id="newtrip2" hidden>＋ New</button><a class="link quiet" id="talktrip" href="/chat.html">💬 Talk about it</a></p>
     <p class="meta" id="goal" hidden></p>
     <div class="ask">
       <form id="askf"><input id="askq" placeholder="Search the trip, or ask Claude…" autocomplete="off" aria-label="Search the trip, or ask Claude" maxlength="2000"><button class="btn" id="askgo">✦ Ask</button></form>
@@ -373,7 +380,7 @@
     <div id="answer"></div>
     <details class="asks" id="asks" hidden><summary>Recent asks</summary><div id="asklist"></div></details>
     <nav class="tabs" aria-label="Trip sections">
-      <a href="#plan">Plan</a><a href="#ideas">Ideas</a><a href="#bookings">Bookings</a><a href="#packing">Packing</a>
+      <a href="#plan">Plan</a><a href="#ideas">Ideas</a><a href="#bookings" id="tabbook">Bookings</a><a href="#packing" id="tabpack">Packing</a>
     </nav>
     <div id="view"></div>
   </section>
@@ -468,9 +475,14 @@
       $('nonetext').textContent = 'Start one and the family can plan it with you.';
       $('newtrip').hidden = false; return;
     }
+    useType();
+    $('eyebrow').textContent = `${TY.e} ${TY.n}`;
+    $('tabpack').textContent = TY.pack || 'Packing';
+    $('tabbook').hidden = !!TY.home && !items.some((i) => i.kind === 'booking');
+    if (location.hash === '#bookings' && $('tabbook').hidden) history.replaceState(null, '', location.search + '#plan');
     $('name').textContent = trip.name;
     $('where').textContent = (trip.origin && trip.place ? trip.origin + ' → ' : '') + (trip.place || '');
-    $('when').textContent = trip.starts ? nice(trip.starts, { month: 'short', day: 'numeric' }) + (trip.ends ? ' – ' + nice(trip.ends, { month: 'short', day: 'numeric', year: 'numeric' }) : '') : '';
+    $('when').textContent = !trip.starts ? '' : !trip.ends || trip.ends === trip.starts ? nice(trip.starts) : nice(trip.starts, { month: 'short', day: 'numeric' }) + (trip.ends && trip.ends !== trip.starts ? ' – ' + nice(trip.ends, { month: 'short', day: 'numeric', year: 'numeric' }) : '');
     const n = trip.starts ? Math.round((D(trip.starts) - D(iso(new Date()))) / 86400000) : null;
     $('countdown').textContent = n == null ? '' : n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow!' : n === 0 ? 'today!' : trip.ends && trip.ends >= iso(new Date()) ? 'happening now' : '';
     // Anyone starts a trip; its starter or a parent edits it (092).
@@ -488,12 +500,32 @@
   // ---- search the trip as you type; Enter or ✦ Ask asks Claude ----
   const TAB = { plan: 'plan', idea: 'ideas', booking: 'bookings', pack: 'packing' };
   // What a trip needs, in the order it gets decided (dates first: flights and hotels hang on them).
-  const TOPIC = { dates: ['📅', 'Dates'], flights: ['✈️', 'Flights'], tickets: ['🎟️', 'Tickets'], stay: ['🏨', 'Where to stay'],
-    transport: ['🚕', 'Getting around'], food: ['🍽️', 'Food'], activities: ['🎯', 'Things to do'], other: ['✦', 'Other'] };
-  // The parts of a trip that are one-or-the-other: the Choices card. Food, things to do and the rest stay plain ideas.
-  const CHOICES = ['dates', 'flights', 'tickets', 'stay', 'transport'];
+  const PARTNAME = { dates: ['📅', 'Dates'], flights: ['✈️', 'Flights'], route: ['🛣️', 'The route'], tickets: ['🎟️', 'Tickets'], stay: ['🏨', 'Where to stay'],
+    transport: ['🚕', 'Getting around'], pick: ['🎬', 'The pick'], food: ['🍽️', 'Food'], activities: ['🎯', 'Things to do'], other: ['✦', 'Other'] };
+  // What kind of trip it is (trips.type, 116) decides which parts it has and what they're called.
+  // choices: the one-or-the-other parts on the Choices card; extra: plain ideas. day: one day, not a span.
+  // home: at home, so no bookings tab. pack: what the packing tab is called.
+  const TYPES = {
+    away: { e: '✈️', n: 'Trip away', hint: 'flights, hotels', choices: ['dates', 'flights', 'tickets', 'stay', 'transport'], extra: ['food', 'activities', 'other'],
+      goal: 'Watch the Dodgers play the Yankees in New York', from: ['Travelling from', 'City and airport, e.g. Raleigh (RDU)'] },
+    road: { e: '🚗', n: 'Road trip', hint: 'the drive, stops', choices: ['dates', 'route', 'stay', 'tickets'], extra: ['food', 'activities', 'other'],
+      names: { food: ['🍔', 'Food stops'], activities: ['📸', 'Stops & sights'] }, goal: 'Drive to the Smokies for a long weekend, with fun stops on the way', from: ['Driving from', 'Town or city, e.g. Raleigh'] },
+    local: { e: '🎤', n: 'Local event', hint: 'concert, game, show', choices: ['dates', 'tickets', 'transport'], extra: ['food', 'other'], day: true, pack: 'Bring',
+      names: { dates: ['📅', 'When'], transport: ['🚗', 'Getting there'], food: ['🍽️', 'Eat before or after'] }, goal: 'See Hozier at the Red Hat Amphitheater', from: ['Leaving from', 'Optional: your town, for drive times'] },
+    movie: { e: '🎬', n: 'Movie night', hint: 'at home', choices: ['dates', 'pick'], extra: ['food', 'other'], day: true, home: true, pack: 'To get',
+      names: { dates: ['📅', 'When'], pick: ['🎬', 'The movie'], food: ['🍿', 'Snacks'] }, goal: 'Friday movie night, something we all like' },
+    games: { e: '🎲', n: 'Game night', hint: 'at home', choices: ['dates'], extra: ['pick', 'food', 'other'], day: true, home: true, pack: 'To get',
+      names: { dates: ['📅', 'When'], pick: ['🎲', 'Games to play'], food: ['🍕', 'Food & snacks'] }, goal: 'Game night Saturday with a couple of friends' },
+    other: { e: '✦', n: 'Something else', hint: '', choices: ['dates', 'tickets'], extra: ['food', 'activities', 'other'], goal: 'A day at the beach' },
+  };
+  let TY = TYPES.away, TOPIC = PARTNAME, CHOICES = TY.choices;
+  function useType() {
+    TY = TYPES[trip?.type] || TYPES.away;
+    CHOICES = TY.choices;
+    TOPIC = Object.fromEntries([...TY.choices, ...TY.extra].map((t) => [t, TY.names?.[t] || PARTNAME[t]]));
+  }
   // What a choice changes further down: the parts Claude reworks to fit it.
-  const AFFECTS = { dates: ['flights', 'tickets', 'stay', 'transport'], flights: ['transport'], tickets: ['stay', 'transport'], stay: ['transport'], transport: [] };
+  const AFFECTS = { dates: ['flights', 'route', 'tickets', 'stay', 'transport'], flights: ['transport'], route: ['stay'], tickets: ['stay', 'transport'], stay: ['transport'], transport: [], pick: [] };
   let updating = null;     // { text } while Claude reworks the parts below a choice
   const showOthers = new Set();   // decided parts whose other options are shown again
   const bookedFor = (t) => items.find((i) => i.kind === 'booking' && i.topic === t);
@@ -595,7 +627,7 @@
   // Food and things to do: fetch missing pictures in the background, two at a time; the server keeps them.
   const warmed = new Set();
   async function warmPictures() {
-    const want = items.filter((i) => ['food', 'activities'].includes(i.topic) && !picOf(i) && !warmed.has(i.id));
+    const want = items.filter((i) => ['food', 'activities', 'pick'].includes(i.topic) && !picOf(i) && !warmed.has(i.id));
     want.forEach((i) => warmed.add(i.id));
     const { data: { session: s } } = await sb.auth.getSession();
     let changed = false;
@@ -617,18 +649,26 @@
     const sec = (d, title, sub) => {
       const its = list.filter((i) => (i.day || null) === d).sort((a, b) => String(a.at || '99').localeCompare(String(b.at || '99')));
       return `<div class="day"><h3>${title}<small>${sub}</small></h3><div class="list">${its.map((i) => itemRow(i, { cost: i.cost ? money(i.cost) : '', icon: true })).join('')}</div>
-        <div class="dayacts"><button class="add" data-day="${d || ''}">＋ Add to ${d ? nice(d, { weekday: 'long' }) : 'any day'}</button>${d ? `<button class="add fill" data-fill="${d}">✦ ${its.length ? 'Fill out' : 'Plan'} this day</button>` : ''}</div></div>`;
+        <div class="dayacts"><button class="add" data-day="${d || ''}">＋ Add to ${d ? nice(d, { weekday: 'long' }) : 'any day'}</button>${d && !one ? `<button class="add fill" data-fill="${d}">✦ ${its.length ? 'Fill out' : 'Plan'} this day</button>` : ''}</div></div>`;
     };
-    const build = ds.length ? `<div class="build"><div><b>✦ ${planned ? 'Rework the itinerary' : 'Build our itinerary'}</b><span>Claude lays out every day around your flights, stay and bookings, with the ideas you chose and the best of the rest, in an order that makes sense.</span></div><button class="btn p" id="buildit"${asking ? ' disabled' : ''}>${planned ? 'Rework' : 'Build it'}</button></div>` : '';
-    $('view').innerHTML = build + (ds.length ? ds.map((d, k) => sec(d, nice(d), `Day ${k + 1}`)).join('') : `<p class="empty">No dates yet. Ask Claude above, e.g. “when should we go?”${PARENT ? ', or set them with Edit' : ''}.</p>`)
+    const one = !!TY.day && ds.length === 1, span = ds.length ? `${nice(ds[0])} to ${nice(ds[ds.length - 1])}` : '';
+    const B = one ? (TY.home
+        ? { t: planned ? 'Rework the night' : 'Plan the night', s: 'Claude lays out the evening: when to start, food, the main event, with times.' }
+        : { t: planned ? 'Rework the day' : 'Plan the day', s: 'Claude lays out the day around the event: leaving, parking or the ride, food, doors and the show, and getting home.' })
+      : { t: planned ? 'Rework the itinerary' : 'Build our itinerary', s: TY === TYPES.road ? 'Claude lays out every day around the drive: driving legs, stops, where you sleep, with the ideas you chose.' : 'Claude lays out every day around your flights, stay and bookings, with the ideas you chose and the best of the rest, in an order that makes sense.' };
+    const build = ds.length ? `<div class="build"><div><b>✦ ${B.t}</b><span>${B.s}</span></div><button class="btn p" id="buildit"${asking ? ' disabled' : ''}>${planned ? 'Rework' : one ? 'Plan it' : 'Build it'}</button></div>` : '';
+    $('view').innerHTML = build + (ds.length ? ds.map((d, k) => sec(d, nice(d), one ? 'the plan' : `Day ${k + 1}`)).join('') : `<p class="empty">No ${TY.day ? 'date' : 'dates'} yet. Ask Claude above, e.g. “when should we ${TY.home ? 'do it' : 'go'}?”${PARENT ? ', or set it with Edit' : ''}.</p>`)
       + (list.some((i) => !i.day) || !ds.length ? sec(null, 'Any day', 'not scheduled yet') : '');
     $('view').querySelectorAll('.add[data-day]').forEach((b) => b.onclick = () => edit({ kind: 'plan', day: b.dataset.day || null }));
-    const span = `${nice(ds[0])} to ${nice(ds[ds.length - 1])}`;
-    if ($('buildit')) $('buildit').onclick = () => askTrip(
-      `Make our day-by-day itinerary for the whole trip (${span}). For every day, add plan items with a time (at) and a short useful note, in an order that makes sense and keeps travel short: `
-      + `arrival and departure around the flights we booked or chose, check-in at our stay, fixed-date things (events, tickets) on their dates, then the ideas we chose and the best food and things-to-do ideas, each on a day that fits (opening days, the neighbourhood we're in). `
+    if ($('buildit')) $('buildit').onclick = () => askTrip(one
+      ? `Plan ${nice(ds[0], { weekday: 'long', month: 'long', day: 'numeric' })} (${ds[0]}) for us as a timeline: add plan items on that day with a time (at) and a short useful note. `
+        + (TY.home ? `Around the main thing (${TY === TYPES.movie ? 'the movie we chose, or the best option' : 'the games we picked'}), with food and snacks at sensible times and an end time that suits everyone. ` : `Around the event's real times (doors, start): when to leave, getting there and parking or the ride, food before or after, and getting home. `)
+        + `Turn an idea into a plan by moving it onto the day, never copy it. Keep what's already planned unless it clashes, and tell me in a few lines how it flows.`
+      : `Make our day-by-day itinerary for the whole trip (${span}). For every day, add plan items with a time (at) and a short useful note, in an order that makes sense and keeps travel short: `
+      + (TY === TYPES.road ? `the driving legs of the route we chose (leave times, hours on the road, breaks every couple of hours), check-in where we sleep, fixed-date things on their dates, then the stops, sights and food stops we chose and the best of the rest along the way. `
+        : `arrival and departure around the flights we booked or chose, check-in at our stay, fixed-date things (events, tickets) on their dates, then the ideas we chose and the best food and things-to-do ideas, each on a day that fits (opening days, the neighbourhood we're in). `)
       + `Turn an idea into a plan by moving it onto its day, never copy it. Keep what's already planned unless it clashes. Leave some free time, think of the kids' energy, and tell me in a few lines how the days flow.`,
-      planned ? '✦ Rework the itinerary' : '✦ Build our itinerary');
+      `✦ ${B.t}`);
     $('view').querySelectorAll('[data-fill]').forEach((b) => b.onclick = () => askTrip(
       `Plan ${nice(b.dataset.fill, { weekday: 'long', month: 'long', day: 'numeric' })} (${b.dataset.fill}) for us: add plan items on that day with times and short notes, around anything already on it and our bookings, using our chosen and best ideas (move an idea onto the day, never copy it). Keep travel short and leave some free time.`,
       `✦ Plan ${nice(b.dataset.fill, { weekday: 'long' })}`));
@@ -645,7 +685,7 @@
       foldsFor = trip.id; folds = {};
       try { folds = JSON.parse(localStorage.getItem('trip-folds-' + trip.id) || '{}') || {}; } catch {}
       const next = CHOICES.find((t) => list.some((i) => i.topic === t) && !decided(t));
-      if (!Object.keys(folds).length) { if (next) folds[next] = true; folds['g:food'] = true; folds['g:activities'] = true; }
+      if (!Object.keys(folds).length) { if (next) folds[next] = true; folds['g:food'] = true; folds['g:activities'] = true; folds['g:pick'] = true; }
     }
     const mayChoose = canChoose();
     // Flights show once there are options, a booking or a flight plan, or as soon as the trip knows when and from where.
@@ -679,9 +719,9 @@
     const groups = [...Object.keys(TOPIC).filter((t) => !CHOICES.includes(t)), null].map((t) => ({ t, its: rest.filter((i) => (TOPIC[i.topic] ? i.topic : null) === t) })).filter((g) => g.its.length);
     $('view').innerHTML = goingHTML() + estimateHTML() + card
       + (groups.length ? groups.map((g) => { const k = 'g:' + (g.t || 'none'); return `<details class="topic fold" id="topic-${g.t || 'none'}" data-fold="${k}"${isOpen(k) ? ' open' : ''}><summary><span class="grow"><h3>${g.t ? TOPIC[g.t].join(' ') : 'More ideas'}</h3><span class="sum">${g.its.length} idea${g.its.length === 1 ? '' : 's'}: ${esc(g.its.slice(0, 3).map((i) => i.title).join(', '))}</span></span><span class="chev" aria-hidden="true">⌄</span></summary>
-          ${['food', 'activities'].includes(g.t) ? `<div class="gallery">${g.its.map(tile).join('')}</div>`
+          ${['food', 'activities', 'pick'].includes(g.t) ? `<div class="gallery">${g.its.map(tile).join('')}</div>`
             : `<div class="list">${g.its.map((i) => itemRow(i, { tm: null, meta: [`added by ${esc(nameOf(i.created_by) || 'someone')}`] })).join('')}</div>`}</details>`; }).join('')
-        : parts.length ? '' : `<p class="empty">No ideas yet. Add one, or ask Claude to “break the trip down”: dates, flights, tickets and where to stay come back as choices to make.</p>`)
+        : parts.length ? '' : `<p class="empty">No ideas yet. Add one, or ask Claude to “break it down”: ${esc(TY.choices.map((t) => TOPIC[t][1].toLowerCase()).join(', '))} come back as choices to make.</p>`)
       + `<button class="add" id="addidea">＋ Add an idea</button>`;
     $('view').querySelectorAll('.tile[data-id]').forEach((el) => {
       const go = () => view(items.find((i) => i.id === el.dataset.id));
@@ -996,7 +1036,7 @@
   // A choice was made: Claude reworks the undecided parts below it to fit (retiring options it
   // found that no longer fit, keeping what still does, finding new ones where a part runs short).
   async function reworkBelow(i) {
-    const below = (AFFECTS[i.topic] || []).filter((t) => !decided(t) && (items.some((x) => x.kind === 'idea' && x.topic === t) || i.topic === 'dates'));
+    const below = (AFFECTS[i.topic] || []).filter((t) => TOPIC[t] && !decided(t) && (items.some((x) => x.kind === 'idea' && x.topic === t) || i.topic === 'dates'));
     if (!below.length || updating) return;
     const names = below.map((t) => TOPIC[t][1].toLowerCase());
     updating = { text: `Updating ${names.join(', ')} for “${i.title.replace(/^[A-Za-z ]+:\s*/, '')}”… (about a minute)` };
@@ -1044,7 +1084,7 @@
     const min = (arr) => (arr.length ? Math.min(...arr) : null);
     const booked = (t) => items.filter((i) => i.kind === 'booking' && i.topic === t);
     // Flights: a flight plan's legs; else a chosen or cheapest round-trip option.
-    {
+    if (TOPIC.flights) {
       const bk = booked('flights'), plan = planOf();
       if (bk.length) rows.push({ t: 'flights', d: bk.reduce((s2, i) => s2 + (+i.cost || 0), 0), e: 0, note: 'booked' });
       else if (plan) {
@@ -1059,7 +1099,7 @@
       }
     }
     // Tickets, stay, getting around: their plans' pieces; else a chosen or cheapest option.
-    for (const t of PARTS) {
+    for (const t of PARTS.filter((x) => TOPIC[x])) {
       const bk = booked(t), plan = partPlan(t);
       if (bk.length) { rows.push({ t, d: bk.reduce((s2, i) => s2 + (+i.cost || 0), 0), e: 0, note: 'booked' }); continue; }
       if (plan) {
@@ -1073,7 +1113,7 @@
         else { const c = min(opts.map(price).filter((x) => x != null)); if (c != null) rows.push({ t, d: 0, e: c, note: 'cheapest option' }); }
       }
     }
-    const plans = items.filter((i) => i.kind === 'plan' && i.cost), other = items.filter((i) => i.kind === 'booking' && !['flights', ...PARTS].includes(i.topic) && i.cost);
+    const plans = items.filter((i) => i.kind === 'plan' && i.cost), other = items.filter((i) => i.kind === 'booking' && !(['flights', ...PARTS].includes(i.topic) && TOPIC[i.topic]) && i.cost);
     if (plans.length) rows.push({ t: 'plan', label: '🗓 Planned activities', d: plans.reduce((s2, i) => s2 + +i.cost, 0), e: 0, note: `${plans.length} on the plan` });
     if (other.length) rows.push({ t: 'other', label: '🧾 Other bookings', d: other.reduce((s2, i) => s2 + +i.cost, 0), e: 0, note: `${other.length} booked` });
     const d = rows.reduce((s2, r) => s2 + r.d, 0), e = rows.reduce((s2, r) => s2 + r.e, 0);
@@ -1111,7 +1151,7 @@
   function partSection(t, status) {
     const plan = partPlan(t), name = TOPIC[t][1];
     if (!plan) return `<details class="choice fold" id="topic-${t}" data-fold="${t}"${isOpen(t) ? ' open' : ''}><summary><span class="grow"><h3>${TOPIC[t][0]} ${name} ${status}</h3><span class="sum">Not set up yet</span></span><span class="chev" aria-hidden="true">⌄</span></summary>
-      <div class="opts"><p class="note" style="margin:0">${t === 'stay' ? 'Claude works out where you sleep each night from the flights, then finds places for each stay.' : t === 'tickets' ? 'Claude works out which events need tickets, then finds seats for each.' : 'Claude works out each trip you’ll make (airport, hotel, the show), timed to your flights, then finds ways to do each.'}</p>
+      <div class="opts"><p class="note" style="margin:0">${t === 'stay' ? `Claude works out where you sleep each night from the ${TOPIC.route ? 'route' : 'flights'}, then finds places for each stay.` : t === 'tickets' ? 'Claude works out which events need tickets, then finds seats for each.' : TOPIC.flights ? 'Claude works out each trip you’ll make (airport, hotel, the show), timed to your flights, then finds ways to do each.' : 'Claude works out the way there and back, then finds ways to do each (driving and parking, a ride, transit).'}</p>
       ${canChoose() ? `<button type="button" class="btn p" data-setuppart="${t}" style="justify-self:start" ${flyBusy ? 'disabled' : ''}>${flyBusy ? '✦ Setting up… (about a minute)' : `✦ Set up ${name.toLowerCase()}`}</button>` : ''}</div></details>`;
     const picked = plan.filter((_, n) => partPick(t, n)).length, tot = plan.reduce((s2, _, n) => s2 + (totalOf(partPick(t, n)) || 0), 0);
     const sum = picked === plan.length ? `<span class="sum ok">✓ ${plan.length === 1 ? esc(pickLine(t, partPick(t, 0))) : `all ${plan.length} picked · ${money(tot)}`}</span>` : `<span class="sum">${picked} of ${plan.length} picked</span>`;
@@ -1121,7 +1161,7 @@
         <small>${p2 ? esc(pickLine(t, p2)) : `${c} option${c === 1 ? '' : 's'} to pick from`}</small></div>`; }).join('')}</div></details>`;
   }
   function setupPart(t) {
-    askFlights(`Set up the ${t} plan for this trip: retire the old ${t} options you found, set_plan with the pieces it needs (from the flight plan, the chosen dates and the events), then find 3 or 4 options per piece as ${t} ideas with details { seg, ... } filled in. Leave everything else as it is.`);
+    askFlights(`Set up the ${t} plan for this trip: retire the old ${t} options you found, set_plan with the pieces it needs (from ${TOPIC.flights ? 'the flight plan' : TOPIC.route ? 'the route' : 'where we leave from'}, the chosen dates and the events), then find 3 or 4 options per piece as ${t} ideas with details { seg, ... } filled in. Leave everything else as it is.`);
   }
   function openPart(t) {
     if (pf.t !== t) { pf.t = t; pf.on = new Set(); pf.modes = new Set(); pf.sort = 'price'; }
@@ -1460,7 +1500,7 @@
     $('dform').innerHTML = `<h2>${isNew ? 'New ' + KIND[k].toLowerCase() : KIND[k]}</h2>
       <label>${k === 'booking' ? 'What (flight, hotel, car…)' : 'What'}<input name="title" required maxlength="200" value="${esc(i.title || '')}"></label>
       ${k === 'plan' || k === 'booking' ? `<div class="row"><label>Day<select name="day">${dayOpts}</select></label><label>Time<input name="at" placeholder="9:30" maxlength="20" value="${esc(i.at || '')}"></label></div>` : ''}
-      ${k !== 'pack' ? `<label>Part of the trip<select name="topic"><option value="">—</option>${Object.entries(TOPIC).map(([t, [e, n]]) => `<option value="${t}" ${t === i.topic ? 'selected' : ''}>${e} ${n}</option>`).join('')}</select></label>` : ''}
+      ${k !== 'pack' ? `<label>Part of the trip<select name="topic"><option value="">—</option>${Object.entries({ ...TOPIC, ...(i.topic && !TOPIC[i.topic] && PARTNAME[i.topic] ? { [i.topic]: PARTNAME[i.topic] } : {}) }).map(([t, [e, n]]) => `<option value="${t}" ${t === i.topic ? 'selected' : ''}>${e} ${n}</option>`).join('')}</select></label>` : ''}
       <label>Notes<textarea name="notes" maxlength="2000">${esc(i.notes || '')}</textarea></label>
       <label>Link<input name="link" type="url" placeholder="https://" value="${esc(i.link || '')}"></label>
       ${k !== 'pack' && k !== 'booking' ? `<label>Video (a YouTube link)<input name="video" type="url" placeholder="https://youtube.com/watch?v=…" value="${esc(i.video || '')}"></label>` : ''}
@@ -1498,26 +1538,43 @@
 
   // ---- the trip itself (a parent) ----
   function editTrip(t = {}) {
-    $('dform').innerHTML = `<h2>${t.id ? 'Edit trip' : 'New trip'}</h2>
-      <label>What's the trip?<textarea name="goal" maxlength="1000" placeholder="Watch the Dodgers play the Yankees in New York">${esc(t.goal || '')}</textarea></label>
+    const ty0 = TYPES[t.type] ? t.type : 'away';
+    $('dform').innerHTML = `<h2>${t.id ? 'Edit' : 'New'}</h2>
+      <div class="types" role="radiogroup" aria-label="What kind">${Object.entries(TYPES).map(([k, x]) => `<label class="ty"><input type="radio" name="type" value="${k}" ${k === ty0 ? 'checked' : ''}><span><b>${x.e} ${x.n}</b>${x.hint ? `<small>${x.hint}</small>` : ''}</span></label>`).join('')}</div>
+      <label>What's the plan?<textarea name="goal" maxlength="1000">${esc(t.goal || '')}</textarea></label>
       <label>Name<input name="name" maxlength="80" value="${esc(t.name && t.name !== 'New trip' ? t.name : '')}" placeholder="Optional: Claude can name it"></label>
-      <label>Where<input name="place" maxlength="120" value="${esc(t.place || '')}" placeholder="Optional"></label>
-      <label>Travelling from<input name="origin" maxlength="120" value="${esc(t.origin || '')}" placeholder="City and airport, e.g. Raleigh (RDU)"></label>
-      <div class="row"><label>From<input name="starts" type="date" value="${t.starts || ''}"></label><label>To<input name="ends" type="date" value="${t.ends || ''}"></label></div>
-      <label>Currency<input name="currency" maxlength="3" value="${esc(t.currency || 'USD')}"></label>
-      <p class="note">Only the goal is needed: Claude works out where and when, then breaks the trip down (dates, flights, tickets, where to stay, getting around). Add where you travel from so flights are priced from home.</p>
+      <label>Where<input name="place" maxlength="120" value="${esc(t.place || '')}"></label>
+      <label id="dorigin"><span></span><input name="origin" maxlength="120" value="${esc(t.origin || '')}"></label>
+      <div class="row"><label><span id="dfrom">From</span><input name="starts" type="date" value="${t.starts || ''}"></label><label id="dto">To<input name="ends" type="date" value="${t.ends || ''}"></label></div>
+      <label id="dcur">Currency<input name="currency" maxlength="3" value="${esc(t.currency || 'USD')}"></label>
+      <p class="note" id="dnote"></p>
       <p class="note" id="derr"></p>
       <div class="acts"><button type="button" class="btn" id="dcancel">Cancel</button><button class="btn p">Save</button></div>`;
     const f = $('dform');
+    const ty = () => f.elements.type.value || 'away';
+    // The form follows the type: one date for a day out or a night in, no "travelling from" at home.
+    const shape = () => {
+      const k = ty(), x = TYPES[k];
+      f.elements.goal.placeholder = x.goal;
+      f.elements.place.placeholder = x.home ? 'Optional: whose place' : k === 'local' ? 'Optional: the venue' : 'Optional';
+      $('dorigin').hidden = !x.from; if (x.from) { $('dorigin').firstChild.textContent = x.from[0]; f.elements.origin.placeholder = x.from[1]; }
+      $('dto').hidden = !!x.day; $('dfrom').textContent = x.day ? 'Date' : 'From';
+      $('dcur').hidden = !!x.home;
+      $('dnote').textContent = 'Only the goal is needed: Claude works out ' + (x.day ? 'when' : 'where and when') + ', then breaks it down into ' + x.choices.filter((c) => c !== 'dates').map((c) => (x.names?.[c] || PARTNAME[c])[1].toLowerCase()).concat(x.extra.filter((c) => c !== 'other').map((c) => (x.names?.[c] || PARTNAME[c])[1].toLowerCase())).join(', ').replace(/, ([^,]*)$/, ' and $1') + '.' + (k === 'away' ? ' Add where you travel from so flights are priced from home.' : '');
+    };
+    f.querySelectorAll('input[name=type]').forEach((r) => r.onchange = shape);
+    shape();
     $('dcancel').onclick = () => $('dlg').close();
     f.onsubmit = async (e) => {
       e.preventDefault();
-      const v = { goal: f.elements.goal.value.trim() || null, name: f.elements.name.value.trim() || (t.id ? t.name : 'New trip'), place: f.elements.place.value.trim() || null, origin: f.elements.origin.value.trim() || null, starts: f.elements.starts.value || null, ends: f.elements.ends.value || null, currency: (f.elements.currency.value.trim() || 'USD').toUpperCase() };
+      const x = TYPES[ty()];
+      const v = { type: ty(), goal: f.elements.goal.value.trim() || null, name: f.elements.name.value.trim() || (t.id ? t.name : 'New trip'), place: f.elements.place.value.trim() || null,
+        origin: x.from ? f.elements.origin.value.trim() || null : t.origin || null, starts: f.elements.starts.value || null, ends: (x.day ? f.elements.starts.value : f.elements.ends.value) || null, currency: (f.elements.currency.value.trim() || 'USD').toUpperCase() };
       const { data, error } = t.id ? await sb.from('trips').update(v).eq('id', t.id).select().single() : await sb.from('trips').insert(v).select().single();
       if (error) { $('derr').textContent = 'Could not save: ' + error.message; return; }
       $('dlg').close(); history.replaceState(null, '', '?t=' + data.id + (location.hash || '#plan')); await load();
       // A new trip from a goal: Claude starts on it straight away.
-      if (!t.id && v.goal) { $('askq').value = `Help us start planning this trip: ${v.goal}. Work out where and when, then break it down into dates, flights, tickets, where to stay and getting around, with real options for each.`; $('askf').requestSubmit(); }
+      if (!t.id && v.goal) { $('askq').value = `Help us start planning this: ${v.goal}. Work out ${x.day ? 'when' : 'where and when'}, then break it down into ${x.choices.map((c) => (x.names?.[c] || PARTNAME[c])[1].toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' and $1')}, with real options for each.`; $('askf').requestSubmit(); }
     };
     $('dlg').showModal();
   }
