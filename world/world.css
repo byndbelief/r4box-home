@@ -471,3 +471,10 @@ header button,header a,header input,header select,header label{pointer-events:au
 
 /* full screen fills the whole screen (a phone on its side too), not a centred column */
 .world.full{left:0;right:0;transform:none;max-width:none!important;width:100%}.isfull .pick{width:calc(min(560px,100vw) - 24px)}
+
+/* a phone on its side, full screen: what you tapped opens in a panel on the right, and the world
+   keeps the rest of the screen, so the card never sits over the tree */
+@media (orientation:landscape) and (max-height:600px){
+  body.isfull .pick{left:auto;right:0;top:0;bottom:0;transform:none;width:min(44vw,440px);max-height:none;border-radius:0;border-width:0 0 0 1px;padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) 16px;box-shadow:-12px 0 32px #0008}
+  body.isfull:has(.pick:not([hidden])) .world.full{width:calc(100% - min(44vw,440px))}
+}

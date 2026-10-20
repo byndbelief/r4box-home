@@ -39,7 +39,8 @@
     function lightLimb(id) {
       lit = id; if (!tree || !tree.select) return;
       tree.select(id); const b = tree.limb && tree.limb(id); if (!b) return;
-      const full = !!cv.closest('.full'), k = Math.max(kStart * 2.2, Math.min(kMax, VW / (b.w * 1.2 + 30), VH * (full ? 0.5 : 0.9) / (b.h * 1.15 + 20)));
+      const side = matchMedia('(orientation: landscape) and (max-height: 600px)').matches;   // a phone on its side: the card is a panel beside the world
+      const full = !!cv.closest('.full') && !side, k = Math.max(kStart * 2.2, Math.min(kMax, VW / (b.w * 1.2 + 30), VH * (full ? 0.5 : 0.9) / (b.h * 1.15 + 20)));
       const up = full ? VH * 0.22 / k : 0;
       go({ x: L.tree.x + b.x + b.w / 2, y: L.tree.y + b.y + b.h / 2 + up, k }, true);
     }
