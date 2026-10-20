@@ -360,7 +360,7 @@
     <div id="answer"></div>
     <details class="asks" id="asks" hidden><summary>Recent asks</summary><div id="asklist"></div></details>
     <nav class="tabs" aria-label="Trip sections">
-      <a href="#plan">Plan</a><a href="#ideas">Ideas</a><a href="#bookings">Bookings</a><a href="#packing">Packing</a><a href="#chat">💬 Chat</a>
+      <a href="#plan">Plan</a><a href="#ideas">Ideas</a><a href="#bookings">Bookings</a><a href="#packing">Packing</a>
     </nav>
     <div id="view"></div>
   </section>
@@ -463,7 +463,7 @@
     $('goal').hidden = !trip.goal; $('goal').textContent = trip.goal ? '🎯 ' + trip.goal : '';
     const tab = (location.hash || '#plan').slice(1);
     document.querySelectorAll('.tabs a').forEach((a) => a.setAttribute('aria-current', String(a.hash === '#' + tab)));
-    ({ plan, ideas, bookings, packing, chat }[tab] || plan)();
+    ({ plan, ideas, bookings, packing }[tab] || plan)();   // the trip-wide chat tab is gone: talk in the family chat, or on an item's own page
     $('asks').hidden = !asks.length;
     $('asklist').innerHTML = asks.map((a) => `<p><b>${esc(nameOf(a.asker))}:</b> ${esc(a.text)}<br>✦ ${esc(a.reply || '')}</p>`).join('');
   }
