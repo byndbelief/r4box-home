@@ -194,18 +194,19 @@
     @media (min-width: 800px) { #fly { height: 94dvh; margin-top: 3dvh; border-radius: 22px; border: 1px solid var(--line); } }
     #fly::backdrop { background: #000000dd; }
     #fly .wrap { display: flex; flex-direction: column; height: 100%; }
-    #fly header.sh { flex: none; display: flex; align-items: center; gap: 10px; padding: max(12px, env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--line); }
+    #fly header.sh { flex: none; display: flex; align-items: center; gap: 10px; padding: max(8px, env(safe-area-inset-top)) 16px 8px; border-bottom: 1px solid var(--line); }
     #fly header.sh b { flex: 1; font: 800 17px/1.2 var(--display); }
-    #fly .filters { flex: none; padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; background: var(--panel-2); }
-    #fly .frow { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    #fly .filters { flex: none; padding: 7px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; background: var(--panel-2); }
+    #fly .frow { display: flex; gap: 5px; align-items: center; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; } #fly .frow::-webkit-scrollbar { display: none; }
+    #fly .frow > * { flex: none; } #fly .fsep { width: 1px; height: 18px; background: var(--line); margin: 0 3px; }
     #fly .frow > small { width: 100%; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); font-weight: 700; }
-    #fly .chip { appearance: none; cursor: pointer; padding: 6px 11px; border-radius: 99px; border: 1px solid var(--line); background: #ffffff08; color: var(--muted); font: 700 13px/1 var(--body); }
+    #fly .chip { appearance: none; cursor: pointer; white-space: nowrap; padding: 5px 10px; border-radius: 99px; border: 1px solid var(--line); background: #ffffff08; color: var(--muted); font: 700 13px/1 var(--body); }
     #fly .chip.on { background: var(--teal); border-color: var(--teal); color: var(--teal-ink); }
     #fly input[type=range] { width: 100%; accent-color: var(--teal); padding: 0; border: 0; background: none; }
     #fly .rng { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     #fly .rng label { font-size: 12.5px; color: var(--muted); font-weight: 700; display: grid; gap: 2px; }
     #fly .rng label b { color: var(--ink); }
-    #fly .list { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 16px 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }
+    #fly .list { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 16px 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-content: start; }
     #fly .list > * { min-width: 0; }   /* the sideways row of combinations scrolls inside, it never widens the page */
     .fcard { padding: 14px; border-radius: 18px; background: var(--panel); border: 1.5px solid var(--line); display: grid; gap: 10px; }
     .fcard.on { border-color: var(--teal); background: color-mix(in srgb, var(--teal) 8%, var(--panel)); }
@@ -229,6 +230,30 @@
     .fcard .tot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13.5px; color: var(--muted); } .fcard .tot b { color: var(--ink); }
     .fcard .acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; }
     .fcard .acts a { text-decoration: none; }
+    /* the builders' cards, condensed: name and price on a line, then the facts, then small buttons */
+    #fly .fcard { padding: 9px 12px; border-radius: 13px; gap: 6px; grid-template-columns: minmax(0, 1fr); } #fly .fcard > * { min-width: 0; }
+    #fly .fcard .top { align-items: baseline; } #fly .fcard .pr b { display: inline; font-size: 18px; } #fly .fcard .pr small { margin-left: 6px; font-size: 12px; }
+    #fly .fcard .al { font-size: 14.5px; } #fly .fcard .al small { font-size: 12px; margin-top: 1px; }
+    #fly .fcard .facts2 { gap: 4px; } #fly .fcard .facts2 span { padding: 2px 7px; font-size: 11.5px; }
+    #fly .fcard .acts { gap: 6px; } #fly .fcard .acts .btn { padding: 4px 10px; font-size: 12.5px; border-radius: 9px; }
+    #fly .fcard .acts .btn.q { background: none; border-color: transparent; color: var(--muted); padding: 4px 6px; }
+    #fly .fcard .badge { padding: 2px 7px; font-size: 11px; white-space: nowrap; }
+    #fly .fcard .facts2 { flex-wrap: nowrap; overflow: hidden; mask-image: linear-gradient(90deg, #000 88%, transparent); } #fly .fcard .facts2 span { flex: none; }
+    .fc .r1 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .fc .r1 .al { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .fc .r1 .al small { display: inline; margin-left: 6px; font: 600 11.5px/1 var(--mono); color: var(--faint); }
+    .fc .r1 .ok { color: var(--teal); }
+    .fc .r1 .pr { flex: none; white-space: nowrap; } .fc .r1 .pr b { font-size: 17px; } .fc .r1 .pr small { margin-left: 4px; }
+    .leg.c { padding: 0; background: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+    .leg.c .lt { gap: 8px; } .leg.c .lt b { font-size: 14px; display: flex; align-items: baseline; gap: 4px; } .leg.c .lt b small { display: inline; font-size: 11px; }
+    .leg.c .lt .end { justify-content: flex-end; } .leg.c .tl { height: 4px; } .leg.c .tl em { top: -3px; width: 10px; height: 10px; margin-left: -5px; }
+    .leg.c .lm { font-size: 12px; white-space: nowrap; }
+    #fly .legsec > .add { justify-self: start; padding: 2px; font-size: 13px; }
+    #fly .legsec { grid-template-columns: minmax(0, 1fr); } #fly .legsec > * { min-width: 0; }
+    #fly .legsec > [data-legmore], #fly .legsec > [data-pmore] { justify-self: start; margin-top: 0 !important; padding: 4px 10px; font-size: 12.5px; border-radius: 9px; }
+    #fly .combos { grid-auto-columns: minmax(220px, 72%); gap: 8px; } #fly .combo { padding: 9px 11px; gap: 5px; border-radius: 13px; }
+    #fly .combo h4 { font-size: 12.5px; gap: 8px; } #fly .combo h4 small { font-size: 15px; white-space: nowrap; }
+    #fly .combo ul { font-size: 11.5px; gap: 2px; } #fly .combo .meta { font-size: 11.5px; } #fly .combo .btn { padding: 4px 10px; font-size: 12.5px; border-radius: 9px; }
+    #fly h3.k { font-size: 12px !important; }
     #fly .need { padding: 12px 14px; border-radius: 14px; border: 1px dashed #B9A6FF66; color: var(--muted); font-size: 14px; display: grid; gap: 8px; }
     /* who's going, and the running estimate */
     .going, .est { background: var(--panel-2); border: 1px solid var(--line); border-radius: 20px; padding: 14px 16px; margin: 6px 0 10px; }
@@ -270,7 +295,7 @@
     .combo ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); }
     .combo ul b { color: var(--ink); font-family: var(--mono); font-weight: 600; }
     .combo .meta { font-size: 12.5px; color: var(--faint); }
-    #fly .legsec h3 { margin: 18px 0 8px; font: 800 13px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--violet); display: flex; justify-content: space-between; gap: 8px; }
+    #fly .legsec { display: grid; gap: 6px; } #fly .legsec h3 { margin: 10px 0 0; font: 800 13px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--violet); display: flex; justify-content: space-between; gap: 8px; }
     #fly .legsec h3 small { color: var(--muted); letter-spacing: 0; text-transform: none; }
     #fly .totals { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--panel-2); }
     #fly .totals b { display: block; font: 800 18px/1.1 var(--display); color: var(--gold); } #fly .totals small { color: var(--muted); font-size: 12.5px; }
@@ -1225,6 +1250,7 @@
   const sumD = (c, f) => c.reduce((s2, i) => s2 + f(i.details || {}), 0);
   const avg = (c, f) => c.reduce((s2, i) => s2 + (f(i.details || {}) ?? 0), 0) / (c.length || 1);
   let flyMode = 'flights';   // which builder the full-screen panel is showing
+  const legOthers = new Set(), partOthers = new Set();   // picked legs and pieces whose other options are shown again
   let only = null;           // the one leg or piece it shows, when opened from its row (null: all of them)
   const pf = { t: null, on: new Set(), modes: new Set(), sort: 'price' };
   const pickLine = (t, i) => { const d = i?.details || {}, tot = totalOf(i);
@@ -1312,24 +1338,26 @@
     const tot = plan.reduce((s2, _, n) => s2 + (totalOf(partPick(t, n)) || 0), 0), np = plan.filter((_, n) => partPick(t, n)).length;
     $('fly').innerHTML = `<div class="wrap">
       <header class="sh"><b>${TOPIC[t][0]} ${one ? esc(plan[only].label) : esc(TOPIC[t][1])}</b>${one && plan.length > 1 ? '<button class="btn" id="flyall">All</button>' : ''}<button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
-      <div class="filters">
-        ${cfg.toggles.length ? `<div class="frow"><small>Only show</small>${cfg.toggles.map(([k, label]) => chip(pf.on.has(k), `data-ptog="${k}"`, label)).join('')}</div>` : ''}
-        ${modes.length > 1 ? `<div class="frow"><small>Ways to go</small>${modes.map((m) => chip(pf.modes.has(m), `data-pmode="${m}"`, esc(MODE[m] || m))).join('')}</div>` : ''}
-        <div class="frow"><small>Sort</small>${cfg.sorts.map(([k, label]) => chip(pf.sort === k, `data-psort="${k}"`, label)).join('')}</div></div>
+      <div class="filters"><div class="frow">${cfg.sorts.map(([k, label]) => chip(pf.sort === k, `data-psort="${k}"`, label)).join('')}
+        ${cfg.toggles.length ? '<i class="fsep"></i>' + cfg.toggles.map(([k, label]) => chip(pf.on.has(k), `data-ptog="${k}"`, label)).join('') : ''}
+        ${modes.length > 1 ? '<i class="fsep"></i>' + modes.map((m) => chip(pf.modes.has(m), `data-pmode="${m}"`, esc(MODE[m] || m))).join('') : ''}</div></div>
       <div class="list">
         ${uniq.length && !one ? `<div><h3 class="k" style="margin:0 0 8px">Suggested combinations</h3><div class="combos">${uniq.map((x) => { const on = x.c.map((i) => i.id).join() === current;
           return `<div class="combo${on ? ' on' : ''}"><h4>${esc(x.label)}<small>${money(price(x.c))}</small></h4>
             <ul>${x.c.map((i, n) => `<li><b>${esc(plan[n].label)}</b> ${esc(pickLine(t, i))}</li>`).join('')}</ul>
             ${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-puse="${x.c.map((i) => i.id).join(',')}" ${on ? 'disabled' : ''}>${on ? '✓ Your picks' : 'Use these'}</button>` : ''}</div>`; }).join('')}</div></div>` : ''}
         ${plan.map((x, n) => { if (one && n !== only) return ''; const opts = partOpts(t, n).filter(keep).sort(sortBy), all = partOpts(t, n).length;
+          const pk = x.pick && partOpts(t, n).find((i) => i.id === x.pick), rest = pk ? opts.filter((i) => i.id !== pk.id) : opts, open = !pk || partOthers.has(t + ':' + n);
           return `<div class="legsec"><h3><span>${plan.length > 1 ? `${n + 1} · ` : ''}${esc(x.label)}</span><small>${x.date ? esc(nice(x.date)) + (x.until ? ' – ' + esc(nice(x.until)) : '') : ''}</small></h3>
-            ${opts.map((i) => partCard(t, i, n, x.pick === i.id, mayChoose)).join('') || `<p class="note">${all ? 'Nothing matches these filters.' : 'No options for this yet.'}</p>`}
+            ${pk ? partCard(t, pk, n, true, mayChoose) : ''}${open ? rest.map((i) => partCard(t, i, n, false, mayChoose)).join('') : ''}${pk && rest.length ? `<button class="add" data-pothers="${n}">${open ? 'Hide the other options' : `Show ${rest.length} other option${rest.length === 1 ? '' : 's'}`}</button>` : ''}
+            ${pk || opts.length ? '' : `<p class="note">${all ? 'Nothing matches these filters.' : 'No options for this yet.'}</p>`}
             ${mayChoose ? `<button class="btn" data-pmore="${n}" ${flyBusy ? 'disabled' : ''} style="margin-top:8px">${flyBusy ? '✦ Looking…' : `✦ Find ${all ? 'more ' : ''}options for this`}</button>` : ''}</div>`; }).join('')}
       </div>
       <div class="totals"><div><b>${np ? money(tot) : '–'}</b><small>${np} of ${plan.length} picked${np ? ' · the family’s total for these' : ''}</small></div><button class="btn p" id="flydone">Done</button></div></div>`;
     const F = (id) => $('fly').querySelector('#' + id);
     F('flyx').onclick = F('flydone').onclick = () => $('fly').close();
     if (F('flyall')) F('flyall').onclick = () => { only = null; renderPartBuilder(); };
+    $('fly').querySelectorAll('[data-pothers]').forEach((b) => b.onclick = () => { const k = t + ':' + b.dataset.pothers; partOthers.has(k) ? partOthers.delete(k) : partOthers.add(k); renderPartBuilder(); });
     $('fly').querySelectorAll('[data-ptog]').forEach((b) => b.onclick = () => { const k = b.dataset.ptog; pf.on.has(k) ? pf.on.delete(k) : pf.on.add(k); renderPartBuilder(); });
     $('fly').querySelectorAll('[data-pmode]').forEach((b) => b.onclick = () => { const k = b.dataset.pmode; pf.modes.has(k) ? pf.modes.delete(k) : pf.modes.add(k); renderPartBuilder(); });
     $('fly').querySelectorAll('[data-psort]').forEach((b) => b.onclick = () => { pf.sort = b.dataset.psort; renderPartBuilder(); });
@@ -1337,6 +1365,7 @@
     $('fly').querySelectorAll('[data-ppick]').forEach((b) => b.onclick = async () => {
       const [n, id] = b.dataset.ppick.split(':'), p2 = plan.map((x) => ({ ...x }));
       p2[+n].pick = p2[+n].pick === id ? null : id;
+      partOthers.delete(t + ':' + n);
       if (await savePartPlan(t, p2, wasDone)) { render(); if (one && p2[+n].pick) $('fly').close(); else if ($('fly').open) renderPartBuilder(); }
     });
     $('fly').querySelectorAll('[data-puse]').forEach((b) => b.onclick = async () => {
@@ -1443,16 +1472,16 @@
     const current = plan.map((l) => l.pick).join();
     const wasDone = planDone();
     const legCard = (i, n) => { const x = flightInfo(i), on = plan[n].pick === i.id;
-      return `<div class="fcard${on ? ' on' : ''}"><div class="top"><div class="pr"><b>${x.pp != null ? money(x.pp) : '?'}</b><small>per person${x.pp != null ? ` · ${money(x.pp * n0)} for ${n0}` : ''}</small></div>
-        <div class="badges">${on ? '<span class="badge fast">✓ Picked</span>' : ''}</div></div>
-        <div class="al">${esc(x.airlines.join(' + ') || i.title)}<small>${esc(i.title)}</small></div>${x.legs.map((l) => legHTML(l)).join('')}
-        <div class="acts">${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-legpick="${n}:${i.id}">${on ? 'Unpick' : '✓ Pick for this leg'}</button>` : ''}<button class="btn" data-fmore="${i.id}">Details</button>${safeLink(i.link) ? `<a class="btn" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">Live prices ↗</a>` : ''}</div></div>`; };
+      const nos = [...new Set(x.legs.flatMap((l) => l.flights || []))].join(' · ');
+      return `<div class="fcard fc${on ? ' on' : ''}"><div class="r1"><span class="al">${on ? '<span class="ok">✓</span> ' : ''}${esc(x.airlines.join(' + ') || i.title)}${nos ? `<small>${esc(nos)}</small>` : ''}</span>
+          <span class="pr"><b>${x.pp != null ? money(x.pp) : '?'}</b><small>pp${x.pp != null ? ` · ${money(x.pp * n0)}` : ''}</small></span></div>
+        ${x.legs.length ? x.legs.map((l) => legHTML(l, true)).join('') : `<small class="note">${esc(i.title)}</small>`}
+        <div class="acts">${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-legpick="${n}:${i.id}">${on ? 'Unpick' : '✓ Pick'}</button>` : ''}<button class="btn q" data-fmore="${i.id}">Details</button>${safeLink(i.link) ? `<a class="btn q" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">Live prices ↗</a>` : ''}</div></div>`; };
     const chip = (on, attr, label) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}>${label}</button>`;
     const tp = plan.reduce((s2, _, n) => s2 + (ppOf(pickOf(n)) || 0), 0), tm = plan.reduce((s2, _, n) => s2 + (minOf(pickOf(n)) || 0), 0), np = plan.filter((_, n) => pickOf(n)).length;
     $('fly').innerHTML = `<div class="wrap">
       <header class="sh"><b>✈️ ${one ? `Leg ${only + 1} · ${esc(legLabel(plan[only]))}` : esc([plan[0].from, ...plan.map((l) => l.to)].join(' → '))}</b>${one ? '<button class="btn" id="flyall">All legs</button>' : mayChoose ? '<button class="btn" id="legedit">Edit flights</button>' : ''}<button class="btn" id="flyx" aria-label="Close" autofocus>✕</button></header>
-      <div class="filters"><div class="frow"><small>Stops</small>${chip(fs.stops === 'any', 'data-fstops="any"', 'Any')}${chip(fs.stops === '0', 'data-fstops="0"', 'Nonstop')}${chip(fs.stops === '1', 'data-fstops="1"', '1 stop or fewer')}</div>
-        <div class="frow"><small>Sort each leg</small>${chip(fs.sort === 'price', 'data-fsort="price"', 'Cheapest')}${chip(fs.sort === 'fast', 'data-fsort="fast"', 'Fastest')}${chip(fs.sort === 'early', 'data-fsort="early"', 'Earliest')}</div></div>
+      <div class="filters"><div class="frow">${chip(fs.stops === 'any', 'data-fstops="any"', 'Any stops')}${chip(fs.stops === '0', 'data-fstops="0"', 'Nonstop')}${chip(fs.stops === '1', 'data-fstops="1"', '≤ 1 stop')}<i class="fsep"></i>${chip(fs.sort === 'price', 'data-fsort="price"', 'Cheapest')}${chip(fs.sort === 'fast', 'data-fsort="fast"', 'Fastest')}${chip(fs.sort === 'early', 'data-fsort="early"', 'Earliest')}</div></div>
       <div class="list">
         ${uniq.length && !one ? `<div><h3 class="k" style="margin:0 0 8px">Suggested combinations</h3><div class="combos">${uniq.map((x) => { const on = x.c.map((i) => i.id).join() === current;
           return `<div class="combo${on ? ' on' : ''}"><h4>${esc(x.label)}<small>${money(x.pp * n0)}</small></h4>
@@ -1460,8 +1489,11 @@
             <span class="meta">${money(x.pp)} per person · ${hm(x.min)} in the air${x.stops ? ` · ${x.stops} stop${x.stops > 1 ? 's' : ''}` : ' · all nonstop'}</span>
             ${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-usecombo="${x.c.map((i) => i.id).join(',')}" ${on ? 'disabled' : ''}>${on ? '✓ Your flights' : 'Use these flights'}</button>` : ''}</div>`; }).join('')}</div></div>` : ''}
         ${plan.map((l, n) => { if (one && n !== only) return ''; const opts = legOpts(n).filter(okStops).sort(sortBy), all = legOpts(n).length;
+          // Picked: just that one, the rest behind "Show the others".
+          const pk = l.pick && legOpts(n).find((i) => i.id === l.pick), rest = pk ? opts.filter((i) => i.id !== pk.id) : opts, open = !pk || legOthers.has(n);
           return `<div class="legsec"><h3><span>Leg ${n + 1} · ${esc(legLabel(l))}</span><small>${esc(nice(l.date))}</small></h3>
-            ${opts.map((i) => legCard(i, n)).join('') || `<p class="note">${all ? 'No option matches the stops filter.' : 'No options for this leg yet.'}</p>`}
+            ${pk ? legCard(pk, n) : ''}${open ? rest.map((i) => legCard(i, n)).join('') : ''}${pk && rest.length ? `<button class="add" data-legothers="${n}">${open ? 'Hide the other flights' : `Show ${rest.length} other flight${rest.length === 1 ? '' : 's'}`}</button>` : ''}
+            ${pk || opts.length ? '' : `<p class="note">${all ? 'No option matches the stops filter.' : 'No options for this leg yet.'}</p>`}
             ${mayChoose ? `<button class="btn" data-legmore="${n}" ${flyBusy ? 'disabled' : ''} style="margin-top:8px">${flyBusy ? '✦ Looking…' : `✦ Find ${all ? 'more' : ''} flights for this leg`}</button>` : ''}</div>`; }).join('')}
       </div>
       <div class="totals"><div><b>${np ? money(tp * n0) : '–'}</b><small>${np} of ${plan.length} legs · ${np ? `${money(tp)} per person · ${hm(tm)} in the air` : 'pick a flight for each leg'}</small></div><button class="btn p" id="flydone">Done</button></div></div>`;
@@ -1469,12 +1501,14 @@
     F('flyx').onclick = F('flydone').onclick = () => $('fly').close();
     if (F('legedit')) F('legedit').onclick = () => { legEdit = plan.map((l, n) => ({ ...l, was: n })); renderLegEditor(); };
     if (F('flyall')) F('flyall').onclick = () => { only = null; renderBuilder(); };
+    $('fly').querySelectorAll('[data-legothers]').forEach((b) => b.onclick = () => { const n = +b.dataset.legothers; legOthers.has(n) ? legOthers.delete(n) : legOthers.add(n); renderBuilder(); });
     $('fly').querySelectorAll('[data-fstops]').forEach((b) => b.onclick = () => { fs.stops = b.dataset.fstops; renderBuilder(); });
     $('fly').querySelectorAll('[data-fsort]').forEach((b) => b.onclick = () => { fs.sort = b.dataset.fsort; renderBuilder(); });
     $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => { $('fly').close(); view(items.find((i) => i.id === b.dataset.fmore)); });
     $('fly').querySelectorAll('[data-legpick]').forEach((b) => b.onclick = async () => {
       const [n, id] = b.dataset.legpick.split(':'), p2 = plan.map((l) => ({ ...l }));
       p2[+n].pick = p2[+n].pick === id ? null : id;
+      legOthers.delete(+n);
       if (await savePlan(p2, wasDone)) { render(); if (one && p2[+n].pick) $('fly').close(); else if ($('fly').open) renderBuilder(); }   // one leg on its own: picked, done
     });
     $('fly').querySelectorAll('[data-usecombo]').forEach((b) => b.onclick = async () => {
@@ -1500,13 +1534,16 @@
     const out = legs.find((l) => l.dir !== 'back');
     return { i, f, legs, pp, total, minutes, stops, date: out?.date || '', departMin: toMin(out?.depart), airlines: f.airlines || [], ok: legs.length > 0 };
   }
-  function legHTML(l) {
+  function legHTML(l, compact = false) {
     // The bar is the leg on a 24-hour day; one that runs past midnight wraps round to the morning.
     const d = toMin(l.depart), w = Math.min(1440, l.minutes || (toMin(l.arrive) != null && d != null ? (toMin(l.arrive) + (l.arrive_plus || 0) * 1440 - d) : 0));
     const at = (min) => (((d + min) % 1440) / 1440) * 100;
     const bars = d == null ? '' : d + w <= 1440 ? `<i style="left:${at(0)}%;width:${Math.max(2, (w / 1440) * 100)}%"></i>`
       : `<i style="left:${at(0)}%;width:${100 - at(0)}%"></i><i style="left:0;width:${Math.max(1, ((d + w - 1440) / 1440) * 100)}%"></i>`;
     const dots = d == null ? '' : Array.from({ length: l.stops || 0 }, (_, k) => `<em style="left:${at((w * (k + 1)) / ((l.stops || 0) + 1))}%" title="Change planes${l.via?.[k] ? ' in ' + esc(l.via[k]) : ''}"></em>`).join('');
+    const lm = `${hm(l.minutes)} · ${l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}${l.via?.length ? ' via ' + l.via.map(esc).join(', ') : ''}` : 'Nonstop'}`;
+    if (compact) return `<div class="leg c"><div class="lt"><b>${esc(l.depart || '–')}<small>${esc(l.from || '')}</small></b><div class="tl" aria-hidden="true">${bars}${dots}</div>
+        <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div><div class="lm">${lm}</div></div>`;
     return `<div class="leg"><div class="lh"><span>${l.dir === 'back' ? 'Return' : 'Outbound'}${l.date ? ' · ' + esc(nice(l.date)) : ''}</span><span>${(l.flights || []).map(esc).join(' · ')}</span></div>
       <div class="lt"><b>${esc(l.depart || '–')}<small>${esc(l.from || '')}</small></b><div class="tl" aria-hidden="true">${bars}${dots}</div>
         <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div>
