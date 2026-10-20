@@ -296,6 +296,7 @@
     return { evs, quiet, resting: t.stage === 'parked' || quiet > 14, done: t.stage === 'shipped' || evs.some((e) => e.kind === 'ship') };
   }
   function renderHome(p) {
+    if (live && live.light) live.light(null);   // back from a story: the whole tree again
     const a = access(p), w = p.world, topics = w.topics, events = w.events, tById = Object.fromEntries(topics.map((t) => [t.id, t]));
     const sts = topics.map((t) => ({ t, s: topicState(p, t) })), growing = sts.filter((x) => !x.s.resting && !x.s.done), done = sts.filter((x) => x.s.done), resting = sts.filter((x) => x.s.resting && !x.s.done);
     const seeds = a === 'own' ? seedsOf(p) : [];

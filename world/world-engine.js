@@ -15,12 +15,13 @@
   window.mountWorld = function (cv, data, opts = {}) {
     const ctx = cv.getContext('2d'), still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let VW = 1, VH = 1, L, tree = null, cam = { x: 0, y: 0, k: 1 }, kMin = 1, kMax = 6, kStart = 1, tween = null;
-    let seeds = opts.seeds || [], plant = false, sel = null, raf = 0, dead = false;
+    let seeds = opts.seeds || [], plant = false, sel = null, lit = null, raf = 0, dead = false;
     const evById = Object.fromEntries((data.events || []).map((e) => [String(e.id), e]));
     function build() {
       L = window.layoutWorld(data, seeds, VW, VH);
       if (tree) tree.destroy(); tree = null;
       if (L.tutor.length) tree = window.mountDiaryTree(null, treeData(L.tutor, data.events || []), { external: { w: L.tree.w, h: L.tree.h }, palette: PAL, fill: true, flow: { colors: FLOW, wave: 120, speed: 0.45, tail: 2.6 } });
+      if (tree && tree.select) tree.select(lit);   // a story's limb stays lit when the world is rebuilt (turning the phone)
       kMin = Math.min(VW / L.WW, VH / L.WH); kStart = Math.max(kMin, Math.min(VH / (L.WH * 0.85), VW / (L.WW * 0.78))); kMax = kStart * 7;
     }
     function size() {
@@ -120,7 +121,8 @@
       setPlant(on) { plant = on; }, select(ev) { sel = ev; },
       setSeeds(s) { seeds = s; const c = cam; build(); cam = c; },
       zoomBy(f) { zoomAt(VW / 2, VH / 2, f, true); }, reset() { home(true); },
-      focusTopic(id) { const o = L.objs.find((x) => x.topic && x.topic.id === id); if (o) return go({ x: o.hit.x, y: o.hit.y, k: Math.max(kStart * 2.2, Math.min(kMax, VW / (o.hit.r * 3.4))) }, true);
+      light(id) { lit = id || null; if (tree && tree.select) tree.select(lit); },   // null: the whole tree lit again
+      focusTopic(id) { lit = L.tutor.some((t) => t.id === id) ? id : null; if (tree && tree.select) tree.select(lit); const o = L.objs.find((x) => x.topic && x.topic.id === id); if (o) return go({ x: o.hit.x, y: o.hit.y, k: Math.max(kStart * 2.2, Math.min(kMax, VW / (o.hit.r * 3.4))) }, true);
         if (L.tutor.some((t) => t.id === id)) go({ x: L.tree.x + L.tree.w / 2, y: L.tree.y + L.tree.h * 0.45, k: kStart * 1.5 }, true); },
       focus(h) { const p = h.at || (h.obj && h.obj.hit) || null; if (p) go({ x: p.x, y: p.y, k: Math.max(cam.k, kStart * 2.4) }, true); },
     };

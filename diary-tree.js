@@ -363,8 +363,9 @@
       var dim = state.sel && sg.idea && !sel ? 0.22 : 1;
       var life = sg.parked ? 0.4 : sg.quiet > 60 ? 0.45 : sg.quiet > QUIET_DAYS ? 0.65 : 1;
       ctx.globalAlpha = (sg.kind === "trunk" ? 0.75 : 0.9) * life * dim;
-      ctx.strokeStyle = sg.parked ? park : bark;
-      ctx.lineWidth = sg.w;
+      ctx.strokeStyle = sel ? cGrow : sg.parked ? park : bark;   // the chosen limb's wood lights up
+      ctx.lineWidth = sel ? Math.max(2, sg.w * 1.3) : sg.w;
+      if (sel) ctx.globalAlpha = Math.max(ctx.globalAlpha, 0.95);
       ctx.globalAlpha *= depthOf(sg);
       if (treeState.hover && treeState.hover === sg.idea) { ctx.strokeStyle = cAcc; ctx.globalAlpha = 0.95; }
       ctx.beginPath(); ctx.moveTo(sg.x1, sg.y1); ctx.lineTo(sg.x2, sg.y2); ctx.stroke();
@@ -380,6 +381,7 @@
         var b = Math.max(0, 1 - ph * FLOW.tail); if (b <= 0) return;
         var f = Math.min(0.999, sg.d / FLOW.maxD) * (cols.length - 1), ci = Math.floor(f);
         ctx.strokeStyle = cols[ci];
+        if (state.sel && sg.idea !== state.sel) return;   // a chosen limb alone carries the pulses
         ctx.globalAlpha = b * b * 0.9 * depthOf(sg) * (sg.parked ? 0.35 : 1);
         ctx.lineWidth = Math.max(1.2, sg.w * 0.75);
         ctx.beginPath(); ctx.moveTo(sg.x1, sg.y1); ctx.lineTo(sg.x2, sg.y2); ctx.stroke();
@@ -391,7 +393,7 @@
     drawn.forEach(function (sg) {
       if (sg.order >= upto || !sg.event || sg.kind === "trunk") return;
       var sel = state.sel && sg.idea === state.sel;
-      var dim = state.sel && !sel ? 0.2 : 1;
+      var dim = state.sel && !sel ? 0.12 : 1;
       var life = sg.parked ? 0 : sg.quiet > 60 ? 0.18 : sg.quiet > QUIET_DAYS ? 0.5 : 1;
       var col = null, r = 0;
       if (sg.twig) {
@@ -411,7 +413,7 @@
       if (!sg.twig) r *= NODE;
       ctx.globalAlpha *= depthOf(sg);
       // r4box addition: buds, blossoms and fruit glow, each breathing on its own beat
-      if (FLOW) {
+      if (FLOW && dim === 1) {   // glows add up (lighter), so a dimmed limb gets none
         var a0 = ctx.globalAlpha, beat = 0.75 + 0.25 * Math.sin(performance.now() / 900 + rnd(sg.event || "x", 31) * 6.283);
         ctx.globalCompositeOperation = "lighter";
         var halo = sg.twig ? r * 3.2 : r * 4.4;
@@ -475,10 +477,12 @@
     var total = treeState.segs.length, reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     var t0 = performance.now(), last = t0, DUR = 2200;
     if (EXT) {
-      var ts = treeState;
+      var ts = treeState, st = state;
       return {
+        // light one idea's limb, the rest dimmed (null: the whole tree)
+        select: function (id) { st.sel = id || null; },
         paint: function (ctx, now) {
-          treeState = ts; fake.ctx = ctx;
+          treeState = ts; state = st; fake.ctx = ctx;
           var p = reduce ? 1 : Math.min(1, (now - t0) / DUR);
           ts.t = p < 1 ? 1 - Math.pow(1 - p, 3) : 1;
           if (opts.spin !== false && !reduce) ts.theta += (now - last) * SPIN; last = now;

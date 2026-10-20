@@ -36,10 +36,10 @@
   </main>
 </div>
 <script src="world/story-kit.js"></script>
-<script src="diary-tree.js"></script>
+<script src="diary-tree.js?v=8"></script>
 <script src="world/world-parts.js"></script>
 <script src="world/world-layout.js"></script>
-<script src="world/world-engine.js?v=7"></script>
+<script src="world/world-engine.js?v=8"></script>
 <script type="module">
   // A kid's own world, or (for a parent) a kid's world with its names but never its words.
   // The world comes from r4_world (108): summaries and entries only for the kid, or what
@@ -123,7 +123,7 @@
         ? 'What you learn with the tutor grows your tree. Chat questions become flowers, games you finish become bushes, and trips hang in the sky as stars. It’s built every night.'
         : esc(owner.username) + '’s world is built every night from what they ask Claude, the games they finish and the trips they plan.'}</p></div>`);
     }
-    const s = document.createElement('script'); s.src = 'world/world-app.js'; document.body.append(s);
+    const s = document.createElement('script'); s.src = 'world/world-app.js?v=8'; document.body.append(s);
   }
   if (session) load();
 </script>
