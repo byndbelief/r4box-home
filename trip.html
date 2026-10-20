@@ -425,6 +425,13 @@
     body .over .going, body .over .est { margin: 6px 0 0; } body .over .going h2 { display: none; } body .over .est h2 { display: none; }
     body .over .est { display: block; }
     .dens-play .over [data-over="est"] { display: none; }
+    .dstrip { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px 4px; padding: 2px 16px; }
+    .dstrip::-webkit-scrollbar { display: none; }
+    .dchip { all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: grid; justify-items: center; gap: 1px; min-width: 52px; padding: 6px 9px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+    .dchip b { font-size: 13px; white-space: nowrap; } .dchip small { font-size: 11px; color: var(--faint); }
+    .dchip.today { border-color: var(--gold); } .dchip.on { background: var(--teal); border-color: var(--teal); color: var(--teal-ink); } .dchip.on small { color: var(--teal-ink); opacity: .7; }
+    .dchip:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+    .dens-play .dchip { padding: 10px 12px; } .dens-play .dchip b { font-size: 15px; }
     .types { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
     .types .ty { display: block; cursor: pointer; position: relative; min-width: 0; }
     .types .ty input { position: absolute; inset: 0; width: 1px; height: 1px; padding: 0; opacity: 0; pointer-events: none; }
@@ -758,6 +765,7 @@
 
   // The itinerary: each day's plans, with the bookings that fall on it (flights, check-in, tickets)
   // in among them by time. ✦ Build asks Claude for the whole thing, or one day.
+  let planDay, planFor = null;   // the day the Plan tab shows (null: all; 'any': not scheduled; unset: today on a trip that's on)
   function plan() {
     const ds = days(), list = items.filter((i) => i.kind === 'plan' || (i.kind === 'booking' && i.day));
     const planned = items.some((i) => i.kind === 'plan' && i.day);
@@ -772,8 +780,27 @@
         : { t: planned ? 'Rework the day' : 'Plan the day', s: 'Claude lays out the day around the event: leaving, parking or the ride, food, doors and the show, and getting home.' })
       : { t: planned ? 'Rework the itinerary' : 'Build our itinerary', s: TY === TYPES.road ? 'Claude lays out every day around the drive: driving legs, stops, where you sleep, with the ideas you chose.' : 'Claude lays out every day around your flights, stay and bookings, with the ideas you chose and the best of the rest, in an order that makes sense.' };
     const build = ds.length ? `<div class="build"><div><b>✦ ${B.t}</b><span>${B.s}</span></div><button class="btn p" id="buildit"${asking ? ' disabled' : ''}>${planned ? 'Rework' : one ? 'Plan it' : 'Build it'}</button></div>` : '';
-    $('view').innerHTML = build + (ds.length ? ds.map((d, k) => sec(d, nice(d), one ? 'the plan' : `Day ${k + 1}`)).join('') : `<p class="empty">No ${TY.day ? 'date' : 'dates'} yet. Ask Claude above, e.g. “when should we ${TY.home ? 'do it' : 'go'}?”${PARENT ? ', or set it with Edit' : ''}.</p>`)
-      + (list.some((i) => !i.day) || !ds.length ? sec(null, 'Any day', 'not scheduled yet') : '');
+    // A row of days: tap one to see just that day (All shows the lot). On a trip that's happening, today comes first.
+    const anyDay = list.some((i) => !i.day) || !ds.length;
+    if (planFor !== trip.id) { planFor = trip.id; planDay = undefined; }
+    if (planDay && planDay !== 'any' && !ds.includes(planDay)) planDay = null;
+    if (planDay === undefined) planDay = ds.includes(iso(new Date())) ? iso(new Date()) : null;
+    const cnt = (d) => list.filter((i) => (i.day || null) === d).length;
+    const strip = ds.length > 1 ? `<div class="dstrip" role="tablist" aria-label="Days">${[[null, 'All', ds.length + ' days'], ...ds.map((d, k) => [d, nice(d, { weekday: 'short' }) + ' ' + D(d).getDate(), cnt(d) ? cnt(d) + '' : '–', k]), ...(anyDay ? [['any', 'Any day', cnt(null) + '']] : [])]
+      .map(([d, t, sub]) => `<button type="button" role="tab" class="dchip${(planDay ?? null) === d ? ' on' : ''}${d === iso(new Date()) ? ' today' : ''}" data-pday="${d ?? ''}" aria-selected="${(planDay ?? null) === d}"><b>${esc(t)}</b><small>${esc(sub)}</small></button>`).join('')}</div>` : '';
+    const showD = (d) => !strip || planDay == null || planDay === d;
+    $('view').innerHTML = build + strip + (ds.length ? ds.map((d, k) => showD(d) ? sec(d, nice(d), one ? 'the plan' : `Day ${k + 1}`) : '').join('') : `<p class="empty">No ${TY.day ? 'date' : 'dates'} yet. Ask Claude above, e.g. “when should we ${TY.home ? 'do it' : 'go'}?”${PARENT ? ', or set it with Edit' : ''}.</p>`)
+      + (anyDay && (!strip || planDay == null || planDay === 'any') ? sec(null, 'Any day', 'not scheduled yet') : '');
+    $('view').querySelectorAll('[data-pday]').forEach((b) => b.onclick = () => { planDay = b.dataset.pday || null; plan(); });
+    // One day showing: swipe sideways for the day before or after.
+    const v = $('view'); v.ontouchstart = v.ontouchend = null;
+    if (strip && planDay && planDay !== 'any') {
+      let x0 = null, y0 = null;
+      v.ontouchstart = (e) => { if (e.target.closest('.dstrip')) return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; };
+      v.ontouchend = (e) => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+        if (Math.abs(dx) < 60 || Math.abs(dy) > 40) return; const k = ds.indexOf(planDay) + (dx < 0 ? 1 : -1); if (ds[k]) { planDay = ds[k]; plan(); } };
+    }
+    $('view').querySelector('.dchip.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
     $('view').querySelectorAll('.add[data-day]').forEach((b) => b.onclick = () => edit({ kind: 'plan', day: b.dataset.day || null }));
     if ($('buildit')) $('buildit').onclick = () => askTrip(one
       ? `Plan ${nice(ds[0], { weekday: 'long', month: 'long', day: 'numeric' })} (${ds[0]}) for us as a timeline: add plan items on that day with a time (at) and a short useful note. `
@@ -795,6 +822,7 @@
   let folds = {}, foldsFor = null;
   const isOpen = (k) => folds[k] ?? false;
   function ideas() {
+    $('view').ontouchstart = $('view').ontouchend = null;
     const list = items.filter((i) => i.kind === 'idea');
     if (foldsFor !== trip.id) {
       foldsFor = trip.id; folds = {};
@@ -880,6 +908,7 @@
   }
 
   function bookings() {
+    $('view').ontouchstart = $('view').ontouchend = null;
     const list = items.filter((i) => i.kind === 'booking').sort((a, b) => String(a.day || '9').localeCompare(String(b.day || '9')) || String(a.at || '').localeCompare(String(b.at || '')));
     const planCost = items.filter((i) => i.kind === 'plan').reduce((s, i) => s + (+i.cost || 0), 0);
     const bookCost = list.reduce((s, i) => s + (+i.cost || 0), 0);
@@ -897,6 +926,7 @@
   }
 
   function packing() {
+    $('view').ontouchstart = $('view').ontouchend = null;
     const lists = [...family.map((f) => ({ who: f.id, title: f.id === ME.id ? `${f.username} (you)` : f.username })), { who: null, title: 'Shared' }];
     $('view').innerHTML = `<div class="packs">${lists.map((l) => {
       const its = items.filter((i) => i.kind === 'pack' && (i.who || null) === l.who);
