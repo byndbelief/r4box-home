@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="robots" content="noindex">
+  <title>call · r4box</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- The video call, kept over every page: while a call is on, this page holds it (the
+       connections, camera and mic) and shows r4box underneath in a frame, so moving between
+       pages never drops it. The call is full screen, or a bubble you drag anywhere (⌄).
+       Hanging up hands the window back to the page you're on. Nothing else uses this page:
+       with no call, r4box is its ordinary pages.
+       Browsers connect straight to each other (WebRTC), each to each (fine up to about 4).
+       Who is in the call, and the short handshake that sets up each connection, go over the
+       private Realtime channel 'family-call' (family only, 105). Video goes browser to browser,
+       or through our own relay on r4box when a network forces it (encrypted either way). -->
+  <style>
+    @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
+    @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
+  </style>
+  <link rel="stylesheet" href="world/world.css?v=7">
+  <link rel="stylesheet" href="chat.css?v=2">
+  <style>
+    :root { --teal-ink: #062A26; --hot-soft: #4A2230; --panel-2: #141130; }
+    [hidden] { display: none !important; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+    #page { position: fixed; inset: 0; width: 100%; height: 100dvh; border: 0; display: block; background: #000; }
+    #call .tile { display: block; background: #08061A; }
+    #call .tile video { width: 100%; height: 100%; object-fit: cover; display: block; background: #08061A; }
+    #call .tile .nm small { font-weight: 600; color: var(--teal); }
+    #call .tile .off { position: absolute; inset: 0; display: grid; place-items: center; background: #08061A; }
+    #call .tile .off b { width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center; font: 800 34px/1 var(--display); color: var(--violet); box-shadow: 0 0 0 1px #B9A6FF55, 0 0 0 10px #B9A6FF12, 0 0 0 22px #B9A6FF0a; overflow: hidden; }
+    #call .tile .off b img { width: 100%; height: 100%; object-fit: cover; }
+    #call .tile .flag { position: absolute; top: 10px; right: 10px; font-size: 13px; padding: 3px 8px; border-radius: 99px; background: #000000b3; }
+    #self { position: absolute; z-index: 2; right: 14px; bottom: 14px; width: 104px; aspect-ratio: 3 / 4; border-radius: 14px; overflow: hidden; border: 1.5px solid #ffffff33; box-shadow: 0 8px 22px #0009; background: #08061A; }
+    #self video { width: 100%; height: 100%; object-fit: cover; }
+    #self.mirror video { transform: scaleX(-1); }
+    #self.camoff video { visibility: hidden; }
+    .waiting { display: grid; place-items: center; text-align: center; color: var(--muted); align-content: center; gap: 18px; }
+    .waiting svg { width: 150px; height: 150px; animation: turn 24s linear infinite; }
+    .waiting b { display: block; font: 800 20px/1.2 var(--display); color: var(--ink); margin-bottom: 4px; }
+    @keyframes turn { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .waiting svg { animation: none; } }
+    .picks .av { width: 34px; height: 34px; } .picks .av img { width: 30px; height: 30px; }
+    /* the bubble: the call, small, over whatever page you're on; drag it anywhere, tap to make it big */
+    #bubble { position: fixed; z-index: 50; left: 0; top: 0; width: 108px; border-radius: 18px; overflow: hidden; background: #08061A; border: 1.5px solid #3DD6C6aa;
+      box-shadow: 0 0 0 4px #3DD6C622, 0 12px 30px #000c; touch-action: none; user-select: none; -webkit-user-select: none; }
+    #bubble .bv { position: relative; aspect-ratio: 3 / 4; display: grid; place-items: center; cursor: pointer; }
+    #bubble video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #bubble .bf { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font: 800 22px/1 var(--display); color: var(--violet); box-shadow: 0 0 0 1px #B9A6FF55, 0 0 0 7px #B9A6FF14; overflow: hidden; }
+    #bubble .bf img { width: 100%; height: 100%; object-fit: cover; }
+    #bubble .bn { position: absolute; left: 6px; right: 6px; bottom: 5px; font-size: 11px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 3px #000; }
+    #bubble .bacts { display: flex; }
+    #bubble .bacts button { all: unset; cursor: pointer; flex: 1; text-align: center; padding: 8px 0; font-size: 16px; background: #141130; }
+    #bubble .bacts button + button { border-left: 1px solid #ffffff1a; }
+    #bubble .bacts .end { background: var(--hot); }
+  </style>
+</head>
+<body>
+<iframe id="page" title="r4box" allow="fullscreen; clipboard-read; clipboard-write; autoplay"></iframe>
+<div id="call" hidden role="dialog" aria-label="Video call"><div class="stage" id="stage"></div><div class="bar"><button id="callmin" aria-label="Keep browsing (the call stays on)">⌄</button><button id="mic" aria-pressed="false" aria-label="Mute">🎤</button><button id="cam" aria-pressed="false" aria-label="Turn camera off">📷</button><button id="flip" aria-label="Switch camera" hidden>🔄</button><button id="hang" class="end" aria-label="Leave the call">✕</button></div></div>
+<div id="bubble" hidden role="region" aria-label="Video call, small"><div class="bv" id="bv" role="button" aria-label="Make the call big"><span class="bf" id="bf"></span><video id="bvid" autoplay playsinline muted></video><span class="bn" id="bn"></span></div><div class="bacts"><button id="bmic" aria-label="Mute">🎤</button><button id="bhang" class="end" aria-label="Leave the call">✕</button></div></div>
+<script type="module">
+  import { sb, FAMILY } from './auth.js?v=115';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/family-chat';
+  function toast(t) { const el = document.createElement('div'); el.className = 'ctoast'; el.textContent = t; document.body.append(el); setTimeout(() => el.remove(), 3600); }
+
+  // ?page: the r4box page underneath (a path on r4box.com); ?join: start or join the call
+  // (its value: who to ring, empty for everyone or the call that's on).
+  const q = new URLSearchParams(location.search);
+  const page = (() => { const p = q.get('page') || '/'; return /^\/(?!\/)/.test(p) && !/^\/call\.html/.test(p) ? p : '/'; })();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) location.replace('/?next=' + encodeURIComponent(page));
+  const ME = { id: session?.user.id };
+  const { data: fam } = await sb.rpc('r4_family');
+  const family = fam || [];
+  const nameIn = (id) => family.find((f) => f.id === id)?.username || 'someone';
+  const avatar = (name) => FAMILY.find((f) => f.name === name)?.avatar;
+  const face = (id) => { const n = nameIn(id), a = avatar(n); return a ? `<img src="${a}" alt="">` : esc(n[0].toUpperCase()); };
+
+  // ---- the page underneath ----
+  const fr = $('page');
+  let here = page;
+  fr.onload = () => {
+    let u = null; try { u = fr.contentWindow.location; } catch {}
+    if (!u || u.origin !== location.origin) return;   // a box app (in open.html) or elsewhere: leave it be
+    if (u.pathname === '/call.html') { fr.src = '/'; return; }   // never a call inside the call
+    here = u.pathname + u.search + u.hash;
+    // the address follows the page, so a reload (which ends the call) comes back to it
+    history.replaceState(history.state, '', '/call.html?page=' + encodeURIComponent(here));
+    try { document.title = fr.contentDocument.title || 'r4box'; } catch {}
+  };
+  fr.src = page;
+  // Done: the window goes back to being the page you're on.
+  const exitShell = () => location.replace(here);
+
+  // ---- the call ----
+  const MAX = 4;   // people in one call: each sends video to every other, which phones manage up to about 4
+  // STUN tells each browser its public address; when a network won't let two browsers reach
+  // each other, the TURN relay on r4box carries the (still encrypted) media. call-ice gives a
+  // signed-in family member the servers and a relay login for the day.
+  let ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+  async function loadIce() {
+    try {
+      const { data: { session: s } } = await sb.auth.getSession();
+      const r = await fetch(FN.replace('family-chat', 'call-ice'), { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: '{}' });
+      const j = await r.json();
+      if (r.ok && Array.isArray(j.iceServers)) ICE = j.iceServers;
+    } catch {}
+  }
+  const PEER = crypto.randomUUID();   // this window in the call (one person may join from two devices)
+  const peers = new Map();            // peer -> { pc, user, ice: [], out: [], timer, cam, mic }
+  let calling = null;   // who this call rang (null: everyone)
+  let inCall = false, local = null, facing = 'user', wake = null, aloneSince = 0, joined = null;
+  const callCh = sb.channel('family-call', { config: { private: true, presence: { key: PEER } } });
+  const ready = new Promise((ok) => { joined = ok; });
+  const room = () => Object.entries(callCh.presenceState()).map(([peer, v]) => ({ peer, user: v[0]?.user })).filter((x) => x.user);
+  const callLive = () => room().filter((x) => x.peer !== PEER);
+  callCh.on('presence', { event: 'sync' }, syncCall)
+    .on('broadcast', { event: 'sig' }, ({ payload }) => { if (payload.to === PEER || payload.to === '*') onSignal(payload); })
+    .subscribe(onCallState);
+  function onCallState(st) { if (st === 'SUBSCRIBED') { joined(); if (inCall) callCh.track({ user: ME.id }); } }   // back after a reconnect
+  // Back on the page: nudge a channel that lost its socket while the phone slept.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || callCh.state === 'joined' || callCh.state === 'joining') return;
+    sb.auth.getSession().then(({ data: { session: s } }) => { if (s) sb.realtime.setAuth(s.access_token); callCh.subscribe(onCallState); }).catch(() => {});
+  });
+
+  function sig(to, kind, data) { callCh.send({ type: 'broadcast', event: 'sig', payload: { to, from: PEER, user: ME.id, kind, data } }); }
+
+  function syncCall() {
+    if (!inCall) return;
+    const others = callLive();
+    for (const o of others) if (!peers.has(o.peer)) { const p = connect(o.peer, o.user); if (PEER < o.peer) offer(o.peer, p); }
+    for (const id of [...peers.keys()]) if (!others.some((o) => o.peer === id)) drop(id);
+    aloneSince = others.length ? 0 : aloneSince || Date.now();
+    paint();
+  }
+
+  function connect(peer, user) {
+    const pc = new RTCPeerConnection({ iceServers: ICE });
+    const p = { pc, user, ice: [], out: [], timer: 0, cam: true, mic: true, stream: null, state: 'new' };
+    peers.set(peer, p);
+    for (const t of local.getTracks()) pc.addTrack(t, local);
+    pc.ontrack = ({ track, streams }) => { p.stream = streams[0] || new MediaStream([track]); paint(); };
+    // Candidates go out in small batches, so a connection doesn't flood the channel.
+    pc.onicecandidate = ({ candidate }) => {
+      if (!candidate) return;
+      p.out.push(candidate.toJSON());
+      clearTimeout(p.timer); p.timer = setTimeout(() => { sig(peer, 'ice', p.out); p.out = []; }, 120);
+    };
+    pc.onconnectionstatechange = () => {
+      p.state = pc.connectionState; paint();
+      if (pc.connectionState === 'connected') { sig(peer, 'state', { cam: camOn(), mic: micOn() }); setTimeout(() => viaRelay(p), 1500); }
+      // Lost the way through (a network change): the one who called finds a new one.
+      if (pc.connectionState === 'failed' && PEER < peer) { pc.restartIce(); offer(peer, p); }
+    };
+    sig(peer, 'state', { cam: camOn(), mic: micOn() });
+    return p;
+  }
+  // Which way the media went: straight between the browsers, or through the relay.
+  async function viaRelay(p) {
+    try {
+      const st = await p.pc.getStats(); let pair = null;
+      st.forEach((r) => { if (r.type === 'transport' && r.selectedCandidatePairId) pair = st.get(r.selectedCandidatePairId); });
+      if (!pair) st.forEach((r) => { if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') pair = r; });
+      const lc = pair && st.get(pair.localCandidateId), rc = pair && st.get(pair.remoteCandidateId);
+      p.relay = !!(lc && lc.candidateType === 'relay') || !!(rc && rc.candidateType === 'relay'); paint();
+    } catch {}
+  }
+  async function offer(peer, p) {
+    try { await p.pc.setLocalDescription(await p.pc.createOffer()); sig(peer, 'offer', p.pc.localDescription.toJSON()); }
+    catch (e) { console.error('offer', e); }
+  }
+  async function onSignal(m) {
+    if (!inCall || m.from === PEER) return;
+    if (m.kind === 'state') { const p = peers.get(m.from); if (p) { p.cam = !!m.data.cam; p.mic = !!m.data.mic; paint(); } return; }
+    let p = peers.get(m.from);
+    if (!p) { if (m.kind !== 'offer') return; p = connect(m.from, m.user); }
+    try {
+      if (m.kind === 'offer' || m.kind === 'answer') {
+        await p.pc.setRemoteDescription(m.data);
+        for (const c of p.ice.splice(0)) await p.pc.addIceCandidate(c).catch(() => {});
+        if (m.kind === 'offer') { await p.pc.setLocalDescription(await p.pc.createAnswer()); sig(m.from, 'answer', p.pc.localDescription.toJSON()); }
+      } else if (m.kind === 'ice') {
+        for (const c of m.data || []) p.pc.remoteDescription ? await p.pc.addIceCandidate(c).catch(() => {}) : p.ice.push(c);
+      }
+    } catch (e) { console.error('signal', e); }
+  }
+  function drop(peer) { const p = peers.get(peer); if (!p) return; clearTimeout(p.timer); p.pc.close(); peers.delete(peer); }
+
+  const camOn = () => !!local?.getVideoTracks()[0]?.enabled;
+  const micOn = () => !!local?.getAudioTracks()[0]?.enabled;
+  const SEED = `<svg viewBox="-60 -60 120 120" fill="none" stroke-width=".8" aria-hidden="true">${[[0, 0], ...[0, 60, 120, 180, 240, 300].map((a) => [20 * Math.cos(a * Math.PI / 180), 20 * Math.sin(a * Math.PI / 180)])]
+    .map(([x, y], k) => `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="20" stroke="${['#3DD6C6', '#B9A6FF', '#F5C542'][k % 3]}" opacity=".85"/>`).join('')}<circle r="40" stroke="#C9FFF8" opacity=".5"/><circle r="54" stroke="#B9A6FF" opacity=".25"/></svg>`;
+
+  // The stage: a tile per person (their video, or their initial when the camera is off), and you in the corner.
+  // Their videos play here even while the stage is folded away, so you keep hearing everyone.
+  function paint() {
+    if (!inCall) return;
+    const st = $('stage');
+    if (!peers.size) {
+      const waited = aloneSince && Date.now() - aloneSince > 60e3;
+      if (!st.querySelector('.waiting')) st.innerHTML = `<div class="waiting">${SEED}<div><b>Calling ${calling ? esc(nameIn(calling)) : 'the family'}…</b><span id="waitnote"></span></div></div>`;
+      st.querySelector('#waitnote').textContent = waited ? 'No one has picked up yet.' : calling ? 'They get a ring on their phone.' : 'They get a ring on their phones.';
+    } else {
+      st.querySelector('.waiting')?.remove();
+      for (const [peer, p] of peers) {
+        let t = st.querySelector(`[data-peer="${peer}"]`);
+        if (!t) {
+          t = Object.assign(document.createElement('div'), { className: 'tile' }); t.dataset.peer = peer;
+          t.innerHTML = `<video autoplay playsinline></video><div class="off"><b>${face(p.user)}</b></div><span class="nm">${esc(nameIn(p.user))}<small class="via" hidden> · via relay</small></span><span class="flag" hidden></span>`;
+          st.append(t);
+        }
+        const v = t.querySelector('video');
+        if (p.stream && v.srcObject !== p.stream) { v.srcObject = p.stream; v.play().catch(() => {}); }
+        t.querySelector('.off').hidden = !!p.stream && p.cam;
+        t.querySelector('.via').hidden = !p.relay;
+        const flag = t.querySelector('.flag'), bad = ['disconnected', 'failed'].includes(p.state);
+        flag.hidden = p.mic && !bad && p.state !== 'connecting' && p.state !== 'new';
+        flag.textContent = bad ? 'Reconnecting…' : p.state === 'connecting' || p.state === 'new' ? 'Connecting…' : '🔇';
+      }
+      for (const t of st.querySelectorAll('[data-peer]')) if (!peers.has(t.dataset.peer)) t.remove();
+    }
+    if (!st.querySelector('#self')) {
+      st.insertAdjacentHTML('beforeend', '<div id="self"><video autoplay playsinline muted></video></div>');
+      st.querySelector('#self video').srcObject = local;
+    }
+    const me = st.querySelector('#self'); st.append(me);
+    me.classList.toggle('mirror', facing === 'user'); me.classList.toggle('camoff', !camOn());
+    $('mic').setAttribute('aria-pressed', String(!micOn())); $('mic').textContent = micOn() ? '🎤' : '🔇'; $('mic').setAttribute('aria-label', micOn() ? 'Mute' : 'Unmute');
+    $('cam').setAttribute('aria-pressed', String(!camOn())); $('cam').setAttribute('aria-label', camOn() ? 'Turn camera off' : 'Turn camera on');
+    paintBubble();
+  }
+  setInterval(() => { if (inCall && !peers.size) paint(); }, 5000);
+
+  // The bubble shows whoever is on (the first with their camera on), muted: the sound comes from the stage.
+  function paintBubble() {
+    const list = [...peers.values()], p = list.find((x) => x.stream && x.cam) || list[0];
+    const v = $('bvid'), s = p && p.stream && p.cam ? p.stream : null;
+    if (v.srcObject !== s) { v.srcObject = s; if (s) v.play().catch(() => {}); }
+    v.hidden = !s;
+    $('bf').innerHTML = p ? face(p.user) : '📹';
+    $('bn').textContent = p ? (list.length > 1 ? `${nameIn(p.user)} +${list.length - 1}` : nameIn(p.user)) : calling ? `Calling ${nameIn(calling)}…` : 'Calling…';
+    $('bmic').textContent = micOn() ? '🎤' : '🔇'; $('bmic').setAttribute('aria-label', micOn() ? 'Mute' : 'Unmute');
+  }
+  // Big (the stage) or small (the bubble, over the page).
+  function big(on) { $('call').hidden = !on; $('bubble').hidden = on || !inCall; if (!on) { placeBubble(); paintBubble(); } }
+
+  // Starting a call (who to ring: an id, or null for everyone), or joining the one that's on.
+  async function joinCall(to) {
+    if (inCall) { big(true); return; }
+    await Promise.race([ready, new Promise((ok) => setTimeout(ok, 8000))]);
+    if (callCh.state !== 'joined') { toast('The call line isn’t connected. Try again in a moment.'); return setTimeout(exitShell, 2500); }
+    if (new Set(callLive().map((x) => x.peer)).size >= MAX) { toast(`The call is full: ${MAX} people at most for now.`); return setTimeout(exitShell, 2500); }
+    try {
+      local = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } } });
+    } catch (e) {
+      toast(e.name === 'NotAllowedError' ? 'The call needs your camera and microphone: allow them for r4box.com and try again.' : "Couldn't start the camera.");
+      return setTimeout(exitShell, 3000);
+    }
+    await loadIce();
+    facing = 'user'; inCall = true; aloneSince = 0; calling = to || null;
+    $('stage').innerHTML = ''; big(true);
+    const nobody = !callLive().length;
+    await callCh.track({ user: ME.id });
+    syncCall();
+    try { wake = await navigator.wakeLock?.request('screen'); } catch {}
+    navigator.mediaDevices.enumerateDevices().then((d) => { $('flip').hidden = d.filter((x) => x.kind === 'videoinput').length < 2; }).catch(() => {});
+    // The first one in rings everyone else (a card in the chat, and a push).
+    if (nobody) {
+      const { data: { session: s } } = await sb.auth.getSession();
+      fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ call: true, to: calling }) }).catch(() => {});
+    }
+  }
+  function leaveCall() {
+    if (!inCall) return;
+    inCall = false;
+    callCh.untrack();
+    for (const id of [...peers.keys()]) drop(id);
+    local?.getTracks().forEach((t) => t.stop()); local = null;
+    wake?.release().catch(() => {}); wake = null;
+  }
+  const hangUp = () => { leaveCall(); exitShell(); };
+  const toggleMic = () => { const t = local?.getAudioTracks()[0]; if (t) { t.enabled = !t.enabled; sig('*', 'state', { cam: camOn(), mic: micOn() }); paint(); } };
+  $('hang').onclick = hangUp; $('bhang').onclick = hangUp;
+  $('mic').onclick = toggleMic; $('bmic').onclick = toggleMic;
+  $('callmin').onclick = () => big(false);
+  $('cam').onclick = () => { const t = local?.getVideoTracks()[0]; if (t) { t.enabled = !t.enabled; sig('*', 'state', { cam: camOn(), mic: micOn() }); paint(); } };
+  $('flip').onclick = async () => {
+    const old = local?.getVideoTracks()[0];
+    if (!old) return;
+    const want = facing === 'user' ? 'environment' : 'user';
+    try {
+      old.stop();   // some phones can't open the second camera while the first is running
+      const [t] = (await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: want }, width: { ideal: 640 }, height: { ideal: 480 } } })).getVideoTracks();
+      t.enabled = old.enabled;
+      local.removeTrack(old); local.addTrack(t); facing = want;
+      for (const p of peers.values()) p.pc.getSenders().find((x) => x.track?.kind === 'video' || x.track === old)?.replaceTrack(t);
+      const sv = document.querySelector('#self video'); if (sv) sv.srcObject = local;
+      paint();
+    } catch { toast("Couldn't switch the camera."); }
+  };
+  // Back to the page with the screen on: the wake lock was let go while it was hidden.
+  document.addEventListener('visibilitychange', async () => { if (inCall && !document.hidden && (!wake || wake.released)) try { wake = await navigator.wakeLock?.request('screen'); } catch {} });
+  addEventListener('pagehide', leaveCall);
+
+  // ---- the bubble: drag it anywhere; it settles against the nearest side ----
+  const B = $('bubble');
+  let pos = null; try { pos = JSON.parse(sessionStorage.getItem('r4.call.bubble') || 'null'); } catch {}
+  function placeBubble(x, y) {
+    const w = B.offsetWidth || 108, h = B.offsetHeight || 180, m = 10;
+    const top = m + (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0);
+    if (x == null) { x = pos ? pos.x * innerWidth : innerWidth - w - m; y = pos ? pos.y * innerHeight : innerHeight - h - 90; }
+    x = Math.max(m, Math.min(innerWidth - w - m, x)); y = Math.max(top, Math.min(innerHeight - h - m, y));
+    B.style.transform = `translate(${x}px, ${y}px)`; B._x = x; B._y = y;
+  }
+  let drag = null;
+  B.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; B.setPointerCapture(e.pointerId); drag = { dx: e.clientX - B._x, dy: e.clientY - B._y, moved: 0, x: e.clientX, y: e.clientY }; });
+  B.addEventListener('pointermove', (e) => { if (!drag) return; drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x, e.clientY - drag.y)); placeBubble(e.clientX - drag.dx, e.clientY - drag.dy); });
+  const endDrag = () => {
+    if (!drag) return;
+    const tap = drag.moved < 8; drag = null;
+    if (tap) { big(true); return; }
+    const w = B.offsetWidth, left = B._x + w / 2 < innerWidth / 2;
+    placeBubble(left ? 0 : innerWidth, B._y);   // to the nearest side
+    pos = { x: B._x / innerWidth, y: B._y / innerHeight }; try { sessionStorage.setItem('r4.call.bubble', JSON.stringify(pos)); } catch {}
+  };
+  B.addEventListener('pointerup', endDrag); B.addEventListener('pointercancel', endDrag);
+  addEventListener('resize', () => { if (!B.hidden) placeBubble(); });
+
+  // Pages in the frame reach the call through here (chat.html's 📹, a call card's Join).
+  window.R4Call = { peer: PEER, inCall: () => inCall, join: (to) => joinCall(to || null), show: () => big(true) };
+
+  if (q.has('join')) joinCall(q.get('join') || null);
+  else exitShell();   // opened without a call to make (a reload, an old link): just the page
+</script>
+</body>
+</html>

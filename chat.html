@@ -67,7 +67,6 @@
 <div class="row1"><button class="chipc" id="atclaude" type="button">✦ @claude</button><span class="left" id="left">Write @claude to ask Claude</span></div>
 <form id="send"><button class="ibtn" type="button" id="photo" aria-label="Add a photo">📷</button><button class="ibtn" type="button" id="tripbtn" aria-label="Talk about a trip">✈️</button><input type="file" id="file" accept="image/*" hidden><textarea id="text" rows="1" placeholder="Message the family…" maxlength="4000" aria-label="Message"></textarea><button class="ibtn send" id="go" aria-label="Send">↑</button></form>
 </div>
-<div id="call" hidden role="dialog" aria-label="Video call"><div class="stage" id="stage"></div><div class="bar"><button id="callmin" aria-label="Back to the chat">⌄</button><button id="mic" aria-pressed="false" aria-label="Mute">🎤</button><button id="cam" aria-pressed="false" aria-label="Turn camera off">📷</button><button id="flip" aria-label="Switch camera" hidden>🔄</button><button id="hang" class="end" aria-label="Leave the call">✕</button></div></div>
 <dialog class="cdlg" id="pick"><b>📹 Call who?</b><div class="picks" id="picks"></div><div class="row"><button id="pickno">Cancel</button></div></dialog>
 <dialog class="cdlg" id="ring"><b id="ringwho">📹 Video call</b><div style="color:var(--muted);font-size:13px;margin-top:6px" id="ringnote">The family is on a call.</div><div class="row"><button id="ringno">Not now</button><button id="ringyes" style="background:var(--teal);color:var(--teal-ink);border-color:var(--teal)">Join</button></div></dialog>
 <dialog class="cdlg" id="tripdlg"><b>✈️ Talk about a trip</b><div style="color:var(--muted);font-size:13px;margin-top:6px">The chat turns into that trip’s conversation. @claude knows its plan there.</div><div class="picks" id="trippicks"></div><div class="row"><button id="tripno">Cancel</button></div></dialog>
@@ -193,7 +192,7 @@
   function refHTML(r, m) {
     if (r.type === 'call') {
       const live = callLive(), on = callIsLive(m);
-      return `<div class="rcall${on ? ' live' : ''}"><span class="ri">📹</span><span><b>${r.to ? `Called ${esc(nameIn(r.to))}` : 'Video call'}</b><small>${on ? `Live now · ${esc(live.map((x) => nameIn(x.user)).filter((v, k, a) => a.indexOf(v) === k).join(', '))}` : 'Ended'}</small></span>${on && !inCall ? '<button data-join>Join</button>' : ''}</div>`;
+      return `<div class="rcall${on ? ' live' : ''}"><span class="ri">📹</span><span><b>${r.to ? `Called ${esc(nameIn(r.to))}` : 'Video call'}</b><small>${on ? `Live now · ${esc(live.map((x) => nameIn(x.user)).filter((v, k, a) => a.indexOf(v) === k).join(', '))}` : 'Ended'}</small></span>${on && !inCallNow() ? '<button data-join>Join</button>' : ''}</div>`;
     }
     if (r.type === 'item') return `<a class="rcard" href="${esc(tripUrl(r))}">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="ri">📍</span>'}<span><small>${esc(r.trip_name)} ↗</small><b>${esc(r.title)}</b></span></a>`;
     if (r.type === 'added') return `<a class="rcard" href="${esc(tripUrl(r))}"><span class="ri">✦</span><span><small>Added to ${esc(r.trip_name)} ↗</small><ul>${(r.titles || []).map((t) => `<li>${esc(t)}</li>`).join('')}</ul></span></a>`;
@@ -336,7 +335,7 @@
       msgs.push(m); msgs.sort((a, b) => a.id - b.id);
       if (m.ref?.type === 'poll') await loadPolls();
       if (m.is_claude && thinking) { thinking = 0; clearTimeout(thinkTimer); }
-      if (m.ref?.type === 'call' && m.author !== ME.id && !inCall && (!m.ref.to || m.ref.to === ME.id)) ring(m.author);
+      if (m.ref?.type === 'call' && m.author !== ME.id && !inCallNow() && (!m.ref.to || m.ref.to === ME.id)) ring(m.author);
       render(m.author === ME.id && !m.reply_to); seen(true);
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, ({ old }) => {
@@ -570,162 +569,47 @@
   $('gear').onclick = openSettings;
 
   // ---- video calls ----
-  // Browsers connect straight to each other (WebRTC), each to each (fine up to about 4).
-  // Who is in the call, and the short handshake that sets up each connection, go over
-  // the private Realtime channel 'family-call' (family only, 105). Video goes browser to
-  // browser, or through our own relay on r4box when a network forces it (encrypted either way).
-  const MAX = 4;   // people in one call: each sends video to every other, which phones manage up to about 4
-  // STUN tells each browser its public address; when a network won't let two browsers reach
-  // each other, the TURN relay on r4box carries the (still encrypted) media. call-ice gives a
-  // signed-in family member the servers and a relay login for the day.
-  let ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }], iceAt = 0;
-  async function loadIce() {
-    if (Date.now() - iceAt < 6 * 3600e3) return;
-    try {
-      const { data: { session: s } } = await sb.auth.getSession();
-      const r = await fetch(FN.replace('family-chat', 'call-ice'), { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: '{}' });
-      const j = await r.json();
-      if (r.ok && Array.isArray(j.iceServers)) { ICE = j.iceServers; iceAt = Date.now(); }
-    } catch {}
-  }
-  const PEER = crypto.randomUUID();   // this tab in the call (one person may join from two devices)
-  const peers = new Map();            // peer -> { pc, user, ice: [], out: [], timer, cam, mic }
-  let calling = null;   // who this call rang (null: everyone)
-  let inCall = false, local = null, facing = 'user', wake = null, aloneSince = 0, liveKey = '';
+  // The call itself lives in call.html: it holds the connections and shows r4box under it, so
+  // moving between pages never drops it. Here the chat only watches who is on the call (the
+  // private Realtime channel 'family-call', 105: the 📹 Join button, a live call card, a ring)
+  // and hands starting or joining to it.
+  const MAX = 4;   // people in one call (call.html says the same)
+  const PEER = crypto.randomUUID();   // this page on the channel (it never joins the call itself)
+  // In a call, this page sits inside call.html, which answers here.
+  const shell = () => { try { return window.top !== window && window.top.R4Call ? window.top.R4Call : null; } catch { return null; } };
+  const inCallNow = () => !!shell()?.inCall();
+  let liveKey = '';
   const callCh = sb.channel('family-call', { config: { private: true, presence: { key: PEER } } });
   const room = () => Object.entries(callCh.presenceState()).map(([peer, v]) => ({ peer, user: v[0]?.user })).filter((x) => x.user);
-  const callLive = () => room().filter((x) => x.peer !== PEER);
+  const callLive = () => room();
   const lastCallId = () => [...msgs].reverse().find((x) => x.ref?.type === 'call')?.id;
-  callCh.on('presence', { event: 'sync' }, syncCall)
-    .on('broadcast', { event: 'sig' }, ({ payload }) => { if (payload.to === PEER || payload.to === '*') onSignal(payload); })
-    .subscribe(onCallState);
+  callCh.on('presence', { event: 'sync' }, syncCall).subscribe(onCallState);
   function onCallState(st) {
     // The button stays: a phone waking up often drops the socket for a moment (CHANNEL_ERROR,
     // TIMED_OUT), and the channel rejoins by itself; hiding it here left it gone until a reload.
-    if (st === 'SUBSCRIBED') { $('callbtn').hidden = false; if (inCall) callCh.track({ user: ME.id }); }   // back after a reconnect
+    if (st === 'SUBSCRIBED') $('callbtn').hidden = false;
   }
   // Back on the page: nudge a channel that lost its socket while the phone slept.
   document.addEventListener('visibilitychange', () => {
     if (document.hidden || callCh.state === 'joined' || callCh.state === 'joining') return;
     sb.auth.getSession().then(({ data: { session: s } }) => { if (s) sb.realtime.setAuth(s.access_token); callCh.subscribe(onCallState); }).catch(() => {});
   });
-
-  function sig(to, kind, data) { callCh.send({ type: 'broadcast', event: 'sig', payload: { to, from: PEER, user: ME.id, kind, data } }); }
-
   function syncCall() {
-    const others = callLive();
-    const key = others.map((x) => x.peer).sort().join();
+    const others = callLive(), me = inCallNow();
+    const key = others.map((x) => x.peer).sort().join() + me;
     if (key !== liveKey) { liveKey = key; render(false); }
     const b = $('callbtn');
-    b.classList.toggle('live', !!others.length && !inCall);
-    b.textContent = others.length && !inCall ? `📹 Join · ${new Set(others.map((x) => x.user)).size}` : '📹';
-    b.setAttribute('aria-label', others.length && !inCall ? 'Join the video call' : 'Start a video call');
-    if (!others.length && $('ring').open) $('ring').close();
-    if (!inCall) return;
-    for (const o of others) if (!peers.has(o.peer)) { const p = connect(o.peer, o.user); if (PEER < o.peer) offer(o.peer, p); }
-    for (const id of [...peers.keys()]) if (!others.some((o) => o.peer === id)) drop(id);
-    aloneSince = others.length ? 0 : aloneSince || Date.now();
-    paint();
+    b.classList.toggle('live', !!others.length && !me); b.classList.toggle('incall', me);
+    b.textContent = me ? '📹 On call' : others.length ? `📹 Join · ${new Set(others.map((x) => x.user)).size}` : '📹';
+    b.setAttribute('aria-label', me ? 'Show the call' : others.length ? 'Join the video call' : 'Start a video call');
+    if ((!others.length || me) && $('ring').open) $('ring').close();
   }
+  setInterval(syncCall, 4000);   // picks up joining or leaving in call.html
 
-  function connect(peer, user) {
-    const pc = new RTCPeerConnection({ iceServers: ICE });
-    const p = { pc, user, ice: [], out: [], timer: 0, cam: true, mic: true, stream: null, state: 'new' };
-    peers.set(peer, p);
-    for (const t of local.getTracks()) pc.addTrack(t, local);
-    pc.ontrack = ({ track, streams }) => { p.stream = streams[0] || new MediaStream([track]); paint(); };
-    // Candidates go out in small batches, so a connection doesn't flood the channel.
-    pc.onicecandidate = ({ candidate }) => {
-      if (!candidate) return;
-      p.out.push(candidate.toJSON());
-      clearTimeout(p.timer); p.timer = setTimeout(() => { sig(peer, 'ice', p.out); p.out = []; }, 120);
-    };
-    pc.onconnectionstatechange = () => {
-      p.state = pc.connectionState; paint();
-      if (pc.connectionState === 'connected') { sig(peer, 'state', { cam: camOn(), mic: micOn() }); setTimeout(() => viaRelay(p), 1500); }
-      // Lost the way through (a network change): the one who called finds a new one.
-      if (pc.connectionState === 'failed' && PEER < peer) { pc.restartIce(); offer(peer, p); }
-    };
-    sig(peer, 'state', { cam: camOn(), mic: micOn() });
-    return p;
-  }
-  // Which way the media went: straight between the browsers, or through the relay.
-  async function viaRelay(p) {
-    try {
-      const st = await p.pc.getStats(); let pair = null;
-      st.forEach((r) => { if (r.type === 'transport' && r.selectedCandidatePairId) pair = st.get(r.selectedCandidatePairId); });
-      if (!pair) st.forEach((r) => { if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') pair = r; });
-      const lc = pair && st.get(pair.localCandidateId), rc = pair && st.get(pair.remoteCandidateId);
-      p.relay = !!(lc && lc.candidateType === 'relay') || !!(rc && rc.candidateType === 'relay'); paint();
-    } catch {}
-  }
-  async function offer(peer, p) {
-    try { await p.pc.setLocalDescription(await p.pc.createOffer()); sig(peer, 'offer', p.pc.localDescription.toJSON()); }
-    catch (e) { console.error('offer', e); }
-  }
-  async function onSignal(m) {
-    if (!inCall || m.from === PEER) return;
-    if (m.kind === 'state') { const p = peers.get(m.from); if (p) { p.cam = !!m.data.cam; p.mic = !!m.data.mic; paint(); } return; }
-    let p = peers.get(m.from);
-    if (!p) { if (m.kind !== 'offer') return; p = connect(m.from, m.user); }
-    try {
-      if (m.kind === 'offer' || m.kind === 'answer') {
-        await p.pc.setRemoteDescription(m.data);
-        for (const c of p.ice.splice(0)) await p.pc.addIceCandidate(c).catch(() => {});
-        if (m.kind === 'offer') { await p.pc.setLocalDescription(await p.pc.createAnswer()); sig(m.from, 'answer', p.pc.localDescription.toJSON()); }
-      } else if (m.kind === 'ice') {
-        for (const c of m.data || []) p.pc.remoteDescription ? await p.pc.addIceCandidate(c).catch(() => {}) : p.ice.push(c);
-      }
-    } catch (e) { console.error('signal', e); }
-  }
-  function drop(peer) { const p = peers.get(peer); if (!p) return; clearTimeout(p.timer); p.pc.close(); peers.delete(peer); }
-
-  const camOn = () => !!local?.getVideoTracks()[0]?.enabled;
-  const micOn = () => !!local?.getAudioTracks()[0]?.enabled;
-  const SEED = `<svg viewBox="-60 -60 120 120" fill="none" stroke-width=".8" aria-hidden="true">${[[0, 0], ...[0, 60, 120, 180, 240, 300].map((a) => [20 * Math.cos(a * Math.PI / 180), 20 * Math.sin(a * Math.PI / 180)])]
-    .map(([x, y], k) => `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="20" stroke="${['#3DD6C6', '#B9A6FF', '#F5C542'][k % 3]}" opacity=".85"/>`).join('')}<circle r="40" stroke="#C9FFF8" opacity=".5"/><circle r="54" stroke="#B9A6FF" opacity=".25"/></svg>`;
   const face = (id) => { const n = nameIn(id), a = avatar(n); return a ? `<img src="${a}" alt="">` : esc(n[0].toUpperCase()); };
-
-  // The stage: a tile per person (their video, or their initial when the camera is off), and you in the corner.
-  function paint() {
-    if (!inCall) return;
-    const st = $('stage');
-    if (!peers.size) {
-      const waited = aloneSince && Date.now() - aloneSince > 60e3;
-      if (!st.querySelector('.waiting')) st.innerHTML = `<div class="waiting">${SEED}<div><b>Calling ${calling ? esc(nameIn(calling)) : 'the family'}…</b><span id="waitnote"></span></div></div>`;
-      st.querySelector('#waitnote').textContent = waited ? 'No one has picked up yet.' : calling ? 'They get a ring on their phone.' : 'They get a ring on their phones.';
-    } else {
-      st.querySelector('.waiting')?.remove();
-      for (const [peer, p] of peers) {
-        let t = st.querySelector(`[data-peer="${peer}"]`);
-        if (!t) {
-          t = Object.assign(document.createElement('div'), { className: 'tile' }); t.dataset.peer = peer;
-          t.innerHTML = `<video autoplay playsinline></video><div class="off"><b>${face(p.user)}</b></div><span class="nm">${esc(nameIn(p.user))}<small class="via" hidden> · via relay</small></span><span class="flag" hidden></span>`;
-          st.append(t);
-        }
-        const v = t.querySelector('video');
-        if (p.stream && v.srcObject !== p.stream) { v.srcObject = p.stream; v.play().catch(() => {}); }
-        t.querySelector('.off').hidden = !!p.stream && p.cam;
-        t.querySelector('.via').hidden = !p.relay;
-        const flag = t.querySelector('.flag'), bad = ['disconnected', 'failed'].includes(p.state);
-        flag.hidden = p.mic && !bad && p.state !== 'connecting' && p.state !== 'new';
-        flag.textContent = bad ? 'Reconnecting…' : p.state === 'connecting' || p.state === 'new' ? 'Connecting…' : '🔇';
-      }
-      for (const t of st.querySelectorAll('[data-peer]')) if (!peers.has(t.dataset.peer)) t.remove();
-    }
-    if (!st.querySelector('#self')) {
-      st.insertAdjacentHTML('beforeend', '<div id="self"><video autoplay playsinline muted></video></div>');
-      st.querySelector('#self video').srcObject = local;
-    }
-    const me = st.querySelector('#self'); st.append(me);
-    me.classList.toggle('mirror', facing === 'user'); me.classList.toggle('camoff', !camOn());
-    $('mic').setAttribute('aria-pressed', String(!micOn())); $('mic').textContent = micOn() ? '🎤' : '🔇'; $('mic').setAttribute('aria-label', micOn() ? 'Mute' : 'Unmute');
-    $('cam').setAttribute('aria-pressed', String(!camOn())); $('cam').setAttribute('aria-label', camOn() ? 'Turn camera off' : 'Turn camera on');
-  }
-  setInterval(() => { if (inCall && !peers.size) paint(); }, 5000);
-
   // Starting a call: pick who to ring. Joining one that's on: straight in.
   function startOrJoin() {
+    if (inCallNow()) { shell().show(); return; }
     if (callLive().length) { joinCall(); return; }
     const others = family.filter((f) => f.id !== ME.id);
     const row = (id, label, inner) => `<button data-to="${id}"><span class="av">${inner}</span>${esc(label)}</button>`;
@@ -734,84 +618,28 @@
   }
   $('picks').onclick = (e) => { const b = e.target.closest('[data-to]'); if (b) { $('pick').close(); joinCall(b.dataset.to || null); } };
   $('pickno').onclick = () => $('pick').close();
-
-  async function joinCall(to) {
-    if (inCall) return;
+  // Into the call: call.html takes the window and keeps this page under it.
+  function joinCall(to) {
     if ($('ring').open) $('ring').close();
+    const sh = shell(); if (sh) { sh.join(to || null); return; }
     if (new Set(callLive().map((x) => x.peer)).size >= MAX) { toast(`The call is full: ${MAX} people at most for now.`, true); return; }
-    try {
-      local = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } } });
-    } catch (e) {
-      toast(e.name === 'NotAllowedError' ? 'The call needs your camera and microphone: allow them for r4box.com and try again.' : "Couldn't start the camera.", true);
-      return;
-    }
-    await loadIce();
-    facing = 'user'; inCall = true; aloneSince = 0; calling = typeof to === 'string' ? to : null;
-    $('call').hidden = false; $('stage').innerHTML = '';
-    const nobody = !callLive().length;
-    await callCh.track({ user: ME.id });
-    syncCall();
-    try { wake = await navigator.wakeLock?.request('screen'); } catch {}
-    navigator.mediaDevices.enumerateDevices().then((d) => { $('flip').hidden = d.filter((x) => x.kind === 'videoinput').length < 2; }).catch(() => {});
-    // The first one in rings everyone else (a card in the chat, and a push).
-    if (nobody) {
-      const { data: { session: s } } = await sb.auth.getSession();
-      fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ call: true, to: typeof to === 'string' ? to : null }) })
-        .then((r) => r.ok ? r.json() : null).then((j) => { if (j?.id) setTimeout(() => { if (!msgs.some((x) => x.id === j.id)) load(); }, 2500); }).catch(() => {});
-    }
-  }
-  function leaveCall() {
-    if (!inCall) return;
-    inCall = false;
-    callCh.untrack();
-    for (const id of [...peers.keys()]) drop(id);
-    local?.getTracks().forEach((t) => t.stop()); local = null;
-    wake?.release().catch(() => {}); wake = null;
-    $('call').hidden = true; $('stage').innerHTML = '';
-    liveKey = '-'; syncCall();
+    window.top.location.assign(`/call.html?join=${encodeURIComponent(typeof to === 'string' ? to : '')}&page=${encodeURIComponent(location.pathname + location.search)}`);
   }
   function ring(from) {
-    if (inCall || !callLive().length) return;
+    if (inCallNow() || !callLive().length) return;
     $('ringwho').textContent = `📹 ${from ? nameIn(from) + ' is calling' : 'Video call'}`;
     $('ringnote').textContent = `${callLive().map((x) => nameIn(x.user)).filter((v, k, a) => a.indexOf(v) === k).join(', ')} on the call now.`;
     if (!$('ring').open) $('ring').showModal();
     navigator.vibrate?.([400, 200, 400]);
   }
-  $('callbtn').onclick = () => { if (callCh.state !== 'joined') { toast('Reconnecting the call line… try again in a moment.'); callCh.subscribe(onCallState); return; } startOrJoin(); };
+  $('callbtn').onclick = () => { if (callCh.state !== 'joined' && !inCallNow()) { toast('Reconnecting the call line… try again in a moment.'); callCh.subscribe(onCallState); return; } startOrJoin(); };
   $('ringyes').onclick = () => joinCall();
   $('ringno').onclick = () => $('ring').close();
-  $('hang').onclick = leaveCall;
-  $('mic').onclick = () => { const t = local?.getAudioTracks()[0]; if (t) { t.enabled = !t.enabled; sig('*', 'state', { cam: camOn(), mic: micOn() }); paint(); } };
-  $('cam').onclick = () => { const t = local?.getVideoTracks()[0]; if (t) { t.enabled = !t.enabled; sig('*', 'state', { cam: camOn(), mic: micOn() }); paint(); } };
-  $('flip').onclick = async () => {
-    const old = local?.getVideoTracks()[0];
-    if (!old) return;
-    const want = facing === 'user' ? 'environment' : 'user';
-    try {
-      old.stop();   // some phones can't open the second camera while the first is running
-      const [t] = (await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: want }, width: { ideal: 640 }, height: { ideal: 480 } } })).getVideoTracks();
-      t.enabled = old.enabled;
-      local.removeTrack(old); local.addTrack(t); facing = want;
-      for (const p of peers.values()) p.pc.getSenders().find((x) => x.track?.kind === 'video' || x.track === old)?.replaceTrack(t);
-      const sv = document.querySelector('#self video'); if (sv) sv.srcObject = local;
-      paint();
-    } catch { toast("Couldn't switch the camera.", true); }
-  };
-  // Back to the page with the screen on: the wake lock was let go while it was hidden.
-  document.addEventListener('visibilitychange', async () => { if (inCall && !document.hidden && (!wake || wake.released)) try { wake = await navigator.wakeLock?.request('screen'); } catch {} });
-  addEventListener('pagehide', leaveCall);
   // Opened from a call's ring: offer to join once we know the call is still on.
   if (location.hash === '#call') {
     history.replaceState(null, '', location.pathname + location.search);
     for (const ms of [1500, 4000]) setTimeout(() => ring([...msgs].reverse().find((x) => x.ref?.type === 'call')?.author), ms);
   }
-
-  // The call shrinks to the chat (⌄) and comes back from 📹.
-  $('callmin').onclick = () => { $('call').hidden = true; $('callbtn').classList.add('incall'); };
-  const startTap = $('callbtn').onclick;
-  $('callbtn').onclick = (e) => { if (inCall) { $('call').hidden = false; $('callbtn').classList.remove('incall'); return; } startTap(e); };
-  $('hang').addEventListener('click', () => $('callbtn').classList.remove('incall'));
 
   // ---- alerts: a push for new messages when the chat isn't open ----
   const b64 = (s) => Uint8Array.from(atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
