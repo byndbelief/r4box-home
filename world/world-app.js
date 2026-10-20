@@ -279,7 +279,7 @@
     const a = access(p), w = p.world, topics = w.topics, events = w.events;
     applyDensity(p);
     $('title').textContent = SOLO ? SOLO.title : a === 'own' ? 'My diary' : p.name + '’s world'; $('back').hidden = !!SOLO; $('markA').hidden = !SOLO; $('worldBox').classList.add('solo');
-    live = window.mountWorld($('cv'), { topics, events, projects: p.world.projects || [] }, { seeds: a === 'own' ? seedsOf(p) : [], onPick: (h) => pickWorld(p, h), onPlant: (at) => plantForm(p, at) });
+    live = window.mountWorld($('cv'), { topics, events, projects: p.world.projects || [] }, { seeds: a === 'own' ? seedsOf(p) : [], onPick: (h) => pickWorld(p, h), budLabel: (e) => short(e.day) + ' · ' + (KIND[e.kind] || e.kind), onPlant: (at) => plantForm(p, at) });
     $('tools').hidden = false; $('plantBtn').hidden = a !== 'own' || NOSEED;
     $('zIn').onclick = () => live.zoomBy(1.8); $('zOut').onclick = () => live.zoomBy(1 / 1.8); $('zHome').onclick = () => live.reset();
     $('plantBtn').onclick = () => planting(!$('plantBtn').classList.contains('on'));
@@ -348,15 +348,23 @@
 
   // a phone on its side, full screen: the panel is on the right, so a whole story fits in it and the world stays
   const sideMode = () => document.body.classList.contains('isfull') && matchMedia('(orientation:landscape) and (max-height:600px)').matches;
+  function markMoment(id, scroll) {
+    let hit = null;
+    $('pick').querySelectorAll('[data-ev]').forEach((li) => { const on = li.dataset.ev === String(id); li.classList.toggle('on', on); if (on) hit = li; });
+    if (hit && scroll) { hit.closest('[data-chap]')?.classList.add('open'); hit.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    return !!hit;
+  }
   function storyPanel(p, t, back) {
     const read = canRead(p, storyId(p, t)), s = topicState(p, t), [emoji, , what] = REALM[t.source], chs = K.chapters(s.evs);
     $('pick').innerHTML = `<div class="row" style="margin-top:0"><button class="ghost" id="pback">‹ Back</button></div>
       <h2>${emoji} ${esc(t.title)} <small>${what} · started ${esc(short(t.created))} · ${s.evs.length} moment${s.evs.length === 1 ? '' : 's'}${s.done ? ' · finished' : s.resting ? ' · resting' : ''}</small></h2>
       ${read ? '' : '<p>You see how it grew. What happened in each moment stays private unless it’s shared.</p>'}
-      <ol class="story pstory">${chs.slice().reverse().map((c) => `<li class="chap ${c.key}${read ? ' open' : ''}" data-chap><div class="ch"><span class="n">Chapter ${c.n}</span><b>${c.name}</b><span class="r">${esc(K.range(c.start, c.end))}</span></div>
+      <ol class="story pstory" data-topic="${esc(t.id)}">${chs.slice().reverse().map((c) => `<li class="chap ${c.key}${read ? ' open' : ''}" data-chap><div class="ch"><span class="n">Chapter ${c.n}</span><b>${c.name}</b><span class="r">${esc(K.range(c.start, c.end))}</span></div>
         <div class="marks">${c.evs.map((e) => `<i style="background:${FAMC[e.kind] || '#B9A6FF'};--s:${(0.7 + (+e.effort || 1) * 0.12).toFixed(2)}"></i>`).join('')}<span>${c.days} day${c.days === 1 ? '' : 's'}</span></div>
-        ${read ? `<p class="lead">${esc(evText(c.evs[c.evs.length - 1]))}</p><ul class="evs">${c.evs.slice().reverse().map((e) => `<li><span>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</span>${esc(evText(e))}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
+        ${read ? `<p class="lead">${esc(evText(c.evs[c.evs.length - 1]))}</p><ul class="evs">${c.evs.slice().reverse().map((e) => `<li data-ev="${esc(e.id)}"><span>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</span>${esc(evText(e))}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
     $('pback').onclick = back;
+    // a moment here and its bud on the limb: tap one, the other lights
+    $('pick').querySelectorAll('[data-ev]').forEach((li) => (li.onclick = (ev) => { ev.stopPropagation(); live.showEvent(li.dataset.ev); markMoment(li.dataset.ev, false); }));
     $('pick').querySelectorAll('[data-chap]').forEach((el) => (el.onclick = () => el.classList.toggle('open')));
     $('pick').scrollTop = 0;
   }
@@ -366,8 +374,10 @@
     if (h.topic && h.topic.project) { location.href = '/projects.html?open=' + encodeURIComponent(h.topic.project); return; }
     const a = access(p);
     if (h.event) {
-      live.focus(h);
       const e = h.event, t = h.topic || {}, read = t.id ? canRead(p, storyId(p, t)) : a === 'own';
+      live.focus(h);
+      // its limb's story already open in the side panel: find the moment there instead
+      if (!$('pick').hidden && t.id && $('pick').querySelector(`.pstory[data-topic="${CSS.escape(String(t.id))}"]`) && markMoment(e.id, true)) return;
       $('pick').hidden = false;
       $('pick').innerHTML = `<h2>${REALM[t.source || 'tutor'][0]} ${esc(t.title || '')} <small>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</small></h2>
         ${read ? `<p>${esc(evText(e) || 'No words for this one.')}</p>` : '<p>What happened stays private to them.</p>'}

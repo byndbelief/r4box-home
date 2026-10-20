@@ -508,3 +508,6 @@ header button,header a,header input,header select,header label{pointer-events:au
   body.isfull .pick .pstory .evs span{font-size:9px}
   body.isfull .pick .pstory li{margin:0}
 }
+/* a moment in the side panel's story that is ringed on its limb */
+.pick .pstory .evs li{cursor:pointer;border-radius:6px;margin:0 -5px;padding:2px 5px}
+.pick .pstory .evs li.on{background:#F5C5421f;box-shadow:inset 2px 0 0 #F5C542}

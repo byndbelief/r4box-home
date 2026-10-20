@@ -22,10 +22,10 @@
       if (tree) tree.destroy(); tree = null;
       if (L.tutor.length) tree = window.mountDiaryTree(null, treeData(L.tutor, data.events || []), { external: { w: L.tree.w, h: L.tree.h }, palette: PAL, fill: true, flow: { colors: FLOW, wave: 120, speed: 0.45, tail: 2.6 } });
       if (tree && tree.select && lit) { tree.select(lit); tree.limb(lit); }   // a story's limb stays lit and facing you when the world is rebuilt (turning the phone)
-      kMin = Math.min(VW / L.WW, VH / L.WH); kStart = Math.max(kMin, Math.min(VH / (L.WH * 0.85), VW / (L.WW * 0.78))); kMax = kStart * 7;
+      kMin = Math.min(VW / L.WW, VH / L.WH); kStart = Math.max(kMin, Math.min(VH / (L.WH * 0.85), VW / (L.WW * 0.78))); kMax = kStart * 24;   // close enough to read each moment on a limb
     }
     function size() {
-      const b = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2), first = !L;
+      const b = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 3), first = !L;
       VW = Math.max(1, b.width); VH = Math.max(1, b.height); cv.width = Math.round(VW * dpr); cv.height = Math.round(VH * dpr);
       if (first) { build(); home(false); }
     }
@@ -94,6 +94,30 @@
       }
       ctx.restore();
     }
+    // a lit limb, close up: each moment's bud gets its date and what happened (opts.budLabel), and the
+    // chosen moment (a bud tapped, or a moment tapped in its story) a ring
+    const scr = (n) => ({ x: (n.x + L.tree.x - cam.x) * cam.k + VW / 2, y: (n.y + L.tree.y - cam.y) * cam.k + VH / 2 });
+    function budMarks(t, zoom) {
+      if (!tree || !lit) return;
+      const mine = tree.nodes().filter((n) => n.idea === lit);
+      const pick = sel && mine.find((n) => n.id.slice(1) === String(sel.id));
+      if (pick) { const p = scr(pick), r = 11 + 2 * Math.sin(t * 4);
+        ctx.globalAlpha = 1; ctx.strokeStyle = '#F5C542'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
+        ctx.globalAlpha = 0.35; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, r + 4, 0, TAU); ctx.stroke(); }
+      if (zoom < 3.2 || !opts.budLabel) return;
+      ctx.font = '700 10px Sora, system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.globalAlpha = Math.min(1, (zoom - 3.2) * 1.5);
+      const taken = [];   // no label over another: the chosen one first, then the rest as they fit
+      for (const n of pick ? [pick, ...mine.filter((m) => m !== pick)] : mine) {
+        const p = scr(n); if (p.x < -40 || p.x > VW + 20 || p.y < -10 || p.y > VH + 10) continue;
+        const ev = evById[n.id.slice(1)]; if (!ev) continue;
+        const txt = opts.budLabel(ev), w = ctx.measureText(txt).width + 12, box = { x: p.x + 9, y: p.y - 9, w, h: 18 };
+        if (taken.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) continue;
+        taken.push(box);
+        ctx.fillStyle = n === pick ? '#F5C542' : '#000000cc'; ctx.beginPath(); ctx.roundRect(box.x, box.y, w, 18, 9); ctx.fill();
+        ctx.fillStyle = n === pick ? '#1A1405' : '#F3F1FF'; ctx.fillText(txt, box.x + 6, box.y + 12.5);
+      }
+      ctx.globalAlpha = 1;
+    }
     function frame(now) {
       if (dead) return;
       const t = now / 1000, dpr = cv.width / VW;
@@ -112,7 +136,7 @@
       for (let ring = 0; ring <= 4; ring++) for (let i = 0; i < Math.max(1, ring * 6); i++) { const a = (i / Math.max(1, ring * 6)) * TAU; ctx.strokeStyle = '#B9A6FF'; ctx.globalAlpha = 0.07 * (1 - ring / 5); ctx.beginPath(); ctx.arc(Math.cos(a) * ring * cr, Math.sin(a) * ring * cr, cr, 0, TAU); ctx.stroke(); }
       ctx.restore();
       if (plant) { ctx.globalAlpha = 0.18 + 0.12 * Math.sin(t * 3); ctx.fillStyle = '#3DD6C6'; ctx.fillRect(-L.WW, L.gy - 4, L.WW * 3, 8); }
-      if (tree) { ctx.save(); ctx.translate(L.tree.x, L.tree.y); ctx.globalAlpha = 1; tree.paint(ctx, now); ctx.restore(); }
+      if (tree) { ctx.save(); ctx.translate(L.tree.x, L.tree.y); ctx.globalAlpha = 1; tree.paint(ctx, now, cam.k / kStart); ctx.restore(); }
       for (const o of L.objs) window.WorldParts.draw(ctx, o, t, sel);
       drawTies(t, false);
       // names, in screen space, once you're close enough to read them
@@ -123,6 +147,7 @@
           const txt = o.seed ? '🌱 ' + o.seed.title : o.topic.title, w = ctx.measureText(txt).width + 14;
           ctx.fillStyle = '#000000cc'; ctx.beginPath(); ctx.roundRect(sx - w / 2, sy - 16, w, 20, 10); ctx.fill(); ctx.fillStyle = '#F3F1FF'; ctx.fillText(txt, sx, sy - 2); }
       }
+      budMarks(t, zoom);
       if (!still || tween) raf = requestAnimationFrame(frame);
     }
     size(); raf = requestAnimationFrame(frame);
@@ -130,12 +155,16 @@
     return {
       destroy() { dead = true; cancelAnimationFrame(raf); ro.disconnect(); if (tree) tree.destroy(); ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach((k) => cv.replaceWith(cv.cloneNode())); },
       setPlant(on) { plant = on; }, select(ev) { sel = ev; },
+      // one moment on a lit limb: ringed, and the camera in close on its bud
+      showEvent(id) { const ev = evById[String(id)]; if (!ev || !tree) return; sel = ev;
+        const n = tree.nodes().find((x) => x.id.slice(1) === String(id)); if (!n) return;
+        go({ x: n.x + L.tree.x, y: n.y + L.tree.y, k: Math.max(cam.k, kStart * 5) }, true); },
       setSeeds(s) { seeds = s; const c = cam; build(); cam = c; },
       zoomBy(f) { zoomAt(VW / 2, VH / 2, f, true); }, reset() { home(true); },
       light(id) { lit = id || null; if (tree && tree.select) { tree.select(lit); tree.hold(!!lit); } },   // null: the whole tree lit again, turning
       focusTopic(id) { if (L.tutor.some((t) => t.id === id)) return lightLimb(id); this.light(null); const o = L.objs.find((x) => x.topic && x.topic.id === id); if (o) return go({ x: o.hit.x, y: o.hit.y, k: Math.max(kStart * 2.2, Math.min(kMax, VW / (o.hit.r * 3.4))) }, true);
         if (L.tutor.some((t) => t.id === id)) go({ x: L.tree.x + L.tree.w / 2, y: L.tree.y + L.tree.h * 0.45, k: kStart * 1.5 }, true); },
-      focus(h) { if (h.topic && L.tutor.some((t) => t.id === h.topic.id)) return lightLimb(h.topic.id); this.light(null); const p = h.at || (h.obj && h.obj.hit) || null; if (p) go({ x: p.x, y: p.y, k: Math.max(cam.k, kStart * 2.4) }, true); },
+      focus(h) { if (h.topic && L.tutor.some((t) => t.id === h.topic.id)) return lit === h.topic.id && h.event ? undefined : lightLimb(h.topic.id); /* a bud on the limb already lit: stay as close as you are */ this.light(null); const p = h.at || (h.obj && h.obj.hit) || null; if (p) go({ x: p.x, y: p.y, k: Math.max(cam.k, kStart * 2.4) }, true); },
     };
   };
 })();

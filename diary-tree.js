@@ -8,6 +8,7 @@
   var PALETTE = {};
   var FLOW = null, FLAT = false, FILL = false, NODE = 1, SEG = 1, SPREADX = 2.2, EXT = false;
   var state, treeState;
+  var ZK = 1, ISO = false;   // r4box: zoomed in, wood and buds grow slower than the zoom (finer detail); ISO: a lit limb drawn alone
   function todayISO() {
     var d = new Date(), m = d.getMonth() + 1, day = d.getDate();
     return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
@@ -360,11 +361,12 @@
     drawn.forEach(function (sg, i) {
       if (sg.order >= upto) return;
       var sel = state.sel && sg.idea === state.sel;
+      if (ISO && sg.idea && !sel) return;   // close in on a lit limb: only it is drawn
       var dim = state.sel && sg.idea && !sel ? 0.22 : 1;
       var life = sg.parked ? 0.4 : sg.quiet > 60 ? 0.45 : sg.quiet > QUIET_DAYS ? 0.65 : 1;
       ctx.globalAlpha = (sg.kind === "trunk" ? 0.75 : 0.9) * life * dim;
       ctx.strokeStyle = sel ? cGrow : sg.parked ? park : bark;   // the chosen limb's wood lights up
-      ctx.lineWidth = sel ? Math.max(2, sg.w * 1.3) : sg.w;
+      ctx.lineWidth = (sel ? Math.max(2, sg.w * 1.3) : sg.w) * ZK;
       if (sel) ctx.globalAlpha = Math.max(ctx.globalAlpha, 0.95);
       ctx.globalAlpha *= depthOf(sg);
       if (treeState.hover && treeState.hover === sg.idea) { ctx.strokeStyle = cAcc; ctx.globalAlpha = 0.95; }
@@ -383,7 +385,7 @@
         ctx.strokeStyle = cols[ci];
         if (state.sel && sg.idea !== state.sel) return;   // a chosen limb alone carries the pulses
         ctx.globalAlpha = b * b * 0.9 * depthOf(sg) * (sg.parked ? 0.35 : 1);
-        ctx.lineWidth = Math.max(1.2, sg.w * 0.75);
+        ctx.lineWidth = Math.max(1.2, sg.w * 0.75) * ZK;
         ctx.beginPath(); ctx.moveTo(sg.x1, sg.y1); ctx.lineTo(sg.x2, sg.y2); ctx.stroke();
       });
       ctx.globalCompositeOperation = "source-over";
@@ -393,6 +395,7 @@
     drawn.forEach(function (sg) {
       if (sg.order >= upto || !sg.event || sg.kind === "trunk") return;
       var sel = state.sel && sg.idea === state.sel;
+      if (ISO && !sel) return;
       var dim = state.sel && !sel ? 0.12 : 1;
       var life = sg.parked ? 0 : sg.quiet > 60 ? 0.18 : sg.quiet > QUIET_DAYS ? 0.5 : 1;
       var col = null, r = 0;
@@ -411,6 +414,7 @@
       else { col = cClose; r = (2.6 + (sg.effort || 1) * 0.25) * Math.min(1.5, sg.k || 1); ctx.globalAlpha = (0.35 + 0.5 * life) * dim; }
       if (!col) return;
       if (!sg.twig) r *= NODE;
+      r *= ZK;
       ctx.globalAlpha *= depthOf(sg);
       // r4box addition: buds, blossoms and fruit glow, each breathing on its own beat
       if (FLOW && dim === 1) {   // glows add up (lighter), so a dimmed limb gets none
@@ -426,10 +430,10 @@
       }
       ctx.beginPath(); ctx.arc(sg.x2, sg.y2, r, 0, Math.PI * 2);
       if (sg.backfilled) {
-        ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.stroke();
+        ctx.strokeStyle = col; ctx.lineWidth = 1.6 * ZK; ctx.stroke();
       } else {
         ctx.fillStyle = col; ctx.fill();
-        ctx.lineWidth = 1; ctx.strokeStyle = ground; ctx.globalAlpha *= 0.7; ctx.stroke();
+        ctx.lineWidth = ZK; ctx.strokeStyle = ground; ctx.globalAlpha *= 0.7; ctx.stroke();
       }
     });
     ctx.globalAlpha = 1;
@@ -500,19 +504,23 @@
           held = true; turnTo = best;
           return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
         },
-        paint: function (ctx, now) {
+        // zoom: how far in the camera is (1 = the whole world); deep in, a lit limb is drawn alone
+        paint: function (ctx, now, zoom) {
           treeState = ts; state = st; fake.ctx = ctx;
+          zoom = zoom || 1; ZK = zoom > 2 ? Math.sqrt(2 / zoom) : 1; ISO = ts.iso = !!st.sel && zoom > 2.6;
           var p = reduce ? 1 : Math.min(1, (now - t0) / DUR);
           ts.t = p < 1 ? 1 - Math.pow(1 - p, 3) : 1;
           if (turnTo != null) { var dth = turnTo - ts.theta; ts.theta = reduce || Math.abs(dth) < 0.002 ? turnTo : ts.theta + dth * Math.min(1, (now - last) / 140); }
           else if (opts.spin !== false && !reduce && !held) ts.theta += (now - last) * SPIN;
           last = now;
           paintTree(fake, Math.round(ts.t * ts.segs.length));
+          ZK = 1; ISO = false;
         },
         nodes: function () {
           treeState = ts; projectSpin(ts.segs);
-          return ts.segs.filter(function (g) { return g.event && !g.twig && g.order < Math.round(ts.t * ts.segs.length); })
-            .map(function (g) { return { id: g.event, kind: g.kind, x: g.x2, y: g.y2, z: g.z || 0 }; });
+          var only = ts.iso ? st.sel : null;   // a limb drawn alone: only its buds answer a tap
+          return ts.segs.filter(function (g) { return g.event && !g.twig && g.order < Math.round(ts.t * ts.segs.length) && (!only || g.idea === only); })
+            .map(function (g) { return { id: g.event, idea: g.idea, kind: g.kind, x: g.x2, y: g.y2, z: g.z || 0 }; });
         },
         destroy: function () { alive = false; },
       };
