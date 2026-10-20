@@ -356,7 +356,9 @@
       $('pick').hidden = false;
       $('pick').innerHTML = `<h2>${REALM[t.source || 'tutor'][0]} ${esc(t.title || '')} <small>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</small></h2>
         ${read ? `<p>${esc(evText(e) || 'No words for this one.')}</p>` : '<p>What happened stays private to them.</p>'}
-        <div class="row"><button class="ghost" id="allOf">Read its story ›</button></div>`;
+        <div class="row"><button class="ghost" id="allOf">Read its story ›</button></div>
+        ${read && t.id ? (() => { const s = topicState(p, t), rest = s.evs.filter((x) => x !== e).slice().reverse().slice(0, 30);   // the rest of its story: shown in the side panel (a phone on its side)
+          return rest.length ? `<div class="pmore"><h3>The rest of its story · ${s.evs.length} moment${s.evs.length === 1 ? '' : 's'}</h3><ul>${rest.map((x) => `<li><small>${esc(short(x.day))} · ${esc(KIND[x.kind] || x.kind)}</small>${esc(evText(x) || '·')}</li>`).join('')}</ul></div>` : ''; })() : ''}`;
       $('allOf').onclick = () => { full(false); renderStory(p, t); };
       return;
     }

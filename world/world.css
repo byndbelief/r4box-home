@@ -478,3 +478,17 @@ header button,header a,header input,header select,header label{pointer-events:au
   body.isfull .pick{left:auto;right:0;top:0;bottom:0;transform:none;width:min(44vw,440px);max-height:none;border-radius:0;border-width:0 0 0 1px;padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) 16px;box-shadow:-12px 0 32px #0008}
   body.isfull:has(.pick:not([hidden])) .world.full{width:calc(100% - min(44vw,440px))}
 }
+/* the side panel: small type, and the rest of the story under what you tapped */
+.pick .pmore{display:none}
+@media (orientation:landscape) and (max-height:600px){
+  body.isfull .pick h2{font-size:12.5px;line-height:1.25}
+  body.isfull .pick h2 small{display:block;font-size:10px;margin-top:2px}
+  body.isfull .pick p{font-size:10.5px;line-height:1.45;margin:5px 0 0}
+  body.isfull .pick .row{margin-top:6px}
+  body.isfull .pick .row button{font-size:10.5px;padding:4px 9px;min-height:0;height:auto;border-radius:8px}
+  body.isfull .pick .pmore{display:block;margin-top:9px;border-top:1px solid var(--line);padding-top:10px}
+  body.isfull .pick .pmore h3{margin:0 0 6px;font:700 10px/1.2 var(--font-body,inherit);letter-spacing:.12em;text-transform:uppercase;color:var(--faint,#7A73A8)}
+  body.isfull .pick .pmore ul{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+  body.isfull .pick .pmore li{font-size:10px;line-height:1.4;color:var(--muted)}
+  body.isfull .pick .pmore li small{display:block;font-size:9px;color:var(--faint,#7A73A8);font-weight:700}
+}
