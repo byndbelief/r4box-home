@@ -91,15 +91,15 @@
       ctx.setTransform(dpr * cam.k, 0, 0, dpr * cam.k, dpr * (VW / 2 - cam.x * cam.k), dpr * (VH / 2 - cam.y * cam.k));
       // dust stars in the sky
       const r = window.WorldParts.rng(7); ctx.fillStyle = '#F5F1FF';
-      for (let i = 0; i < 220; i++) { const x = r() * L.WW, y = r() * L.gy * 0.8, s = r() * 1.6 + 0.4, tw = r() * TAU; ctx.globalAlpha = 0.15 + 0.2 * Math.sin(t * 1.3 + tw); ctx.fillRect(x, y, s, s); }
+      for (let i = 0; i < 660; i++) { const x = (r() * 3 - 1) * L.WW, y = r() * L.gy * 0.8, s = r() * 1.6 + 0.4, tw = r() * TAU; ctx.globalAlpha = 0.15 + 0.2 * Math.sin(t * 1.3 + tw); ctx.fillRect(x, y, s, s); }
       // the soil, then roots in it, then a Flower of Life on its surface
-      ctx.globalAlpha = 1; const soil = ctx.createLinearGradient(0, L.gy, 0, L.WH); soil.addColorStop(0, '#07051A'); soil.addColorStop(1, '#000000'); ctx.fillStyle = soil; ctx.fillRect(0, L.gy, L.WW, L.WH - L.gy);
-      ctx.strokeStyle = '#3A335F'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, L.gy); ctx.lineTo(L.WW, L.gy); ctx.stroke();
+      ctx.globalAlpha = 1; const soil = ctx.createLinearGradient(0, L.gy, 0, L.WH); soil.addColorStop(0, '#07051A'); soil.addColorStop(1, '#000000'); ctx.fillStyle = soil; ctx.fillRect(-L.WW, L.gy, L.WW * 3, L.WH - L.gy);   // past the world's edges: a wide screen (a phone on its side) sees ground, not a strip
+      ctx.strokeStyle = '#3A335F'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-L.WW, L.gy); ctx.lineTo(L.WW * 2, L.gy); ctx.stroke();
       drawTies(t, true);
       ctx.save(); ctx.translate(L.root.x, L.gy); ctx.scale(1, 0.22); ctx.lineWidth = 3; const cr = L.tree.w * 0.16;
       for (let ring = 0; ring <= 4; ring++) for (let i = 0; i < Math.max(1, ring * 6); i++) { const a = (i / Math.max(1, ring * 6)) * TAU; ctx.strokeStyle = '#B9A6FF'; ctx.globalAlpha = 0.07 * (1 - ring / 5); ctx.beginPath(); ctx.arc(Math.cos(a) * ring * cr, Math.sin(a) * ring * cr, cr, 0, TAU); ctx.stroke(); }
       ctx.restore();
-      if (plant) { ctx.globalAlpha = 0.18 + 0.12 * Math.sin(t * 3); ctx.fillStyle = '#3DD6C6'; ctx.fillRect(0, L.gy - 4, L.WW, 8); }
+      if (plant) { ctx.globalAlpha = 0.18 + 0.12 * Math.sin(t * 3); ctx.fillStyle = '#3DD6C6'; ctx.fillRect(-L.WW, L.gy - 4, L.WW * 3, 8); }
       if (tree) { ctx.save(); ctx.translate(L.tree.x, L.tree.y); ctx.globalAlpha = 1; tree.paint(ctx, now); ctx.restore(); }
       for (const o of L.objs) window.WorldParts.draw(ctx, o, t, sel);
       drawTies(t, false);

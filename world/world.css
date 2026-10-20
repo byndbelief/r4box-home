@@ -468,3 +468,6 @@ body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent}
    their buttons. Buttons styled with all:unset (.sb, .back, .bb, .hbtn, .gear) inherit the none instead,
    so a sub-page back button could not be tapped: every control in any header takes taps. */
 header button,header a,header input,header select,header label{pointer-events:auto!important}
+
+/* full screen fills the whole screen (a phone on its side too), not a centred column */
+.world.full{left:0;right:0;transform:none;max-width:none!important;width:100%}.isfull .pick{width:calc(min(560px,100vw) - 24px)}
