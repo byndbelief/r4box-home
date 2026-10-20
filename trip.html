@@ -66,6 +66,11 @@
     .item .foot .btn { flex: none; white-space: nowrap; }
     .item code { font: 600 12px/1 var(--mono); color: var(--gold); background: #F5C5421a; padding: 4px 7px; border-radius: 6px; }
     .add { all: unset; cursor: pointer; color: var(--muted); font-weight: 700; padding: 8px 2px; }
+    .dayacts { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+    .add.fill { color: var(--gold); }
+    .build { display: flex; gap: 12px; align-items: center; margin: 4px 0 18px; padding: 14px; border-radius: 16px; background: linear-gradient(160deg, #F5C54222, var(--panel) 60%); border: 1px solid #F5C54255; }
+    .build div { flex: 1; min-width: 0; } .build b { display: block; font-size: 15px; } .build span { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .build .btn { flex: none; }
     .add:hover { color: var(--teal); }
     /* Choices to make: each one-or-the-other part of the trip, its options as rows to tap */
     .choices { background: var(--panel-2); border: 1px solid var(--line); border-radius: 20px; padding: 16px; margin: 6px 0 4px; }
@@ -519,12 +524,14 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.ask')) $('found').hidden = true; });
   const HELPER = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/trip-helper';
   let asking = false;
-  $('askf').onsubmit = async (e) => {
-    e.preventDefault();
-    const text = $('askq').value.trim();
+  $('askf').onsubmit = (e) => { e.preventDefault(); const text = $('askq').value.trim(); if (text) askTrip(text); };
+  // shown: what the answer box says was asked (a built-in ask like ✦ Build our itinerary sends a longer brief)
+  async function askTrip(text, shown = text) {
     if (!text || asking) return;
     asking = true; $('askgo').disabled = true; $('found').hidden = true; $('askq').value = '';
-    $('answer').innerHTML = `<div class="answer wait"><div class="q">${esc(text)}</div>✦ Claude is on it… (research can take a minute)</div>`;
+    if ($('buildit')) $('buildit').disabled = true;
+    $('answer').innerHTML = `<div class="answer wait"><div class="q">${esc(shown)}</div>✦ Claude is on it… (research can take a minute)</div>`;
+    $('answer').scrollIntoView({ behavior: 'smooth', block: 'center' });
     let r;
     try {
       const { data: { session: s } } = await sb.auth.getSession();
@@ -534,14 +541,15 @@
     await load();
     if (r.trip) location.hash = '#ideas';
     const touched = [...(r.added || []), ...(r.changed || [])].map((id) => items.find((i) => i.id === id)).filter(Boolean);
-    $('answer').innerHTML = `<div class="answer"><div class="q">${esc(text)}</div>${r.error ? esc(r.error) : '✦ ' + esc(r.reply)}
+    $('answer').innerHTML = `<div class="answer"><div class="q">${esc(shown)}</div>${r.error ? esc(r.error) : '✦ ' + esc(r.reply)}
       ${touched.length ? `<div class="chips">${touched.map((i) => `<button data-id="${i.id}">${i.kind === 'pack' ? 'packing' : i.kind}: ${esc(i.title.slice(0, 40))}</button>`).join('')}</div>` : ''}
       ${r.left != null && r.left < 10 ? `<div class="note" style="margin-top:6px">${r.left} questions left today</div>` : ''}
       <div style="margin-top:6px"><button class="link quiet" id="ansx">Dismiss</button></div></div>`;
     $('ansx').onclick = () => { $('answer').innerHTML = ''; };
     $('answer').querySelectorAll('.chips button').forEach((b) => b.onclick = () => { const i = items.find((x) => x.id === b.dataset.id); if (i) { location.hash = TAB[i.kind]; setTimeout(() => view(i), 50); } });
-    if (touched[0]) location.hash = TAB[touched[0].kind];
-  };
+    if (touched[0] && !touched.some((i) => i.kind === 'plan')) location.hash = TAB[touched[0].kind];
+    else if (touched.some((i) => i.kind === 'plan')) location.hash = '#plan';
+  }
   window.addEventListener('hashchange', render);
 
   // tm: time or date before the title; cost: on the title row; meta: extra details (html) for the line below; foot: a footer (e.g. Booked it).
@@ -594,16 +602,29 @@
     if (changed && (location.hash || '#plan') === '#ideas') render();
   }
 
+  // The itinerary: each day's plans, with the bookings that fall on it (flights, check-in, tickets)
+  // in among them by time. ✦ Build asks Claude for the whole thing, or one day.
   function plan() {
-    const ds = days(), list = items.filter((i) => i.kind === 'plan');
+    const ds = days(), list = items.filter((i) => i.kind === 'plan' || (i.kind === 'booking' && i.day));
+    const planned = items.some((i) => i.kind === 'plan' && i.day);
     const sec = (d, title, sub) => {
       const its = list.filter((i) => (i.day || null) === d).sort((a, b) => String(a.at || '99').localeCompare(String(b.at || '99')));
       return `<div class="day"><h3>${title}<small>${sub}</small></h3><div class="list">${its.map((i) => itemRow(i, { cost: i.cost ? money(i.cost) : '', icon: true })).join('')}</div>
-        <button class="add" data-day="${d || ''}">＋ Add to ${d ? nice(d, { weekday: 'long' }) : 'any day'}</button></div>`;
+        <div class="dayacts"><button class="add" data-day="${d || ''}">＋ Add to ${d ? nice(d, { weekday: 'long' }) : 'any day'}</button>${d ? `<button class="add fill" data-fill="${d}">✦ ${its.length ? 'Fill out' : 'Plan'} this day</button>` : ''}</div></div>`;
     };
-    $('view').innerHTML = (ds.length ? ds.map((d, k) => sec(d, nice(d), `Day ${k + 1}`)).join('') : `<p class="empty">No dates yet. Ask Claude above, e.g. “when should we go?”${PARENT ? ', or set them with Edit' : ''}.</p>`)
+    const build = ds.length ? `<div class="build"><div><b>✦ ${planned ? 'Rework the itinerary' : 'Build our itinerary'}</b><span>Claude lays out every day around your flights, stay and bookings, with the ideas you chose and the best of the rest, in an order that makes sense.</span></div><button class="btn p" id="buildit"${asking ? ' disabled' : ''}>${planned ? 'Rework' : 'Build it'}</button></div>` : '';
+    $('view').innerHTML = build + (ds.length ? ds.map((d, k) => sec(d, nice(d), `Day ${k + 1}`)).join('') : `<p class="empty">No dates yet. Ask Claude above, e.g. “when should we go?”${PARENT ? ', or set them with Edit' : ''}.</p>`)
       + (list.some((i) => !i.day) || !ds.length ? sec(null, 'Any day', 'not scheduled yet') : '');
-    $('view').querySelectorAll('.add').forEach((b) => b.onclick = () => edit({ kind: 'plan', day: b.dataset.day || null }));
+    $('view').querySelectorAll('.add[data-day]').forEach((b) => b.onclick = () => edit({ kind: 'plan', day: b.dataset.day || null }));
+    const span = `${nice(ds[0])} to ${nice(ds[ds.length - 1])}`;
+    if ($('buildit')) $('buildit').onclick = () => askTrip(
+      `Make our day-by-day itinerary for the whole trip (${span}). For every day, add plan items with a time (at) and a short useful note, in an order that makes sense and keeps travel short: `
+      + `arrival and departure around the flights we booked or chose, check-in at our stay, fixed-date things (events, tickets) on their dates, then the ideas we chose and the best food and things-to-do ideas, each on a day that fits (opening days, the neighbourhood we're in). `
+      + `Turn an idea into a plan by moving it onto its day, never copy it. Keep what's already planned unless it clashes. Leave some free time, think of the kids' energy, and tell me in a few lines how the days flow.`,
+      planned ? '✦ Rework the itinerary' : '✦ Build our itinerary');
+    $('view').querySelectorAll('[data-fill]').forEach((b) => b.onclick = () => askTrip(
+      `Plan ${nice(b.dataset.fill, { weekday: 'long', month: 'long', day: 'numeric' })} (${b.dataset.fill}) for us: add plan items on that day with times and short notes, around anything already on it and our bookings, using our chosen and best ideas (move an idea onto the day, never copy it). Keep travel short and leave some free time.`,
+      `✦ Plan ${nice(b.dataset.fill, { weekday: 'long' })}`));
     wire();
   }
 
