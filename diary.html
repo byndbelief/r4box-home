@@ -13,16 +13,20 @@
   <style>
     @font-face { font-family: "Unbounded"; font-weight: 400 900; font-display: swap; src: url("fonts/unbounded-latin.woff2") format("woff2"); }
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
-    :root { --mono: ui-monospace, "SF Mono", Menlo, monospace; }
+    :root { --mono: ui-monospace, "SF Mono", Menlo, monospace;
+      /* the Timeline and All ideas cards (world/cards.js) */
+      --r4-bg: #000000; --r4-panel: #0D0B1F; --r4-panel-2: #141130; --r4-line: #251F48; --r4-ink: #F3F1FF; --r4-muted: #ACA5D6; --r4-faint: #7A73A8;
+      --teal-ink: #062A26; --mint: #C9FFF8; --font-display: "Unbounded", "Arial Black", Impact, sans-serif; --font-body: "Sora", system-ui, sans-serif; --font-mono: var(--mono); }
     :focus-visible { outline: 3px solid #F5C542; outline-offset: 2px; }
     #app { max-width: 560px; }
-    .world.full { max-width: 560px; }
     .isfull .pick { width: calc(min(560px, 100vw) - 24px); }
     .solo .page { padding-bottom: max(40px, env(safe-area-inset-bottom)); }
     header select { pointer-events: auto; background: #000000cc; color: #F3F1FF; border: 1px solid #251F48; border-radius: 10px; padding: 6px 8px; font: 700 13px/1 Sora, system-ui, sans-serif; }
     .empty { margin: 18px 0; padding: 16px 18px; border-radius: 18px; background: #0D0B1F; border: 1px solid #251F48; }
     .empty b { display: block; font: 800 18px/1.2 Unbounded, sans-serif; margin-bottom: 6px; }
     .empty p { margin: 0; color: #ACA5D6; font-size: 14px; }
+    .xbody { min-width: 0; overflow: hidden; padding: 4px 16px 8px; } .xbody > * { max-width: 100%; }
+    .built { margin: 22px 0 0; font-size: 12px; color: #7A73A8; }
   </style>
 </head>
 <body>
@@ -43,9 +47,10 @@
 <script type="module">
   // A kid's own world, or (for a parent) a kid's world with its names but never its words.
   // The world comes from r4_world (108): summaries and entries only for the kid, or what
-  // they shared. Seeds and shares are real rows (kid_seeds, kid_shares); this page keeps
+  // they shared. A parent's own world is the Clearing diary, read straight from the box
+  // (diary.r4box.com/data.json, through the box's door, parents only): it never goes to Supabase. Seeds and shares are real rows (kid_seeds, kid_shares); this page keeps
   // them in memory for the world app (world/world-app.js) and writes each change through.
-  import { sb, roleOf, gateApp } from './auth.js?v=114';
+  import { sb, roleOf, gateApp, handOver } from './auth.js?v=114';
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -59,13 +64,13 @@
     const family = fam || [], self = family.find((f) => f.id === me.id) || { id: me.id, username: 'me', role: PARENT ? 'parent' : 'kid' };
     const kids = family.filter((f) => f.role === 'kid');
     const want = new URLSearchParams(location.search).get('kid');
-    // A kid opens only their own world; a parent, any kid's (theirs is the Clearing diary).
-    const owner = PARENT ? kids.find((k) => k.id === want) || kids[0] : self;
-    if (!owner) { $('body').innerHTML = '<div class="empty"><b>No kids yet</b><p>Each kid’s world grows here from what they ask, play and plan.</p></div>'; return; }
+    // A kid opens only their own world; a parent, their diary (no ?kid) or any kid's.
+    const owner = PARENT ? kids.find((k) => k.id === want) || null : self;
     if (PARENT) {
-      $('who').hidden = kids.length < 2;
-      $('who').innerHTML = kids.map((k) => `<option value="${k.id}" ${k.id === owner.id ? 'selected' : ''}>${esc(k.username)}</option>`).join('');
-      $('who').onchange = () => { location.search = '?kid=' + encodeURIComponent($('who').value); };
+      $('who').hidden = !kids.length;
+      $('who').innerHTML = `<option value="">My diary</option>` + kids.map((k) => `<option value="${k.id}" ${k.id === owner?.id ? 'selected' : ''}>${esc(k.username)}</option>`).join('');
+      $('who').onchange = () => { location.search = $('who').value ? '?kid=' + encodeURIComponent($('who').value) : ''; };
+      if (!owner) return clearing(self);
     }
     const [{ data: w, error }, { data: shares }, { data: seeds }, { data: projs }] = await Promise.all([
       sb.rpc('r4_world', { p_kid: owner.id }),
@@ -124,6 +129,49 @@
         : esc(owner.username) + '’s world is built every night from what they ask Claude, the games they finish and the trips they plan.'}</p></div>`);
     }
     const s = document.createElement('script'); s.src = 'world/world-app.js?v=11'; document.body.append(s);
+  }
+  // ---- a parent's own world: the Clearing diary, from the box ----
+  const BOX = 'https://diary.r4box.com';
+  async function fromBox() {
+    const get = async () => { const r = await fetch(BOX + '/data.json', { credentials: 'include', cache: 'no-store' }); if (!r.ok) throw new Error(r.status); return r.json(); };
+    try { return await get(); } catch {}
+    // No door cookie yet (or it ran out, a week): the same two-minute hand-over the box apps use, then again.
+    handOver(session);
+    try { await fetch(BOX + '/.r4door/enter?next=' + encodeURIComponent(BOX + '/data.json'), { credentials: 'include', mode: 'no-cors', cache: 'no-store' }); } catch {}
+    handOver(null);
+    return get();
+  }
+  async function clearing(self) {
+    let d;
+    try { d = await fromBox(); }
+    catch { $('body').innerHTML = '<div class="empty"><b>Can’t reach the box</b><p>Your diary lives on r4box (the box), and it isn’t answering right now. Try again in a minute.</p></div>'; return; }
+    d.events.sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
+    window.DIARY_DATA = d;
+    const world = {
+      topics: d.ideas.map((i) => ({ id: i.id, slug: i.id, title: i.title, source: 'tutor', stage: i.stage, parent: i.parent || null, created: i.created, summary: i.body })),
+      events: d.events.map((e) => ({ id: e.id, topic: e.idea, day: e.date, kind: e.kind, effort: e.effort || 1, summary: e.summary })),
+      projects: [],
+    };
+    const id = self.username || 'me';
+    window.FAMILY = [{ id, uid: me.id, name: id, role: 'parent', age: null, world, entries: d.entries.map((e) => ({ day: e.date, body: e.narrative })) }];
+    window.R4_VIEWER = id;
+    window.R4Store = { shared: () => ({}), setShared() {}, seeds: () => [] };
+    let cards = null;
+    window.R4_SOLO = {
+      person: id, title: 'diary', density: 'dev', noSeeds: true, noShare: true,
+      cards: [
+        { id: 'timeline', title: 'Timeline', color: '#B9A6FF', sum: 'One row per idea, left to right by date' },
+        { id: 'ideas', title: 'All ideas', color: '#3DD6C6', n: d.ideas.length, sum: 'The roster, longest silence first, nothing hidden' },
+      ],
+      // the Timeline and All ideas cards (React, bundled) load the first time one opens
+      mount(cid, el, api) {
+        cards ??= new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'world/cards.js?v=1'; s.onload = ok; s.onerror = no; document.body.append(s); });
+        cards.then(() => window.ClearingCards.mount(cid, el, api));
+      },
+    };
+    $('body').innerHTML = '';
+    const s = document.createElement('script'); s.src = 'world/world-app.js?v=11'; document.body.append(s);
+    if (d.builtAt) document.querySelector('main').insertAdjacentHTML('beforeend', `<p class="built">Built ${new Date(d.builtAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${d.ideas.length} ideas · ${d.events.length} events · from the box</p>`);
   }
   if (session) load();
 </script>

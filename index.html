@@ -607,7 +607,7 @@
       live = window.mountTogether($('cv'), mode === 'me' ? ground.filter((p) => p.id === ME.id) : ground, { onPick: pickWorld, solo: mode === 'me' });
     }
     function worldLink(p) {
-      if (p.id === ME.id) return ME.role === 'parent' ? 'https://diary.r4box.com/' : '/diary.html';
+      if (p.id === ME.id) return '/diary.html';
       return ME.role === 'parent' && p.role === 'kid' ? `/diary.html?kid=${encodeURIComponent(p.id)}` : null;
     }
     function pickWorld(hit) {
@@ -644,7 +644,7 @@
       const APPS = [
         ...(parent ? [
           { k: 'os', g: '◎', c: '#3DD6C6', href: 'https://os.r4box.com/', s: boxLine('os'), hot: B('os')?.hot },
-          { k: 'diary', g: '✎', c: '#F5C542', href: 'https://diary.r4box.com/', s: grew },
+          { k: 'diary', g: '✎', c: '#F5C542', href: '/diary.html', s: grew },
           { k: 'term', g: '›_', c: '#C9FFF8', href: 'https://term.r4box.com/', s: boxLine('term') },
           { k: 'code', g: '{ }', c: '#B9A6FF', href: 'https://code.r4box.com/', s: boxLine('code') },
           { k: 'browser', g: '◫', c: '#FF5A4A', href: 'https://browser.r4box.com/', s: boxLine('browser') },
@@ -666,7 +666,7 @@
         ...(H.off.has('games') ? [] : turns).slice(0, 2).map((t) => { const vs = (t.players || []).filter((p) => p !== ME.id); return { g: KIND[t.kind]?.[0] || '🎮', c: '#3DD6C6', t: 'Your turn', s: `${KIND[t.kind]?.[1] || t.kind}${vs.length ? ' vs ' + vs.map(nm).join(', ') : ' · solo'}`, href: gameUrl(t.kind, t.id) }; }),
         ...(H.unread && !H.off.has('chat') ? [{ g: '💬', c: '#B9A6FF', t: `${H.unread} new in chat`, s: (() => { const m = H.msgs.find((x) => x.author !== ME.id); return m ? `${m.is_claude ? 'Claude' : nm(m.author)}: ${m.body || '📷 Photo'}` : ''; })(), href: '/chat.html' }] : []),
         ...(next && !H.off.has('trip') ? [{ g: '✈️', c: '#F5C542', t: next.name, s: `${daysTo > 0 ? `in ${daysTo} day${daysTo === 1 ? '' : 's'}` : 'now'}${next.place ? ' · ' + next.place : ''}`, href: '/trip.html?t=' + encodeURIComponent(next.id) }] : []),
-        parent ? { g: '✎', c: '#F5C542', t: 'Clearing rollup', s: `tonight 23:30 · ${grew}`, href: 'https://diary.r4box.com/' }
+        parent ? { g: '✎', c: '#F5C542', t: 'Clearing rollup', s: `tonight 23:30 · ${grew}`, href: '/diary.html' }
           : H.off.has('diary') ? null : st.sinceLast === 0 || st.sinceLast === 1 ? { g: '🌳', c: '#B9A6FF', t: 'Your world grew', s: grew, href: '/diary.html' } : { g: '🌱', c: '#B9A6FF', t: 'Grow your world', s: 'ask, play or plan something', href: '/diary.html' },
       ];
 
@@ -675,7 +675,7 @@
         ...H.msgs.filter((m) => m.author !== ME.id).slice(0, 4).map((m) => ({ g: '💬', c: '#B9A6FF', t: `${m.is_claude ? 'Claude' : nm(m.author)}: ${m.body || '📷 Photo'}`, at: m.created_at, href: '/chat.html' })),
         ...H.news.map((n) => ({ g: n.icon || KIND[n.game_kind]?.[0] || '🎮', c: '#3DD6C6', t: n.message, at: n.created_at, href: n.game_id ? gameUrl(n.game_kind, n.game_id) : 'https://games.r4box.com/' })),
         ...H.items.map((i) => ({ g: '✈️', c: '#F5C542', t: `${i.by_claude ? '✦ Claude' : nm(i.created_by)} added ${i.title}`, sub: H.home.trips.find((t) => t.id === i.trip)?.name, at: i.created_at, href: `/trip.html?t=${encodeURIComponent(i.trip)}&i=${encodeURIComponent(i.id)}` })),
-        ...H.mine.filter((e) => e.summary).slice(0, 4).map((e) => ({ g: parent ? '✎' : '🌳', c: '#B9A6FF', t: e.summary, sub: titleOf[e.topic], at: e.day + 'T20:00:00', href: parent ? 'https://diary.r4box.com/' : '/diary.html' })),
+        ...H.mine.filter((e) => e.summary).slice(0, 4).map((e) => ({ g: parent ? '✎' : '🌳', c: '#B9A6FF', t: e.summary, sub: titleOf[e.topic], at: e.day + 'T20:00:00', href: '/diary.html' })),
       ].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, tight ? 9 : 6);
 
       const cur = DENSITY.find((d) => d.id === dens);
@@ -816,7 +816,7 @@
         ...APPS.filter((a) => !a.ask).map((a) => ({ g: a.g, c: a.c, t: a.k, s: (a.k === 'diary' && ME.role === 'parent' ? 'Clearing · ' : '') + (a.href.startsWith('http') ? new URL(a.href).hostname : 'r4box.com' + a.href.split('?')[0].replace('.html', '')), href: a.href })),
         ...Object.entries(H.off.has('games') ? {} : KIND).map(([k, [g, t]]) => ({ g, c: '#3DD6C6', t, s: 'game room', href: gameUrl(k) })),
         ...fam().filter((p) => worldLink(p)).map((p) => ({ g: '◍', c: p.dot, t: p.id === ME.id ? 'My world' : p.name + '’s world', s: 'family', href: worldLink(p) })),
-        ...(person(ME.id)?.world.topics || []).filter((t) => t.title && t.source === 'tutor').map((t) => ({ g: ME.role === 'parent' ? '✎' : '🌳', c: '#B9A6FF', t: t.title, s: ME.role === 'parent' ? 'diary idea' : 'in your world', href: ME.role === 'parent' ? 'https://diary.r4box.com/' : '/diary.html' })),
+        ...(person(ME.id)?.world.topics || []).filter((t) => t.title && t.source === 'tutor').map((t) => ({ g: ME.role === 'parent' ? '✎' : '🌳', c: '#B9A6FF', t: t.title, s: ME.role === 'parent' ? 'diary idea' : 'in your world', href: '/diary.html' })),
         ...(H.off.has('trip') ? [] : H.home.trips).map((t) => ({ g: '✈️', c: '#F5C542', t: t.name, s: 'trip', href: '/trip.html?t=' + encodeURIComponent(t.id) })),
       ];
       q.oninput = () => {
