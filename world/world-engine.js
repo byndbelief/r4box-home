@@ -21,7 +21,7 @@
       L = window.layoutWorld(data, seeds, VW, VH);
       if (tree) tree.destroy(); tree = null;
       if (L.tutor.length) tree = window.mountDiaryTree(null, treeData(L.tutor, data.events || []), { external: { w: L.tree.w, h: L.tree.h }, palette: PAL, fill: true, flow: { colors: FLOW, wave: 120, speed: 0.45, tail: 2.6 } });
-      if (tree && tree.select) tree.select(lit);   // a story's limb stays lit when the world is rebuilt (turning the phone)
+      if (tree && tree.select && lit) { tree.select(lit); tree.limb(lit); }   // a story's limb stays lit and facing you when the world is rebuilt (turning the phone)
       kMin = Math.min(VW / L.WW, VH / L.WH); kStart = Math.max(kMin, Math.min(VH / (L.WH * 0.85), VW / (L.WW * 0.78))); kMax = kStart * 7;
     }
     function size() {
@@ -33,6 +33,15 @@
     function clamp(c) {
       const k = Math.max(kMin, Math.min(kMax, c.k)), hw = VW / 2 / k, hh = VH / 2 / k;
       return { k, x: hw * 2 >= L.WW ? L.WW / 2 : Math.max(hw, Math.min(L.WW - hw, c.x)), y: hh * 2 >= L.WH ? L.WH / 2 : Math.max(hh, Math.min(L.WH - hh, c.y)) };
+    }
+    // one limb lit, turned to face you, held still, and the camera in close on it (above the card
+    // when full screen, where the card covers the bottom of the world)
+    function lightLimb(id) {
+      lit = id; if (!tree || !tree.select) return;
+      tree.select(id); const b = tree.limb && tree.limb(id); if (!b) return;
+      const full = !!cv.closest('.full'), k = Math.max(kStart * 2.2, Math.min(kMax, VW / (b.w * 1.2 + 30), VH * (full ? 0.5 : 0.9) / (b.h * 1.15 + 20)));
+      const up = full ? VH * 0.22 / k : 0;
+      go({ x: L.tree.x + b.x + b.w / 2, y: L.tree.y + b.y + b.h / 2 + up, k }, true);
     }
     function go(c, anim) { const to = clamp(c); if (!anim || still) { cam = to; tween = null; } else tween = { from: { ...cam }, to, t0: performance.now(), dur: 520 }; }
     const toWorld = (sx, sy) => ({ x: cam.x + (sx - VW / 2) / cam.k, y: cam.y + (sy - VH / 2) / cam.k });
@@ -50,13 +59,14 @@
     // ---- input ----
     const loc = (e) => { const b = cv.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
     const pts = new Map(); let pinch = null, downAt = null, lastTap = 0, moved = 0;
-    function onDown(e) { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: loc(e).x, y: loc(e).y }); tween = null;
+    function onDown(e) { if (tree && tree.hold) tree.hold(true); cv.setPointerCapture(e.pointerId);   // the tree holds still under a finger
+      pts.set(e.pointerId, { x: loc(e).x, y: loc(e).y }); tween = null;
       if (pts.size === 1) { downAt = { x: loc(e).x, y: loc(e).y, t: performance.now() }; moved = 0; }
       if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: cam.k, w: toWorld((a.x + b.x) / 2, (a.y + b.y) / 2) }; } }
     function onMove(e) { if (!pts.has(e.pointerId)) return; const p = pts.get(e.pointerId), dx = loc(e).x - p.x, dy = loc(e).y - p.y; p.x = loc(e).x; p.y = loc(e).y;
       if (pts.size === 1 && !pinch) { moved += Math.abs(dx) + Math.abs(dy); cam = clamp({ k: cam.k, x: cam.x - dx / cam.k, y: cam.y - dy / cam.k }); }
       else if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()], k = Math.max(kMin, Math.min(kMax, pinch.k * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d)), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2; cam = clamp({ k, x: pinch.w.x - (mx - VW / 2) / k, y: pinch.w.y - (my - VH / 2) / k }); moved = 99; } }
-    function onUp(e) { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (pts.size || !downAt) return;
+    function onUp(e) { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size && !lit && tree && tree.hold) tree.hold(false); if (pts.size || !downAt) return;
       if (moved < 8 && performance.now() - downAt.t < 350) {
         const now = performance.now(), dbl = now - lastTap < 300; lastTap = now;
         if (dbl) { zoomAt(downAt.x, downAt.y, 2.2, true); return; }
@@ -121,10 +131,10 @@
       setPlant(on) { plant = on; }, select(ev) { sel = ev; },
       setSeeds(s) { seeds = s; const c = cam; build(); cam = c; },
       zoomBy(f) { zoomAt(VW / 2, VH / 2, f, true); }, reset() { home(true); },
-      light(id) { lit = id || null; if (tree && tree.select) tree.select(lit); },   // null: the whole tree lit again
-      focusTopic(id) { lit = L.tutor.some((t) => t.id === id) ? id : null; if (tree && tree.select) tree.select(lit); const o = L.objs.find((x) => x.topic && x.topic.id === id); if (o) return go({ x: o.hit.x, y: o.hit.y, k: Math.max(kStart * 2.2, Math.min(kMax, VW / (o.hit.r * 3.4))) }, true);
+      light(id) { lit = id || null; if (tree && tree.select) { tree.select(lit); tree.hold(!!lit); } },   // null: the whole tree lit again, turning
+      focusTopic(id) { if (L.tutor.some((t) => t.id === id)) return lightLimb(id); this.light(null); const o = L.objs.find((x) => x.topic && x.topic.id === id); if (o) return go({ x: o.hit.x, y: o.hit.y, k: Math.max(kStart * 2.2, Math.min(kMax, VW / (o.hit.r * 3.4))) }, true);
         if (L.tutor.some((t) => t.id === id)) go({ x: L.tree.x + L.tree.w / 2, y: L.tree.y + L.tree.h * 0.45, k: kStart * 1.5 }, true); },
-      focus(h) { const p = h.at || (h.obj && h.obj.hit) || null; if (p) go({ x: p.x, y: p.y, k: Math.max(cam.k, kStart * 2.4) }, true); },
+      focus(h) { if (h.topic && L.tutor.some((t) => t.id === h.topic.id)) return lightLimb(h.topic.id); this.light(null); const p = h.at || (h.obj && h.obj.hit) || null; if (p) go({ x: p.x, y: p.y, k: Math.max(cam.k, kStart * 2.4) }, true); },
     };
   };
 })();

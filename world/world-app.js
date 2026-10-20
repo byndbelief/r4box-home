@@ -361,7 +361,7 @@
       return;
     }
     if (h.seed) {
-      if (h.obj) live.focus(h);
+      live.light(null); if (h.obj) live.focus(h);
       const s = h.seed, [em, word, grows] = kindWord[s.kind];
       $('pick').hidden = false;
       $('pick').innerHTML = `<h2>🌱 ${esc(s.title)} <small>${em} ${word} · planted ${esc(short(s.day))}</small></h2><p>Waiting for its first moment. When you start on it, it ${grows}.</p><div class="row"><button class="ghost" id="dig">Dig it up</button></div>`;
@@ -369,6 +369,7 @@
       return;
     }
     if (h.topic) { full(false); return renderStory(p, h.topic); }
+    live.light(null);   // tapped away: the whole tree again, turning
     if (h.tree) return showTree(p);
     $('pick').hidden = true;
   }

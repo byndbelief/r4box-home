@@ -477,15 +477,36 @@
     var total = treeState.segs.length, reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     var t0 = performance.now(), last = t0, DUR = 2200;
     if (EXT) {
-      var ts = treeState, st = state;
+      var ts = treeState, st = state, held = false, turnTo = null;
       return {
         // light one idea's limb, the rest dimmed (null: the whole tree)
         select: function (id) { st.sel = id || null; },
+        // stop turning (a finger on the world, a limb being looked at); false turns again
+        hold: function (on) { held = !!on; if (!on) turnTo = null; },
+        // a limb turned to face you and held there: its box (tree px) once it has turned
+        limb: function (id) {
+          treeState = ts;
+          var mine = ts.segs.filter(function (g) { return g.idea === id && g.ax1 !== undefined; });
+          if (!mine.length) return null;
+          var phi = mine[mine.length - 1].phi, now = ts.theta, TAU = Math.PI * 2, best = now;
+          if (!FLAT) {   // broadside: phi + theta at 0 or pi, whichever is the shorter turn
+            var bd = Infinity;
+            [-phi, Math.PI - phi].forEach(function (a) { var t = a + Math.round((now - a) / TAU) * TAU, dd = Math.abs(t - now); if (dd < bd) { bd = dd; best = t; } });
+          }
+          ts.theta = best; projectSpin(ts.segs);
+          var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+          mine.forEach(function (g) { x0 = Math.min(x0, g.x1, g.x2); x1 = Math.max(x1, g.x1, g.x2); y0 = Math.min(y0, g.y1, g.y2); y1 = Math.max(y1, g.y1, g.y2); });
+          ts.theta = now; projectSpin(ts.segs);
+          held = true; turnTo = best;
+          return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+        },
         paint: function (ctx, now) {
           treeState = ts; state = st; fake.ctx = ctx;
           var p = reduce ? 1 : Math.min(1, (now - t0) / DUR);
           ts.t = p < 1 ? 1 - Math.pow(1 - p, 3) : 1;
-          if (opts.spin !== false && !reduce) ts.theta += (now - last) * SPIN; last = now;
+          if (turnTo != null) { var dth = turnTo - ts.theta; ts.theta = reduce || Math.abs(dth) < 0.002 ? turnTo : ts.theta + dth * Math.min(1, (now - last) / 140); }
+          else if (opts.spin !== false && !reduce && !held) ts.theta += (now - last) * SPIN;
+          last = now;
           paintTree(fake, Math.round(ts.t * ts.segs.length));
         },
         nodes: function () {
