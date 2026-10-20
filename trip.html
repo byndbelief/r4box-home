@@ -1130,7 +1130,14 @@
     });
     wireTalk($('sheet'), i.id);
   }
-  $('sheet').addEventListener('close', () => { open = null; });
+  $('sheet').addEventListener('close', () => {
+    open = null;
+    // Opened from a builder: closing it goes back to that list (not when it closed for Edit or another dialog).
+    const b = backToFly; backToFly = null;
+    if (b) setTimeout(() => { if (!$('dlg').open && !$('sheet').open && !$('fly').open) b.mode === 'flights' ? openFlights(b.only) : openPart(b.mode, b.only); }, 0);
+  });
+  let backToFly = null;   // { mode, only }: the builder a Details sheet was opened from
+  function detailsFromFly(id) { const b = { mode: flyMode, only }; $('fly').close(); view(items.find((i) => i.id === id)); backToFly = b; }
   // A photo from the phone, shrunk to 1600 px before it goes up.
   $('photofile').onchange = async () => {
     const f = $('photofile').files[0]; $('photofile').value = '';
@@ -1382,7 +1389,7 @@
     $('fly').querySelectorAll('[data-ptog]').forEach((b) => b.onclick = () => { const k = b.dataset.ptog; pf.on.has(k) ? pf.on.delete(k) : pf.on.add(k); renderPartBuilder(); });
     $('fly').querySelectorAll('[data-pmode]').forEach((b) => b.onclick = () => { const k = b.dataset.pmode; pf.modes.has(k) ? pf.modes.delete(k) : pf.modes.add(k); renderPartBuilder(); });
     $('fly').querySelectorAll('[data-psort]').forEach((b) => b.onclick = () => { pf.sort = b.dataset.psort; renderPartBuilder(); });
-    $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => { $('fly').close(); view(items.find((i) => i.id === b.dataset.fmore)); });
+    $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => detailsFromFly(b.dataset.fmore));
     $('fly').querySelectorAll('[data-ppick]').forEach((b) => b.onclick = async () => {
       const [n, id] = b.dataset.ppick.split(':'), p2 = plan.map((x) => ({ ...x }));
       p2[+n].pick = p2[+n].pick === id ? null : id;
@@ -1525,7 +1532,7 @@
     $('fly').querySelectorAll('[data-legothers]').forEach((b) => b.onclick = () => { const n = +b.dataset.legothers; legOthers.has(n) ? legOthers.delete(n) : legOthers.add(n); renderBuilder(); });
     $('fly').querySelectorAll('[data-fstops]').forEach((b) => b.onclick = () => { fs.stops = b.dataset.fstops; renderBuilder(); });
     $('fly').querySelectorAll('[data-fsort]').forEach((b) => b.onclick = () => { fs.sort = b.dataset.fsort; renderBuilder(); });
-    $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => { $('fly').close(); view(items.find((i) => i.id === b.dataset.fmore)); });
+    $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => detailsFromFly(b.dataset.fmore));
     $('fly').querySelectorAll('[data-legpick]').forEach((b) => b.onclick = async () => {
       const [n, id] = b.dataset.legpick.split(':'), p2 = plan.map((l) => ({ ...l }));
       p2[+n].pick = p2[+n].pick === id ? null : id;
@@ -1620,7 +1627,7 @@
     $('fly').querySelectorAll('[data-fair]').forEach((b) => b.onclick = () => { const a = b.dataset.fair; fs.airlines.has(a) ? fs.airlines.delete(a) : fs.airlines.add(a); renderFlights(); });
     $('fly').querySelectorAll('[data-fdate]').forEach((b) => b.onclick = () => { fs.date = b.dataset.fdate; renderFlights(); });
     $('fly').querySelectorAll('[data-fsort]').forEach((b) => b.onclick = () => { fs.sort = b.dataset.fsort; renderFlights(); });
-    $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => { $('fly').close(); view(items.find((i) => i.id === b.dataset.fmore)); });
+    $('fly').querySelectorAll('[data-fmore]').forEach((b) => b.onclick = () => detailsFromFly(b.dataset.fmore));
     $('fly').querySelectorAll('[data-fchoose]').forEach((b) => b.onclick = async () => {
       const i = items.find((x) => x.id === b.dataset.fchoose);
       const { error } = await sb.rpc('trip_choose', { p_item: i.id, p_on: !i.chosen });
