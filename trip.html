@@ -884,6 +884,7 @@
     el.innerHTML = `${(g.photos || []).length ? `<div class="gpics">${g.photos.map((p) => `<figure><img src="${esc(p.src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"><figcaption>${p.by ? (p.byUrl ? `<a href="${esc(p.byUrl)}" target="_blank" rel="noopener noreferrer">${esc(p.by)}</a>` : esc(p.by)) : 'Google Maps'}</figcaption></figure>`).join('')}</div>` : ''}
       ${g.maps ? `<a class="gline" href="${esc(g.maps)}" target="_blank" rel="noopener noreferrer">${g.rating ? `<b>★ ${Number(g.rating).toFixed(1)}</b>${g.ratings ? ` (${Number(g.ratings).toLocaleString()})` : ''} · ` : ''}${esc(g.name || 'This place')} on Google Maps ↗</a>` : ''}`;
     body.prepend(el);
+    if ((g.photos || []).length) { body.querySelectorAll('.pics figure[data-lp]').forEach((f) => f.remove()); const pc = body.querySelector('.pics'); if (pc && !pc.children.length) pc.remove(); }
     const mb = $('sheet').querySelector('#shmaps'); if (mb && g.maps) mb.href = g.maps;   // straight to the place, not a search
   }
   function renderSheet() {
@@ -892,7 +893,8 @@
     const pv = i.preview || {}, link = safeLink(i.link);
     const canEdit = i.kind !== 'booking' || PARENT;
     const pics = [...(i.photos || []).map((p) => ({ src: photoUrls.get(p), path: p, by: p.split('/')[0] })).filter((x) => x.src),
-      ...(pv.image && /^https:\/\//.test(pv.image) ? [{ src: pv.image, site: pv.credit || pv.site, href: pv.credit_url }] : [])];
+      // the link's preview picture, unless Google Maps has photos of the place itself (a link can be about something else)
+      ...(pv.image && /^https:\/\//.test(pv.image) && !gcache.get(i.id)?.photos?.length ? [{ src: pv.image, site: pv.credit || pv.site, href: pv.credit_url, lp: true }] : [])];
     const isChoice = i.kind === 'idea' && CHOICES.includes(i.topic), mayChoose = canChoose();
     const place = ['stay', 'food', 'activities', 'tickets', 'transport'].includes(i.topic) || i.kind === 'plan';
     const maps = place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(i.title.replace(/^[A-Za-z ]+:\s*/, '') + (trip.place ? ', ' + trip.place : ''))}` : '';
@@ -902,7 +904,7 @@
     $('sheet').innerHTML = `<div class="wrap">
       <header class="sh"><b>${TOPIC[i.topic] ? TOPIC[i.topic].join(' ') : KIND[i.kind]}</b>${canEdit ? '<button class="btn" id="shedit">Edit</button>' : ''}<button class="btn" id="shx" aria-label="Close" autofocus>✕</button></header>
       <div class="body">
-        ${pics.length ? `<div class="pics">${pics.map((p) => `<figure><img src="${esc(p.src)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()">
+        ${pics.length ? `<div class="pics">${pics.map((p) => `<figure${p.lp ? ' data-lp' : ''}><img src="${esc(p.src)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()">
           <figcaption>${p.path ? 'added by ' + esc(who(p.by)) : p.href ? `<a href="${esc(p.href)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${esc(p.site)}</a>` : esc(p.site || 'from the link')}</figcaption>
           ${p.path && (p.by === ME.id || PARENT) ? `<button class="x" data-unphoto="${esc(p.path)}" aria-label="Remove photo">✕</button>` : ''}</figure>`).join('')}</div>` : ''}
         ${ytId(i.video) ? `<div class="vid" id="shvid" role="button" aria-label="Play the video"><img src="https://i.ytimg.com/vi/${ytId(i.video)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer"><span class="pl"><span>▶</span></span></div>` : ''}
