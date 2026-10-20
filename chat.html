@@ -16,7 +16,7 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
   <link rel="stylesheet" href="world/world.css?v=7">
-  <link rel="stylesheet" href="chat.css?v=2">
+  <link rel="stylesheet" href="chat.css?v=3">
   <style>
     :root { --teal-ink: #062A26; --hot-soft: #4A2230; --panel-2: #141130; }
     [hidden] { display: none !important; }
@@ -76,6 +76,12 @@
 <script type="module">
   import { sb, FAMILY, roleOf, gateApp } from './auth.js?v=114';
   const $ = (id) => document.getElementById(id);
+  // The real height of the screen we have (see chat.css #app): measured now, again as the app
+  // settles, and whenever it can change (keyboard, rotation, coming back to the app).
+  const fitH = () => document.documentElement.style.setProperty('--app-h', Math.round(innerHeight) + 'px');
+  fitH(); [100, 400, 1200].forEach((ms) => setTimeout(fitH, ms));
+  addEventListener('resize', fitH); window.visualViewport?.addEventListener('resize', fitH); addEventListener('pageshow', fitH);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { fitH(); setTimeout(fitH, 300); } });
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/family-chat';
   const VAPID = 'BAOMU69cDpXXI0RZl3fTA4hkgIZgztF6BXOoWHXo4A48LT7nubbHVOqq6UfkOzLm28ViX16ZQI6osf_FhVGCjwQ';
