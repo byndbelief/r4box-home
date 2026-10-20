@@ -45,12 +45,13 @@
   // The world comes from r4_world (108): summaries and entries only for the kid, or what
   // they shared. Seeds and shares are real rows (kid_seeds, kid_shares); this page keeps
   // them in memory for the world app (world/world-app.js) and writes each change through.
-  import { sb, roleOf } from './auth.js';
+  import { sb, roleOf, gateApp } from './auth.js?v=114';
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const { data: { session } } = await sb.auth.getSession();
   if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
+  await gateApp(session?.user, 'diary');
   const me = session?.user, PARENT = roleOf(me) === 'parent';
 
   async function load() {

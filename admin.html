@@ -107,6 +107,9 @@
     #viewer img { max-width: 100%; max-height: 100%; border-radius: 8px; }
     .gate { text-align: center; padding: 80px 0; color: var(--muted); }
     .gate b { display: block; font: 800 24px/1.2 var(--display); color: var(--ink); margin-bottom: 8px; }
+    .apps { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .apps button { appearance: none; cursor: pointer; padding: 6px 11px; border-radius: 99px; border: 1px solid var(--line); background: none; font-weight: 700; font-size: 13px; color: var(--faint); text-decoration: line-through; }
+    .apps button[aria-pressed="true"] { border-color: var(--teal); color: var(--ink); text-decoration: none; }
   </style>
 </head>
 <body>
@@ -190,12 +193,15 @@
   }
 
   // ---------------- kids & Claude ----------------
+  const KIDAPPS = [['diary', '🌱 Diary'], ['tutor', '✦ Tutor'], ['games', '⚓ Games'], ['chat', '💬 Chat'], ['projects', '⚒ Projects'], ['trip', '✈️ Trips']];
   const COLORS = { tutor: 'var(--teal)', trip: 'var(--gold)', chat: 'var(--violet)' };
   async function kids() {
-    const [{ data: usage, error }, { data: flags }] = await Promise.all([
+    const [{ data: usage, error }, { data: flags }, { data: offRows }] = await Promise.all([
       sb.rpc('r4_admin_usage'),
       sb.from('tutor_chats').select('id, kid, title, flag_reason, flagged_at').eq('flagged', true).order('flagged_at', { ascending: false }),
+      sb.from('tutor_settings').select('kid, apps_off'),
     ]);
+    const off = Object.fromEntries((offRows || []).map((r) => [r.kid, r.apps_off || []]));
     if (error) { $('kidcards').innerHTML = `<p class="muted">${esc(error.message)}</p>`; return; }
     $('flags').innerHTML = (flags || []).length
       ? `<div class="card" style="margin-bottom:12px;border-color:#F5C54266"><h3 style="color:var(--gold)">Flagged tutor chats</h3><div style="display:grid;gap:8px;margin-top:10px">${flags.map((c) =>
@@ -210,6 +216,8 @@
         <div class="row" style="margin-top:10px;align-items:baseline"><span class="big">${today}</span><span class="muted">of ${k.daily_cap} today</span></div>
         <div class="meter" title="${today} of ${k.daily_cap}"><i style="width:${w(k.tutor_today)};background:${COLORS.tutor}"></i><i style="width:${w(k.trip_today)};background:${COLORS.trip}"></i><i style="width:${w(k.chat_today)};background:${COLORS.chat}"></i></div>
         <div class="legend"><span style="--c:${COLORS.tutor}">tutor ${k.tutor_today}</span><span style="--c:${COLORS.trip}">trips ${k.trip_today}</span><span style="--c:${COLORS.chat}">chat ${k.chat_today}</span></div>
+        <p class="small muted" style="margin:12px 0 0">Apps (tap to turn on or off)</p>
+        <div class="apps" data-kid="${k.kid}">${KIDAPPS.map(([a, label]) => `<button type="button" data-app="${a}" aria-pressed="${!(off[k.kid] || []).includes(a)}">${label}</button>`).join('')}</div>
         <p class="small" style="margin:8px 0 0"><a href="/diary.html?kid=${k.kid}">🌱 See ${esc(k.username)}'s world</a></p>
         <p class="small muted" style="margin:8px 0 0">Last 7 days: <b style="color:var(--ink)">${week}</b> (tutor ${k.tutor_week}, trips ${k.trip_week}, chat ${k.chat_week})</p>
         <form class="limits" data-kid="${k.kid}">
@@ -219,6 +227,14 @@
           <button class="btn">Save</button></form>
         <p class="small faint" style="margin:6px 0 0">Hours in ${esc(k.tz)}${k.tz !== tz ? ` (saving sets ${esc(tz)}, this device's)` : ''}</p></div>`;
     }).join('') || '<p class="muted">No kids yet.</p>';
+    $('kidcards').querySelectorAll('.apps button').forEach((b) => (b.onclick = async () => {
+      const box = b.parentElement, on = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', String(on));
+      const apps_off = [...box.querySelectorAll('button[aria-pressed="false"]')].map((x) => x.dataset.app);
+      const { error: e1 } = await sb.from('tutor_settings').upsert({ kid: box.dataset.kid, apps_off, updated_at: new Date().toISOString() });
+      if (e1) { b.setAttribute('aria-pressed', String(!on)); toast('Could not save: ' + e1.message, true); }
+      else toast(`${b.textContent} ${on ? 'on' : 'off'} for ${nameOf(box.dataset.kid)}.`);
+    }));
     $('kidcards').querySelectorAll('form.limits').forEach((f) => (f.onsubmit = async (e) => {
       e.preventDefault();
       const v = { daily_cap: +f.cap.value, start_hour: +f.start.value, end_hour: +f.end.value, tz, updated_at: new Date().toISOString() };

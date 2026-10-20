@@ -539,7 +539,7 @@
 
     async function loadHome() {
       const parent = ME.role === 'parent', since = new Date(Date.now() - 7 * 864e5).toISOString();
-      const [w, h, box, reads, chat, news, items, mine, shares, projects] = await Promise.all([
+      const [w, h, box, reads, chat, news, items, mine, shares, projects, off] = await Promise.all([
         sb.rpc('r4_family_world'), sb.rpc('r4_home'),
         parent ? sb.from('box_status').select('*') : { data: [] },
         sb.from('chat_reads').select('read_at').eq('user_id', ME.id).maybeSingle(),
@@ -549,13 +549,14 @@
         sb.from('kid_events').select('topic, day, kind, summary, created_at').eq('kid', ME.id).order('day', { ascending: false }).limit(8),
         sb.from('kid_shares').select('owner, kind, ref, title, day, text, created_at').order('created_at', { ascending: false }).limit(8),
         sb.from('projects').select('id', { count: 'exact', head: true }).eq('published', true).eq('archived', false),
+        parent ? { data: null } : sb.from('tutor_settings').select('apps_off').eq('kid', ME.id).maybeSingle(),
       ]);
       const family = (w.data || []).map((p, i) => ({ id: p.id, name: p.username, role: p.role, dot: DOTS[i % DOTS.length], world: { topics: p.topics, events: p.events } }));
       const readAt = reads.data?.read_at ? new Date(reads.data.read_at) : null;
       const msgs = chat.data || [];
       H = { family, home: h.data || { turns: [], together: [], trips: [] }, box: Object.fromEntries((box.data || []).map((b) => [b.app, b])),
         unread: msgs.filter((m) => m.author !== ME.id && (!readAt || new Date(m.created_at) > readAt)).length,
-        msgs, news: news.data || [], items: items.data || [], mine: mine.data || [], shares: shares.data || [], projects: projects.count || 0 };
+        msgs, news: news.data || [], items: items.data || [], mine: mine.data || [], shares: shares.data || [], projects: projects.count || 0, off: new Set(off.data?.apps_off || []) };
       drawWorld(); renderHome();
     }
 
@@ -631,16 +632,16 @@
         { k: 'projects', g: '⚒', c: '#7DF0C8', href: '/projects.html', s: H.projects ? `${H.projects} in the family` : 'make things' },
         { k: 'trip', g: '✈️', c: '#F5C542', href: next ? '/trip.html?t=' + encodeURIComponent(next.id) : '/trip.html', s: tripLine, emoji: true },
         ...(parent ? [{ k: 'admin', g: '⚙', c: '#ACA5D6', href: '/admin.html', s: 'box, kids, devices' }] : []),
-      ];
+      ].filter((a) => !H.off.has(a.k));   // apps a parent turned off in admin
       const PLAY = parent ? APPS : APPS.filter((a) => ['games', 'diary', 'chat', 'tutor', 'projects'].includes(a.k));
 
       const today = [
         ...(parent && B('os')?.hot ? [{ g: '◎', c: '#F5C542', t: B('os').line, s: B('os').detail || 'os', href: 'https://os.r4box.com/' }] : []),
-        ...turns.slice(0, 2).map((t) => { const vs = (t.players || []).filter((p) => p !== ME.id); return { g: KIND[t.kind]?.[0] || '🎮', c: '#3DD6C6', t: 'Your turn', s: `${KIND[t.kind]?.[1] || t.kind}${vs.length ? ' vs ' + vs.map(nm).join(', ') : ' · solo'}`, href: gameUrl(t.kind, t.id) }; }),
-        ...(H.unread ? [{ g: '💬', c: '#B9A6FF', t: `${H.unread} new in chat`, s: (() => { const m = H.msgs.find((x) => x.author !== ME.id); return m ? `${m.is_claude ? 'Claude' : nm(m.author)}: ${m.body || '📷 Photo'}` : ''; })(), href: '/chat.html' }] : []),
-        ...(next ? [{ g: '✈️', c: '#F5C542', t: next.name, s: `${daysTo > 0 ? `in ${daysTo} day${daysTo === 1 ? '' : 's'}` : 'now'}${next.place ? ' · ' + next.place : ''}`, href: '/trip.html?t=' + encodeURIComponent(next.id) }] : []),
+        ...(H.off.has('games') ? [] : turns).slice(0, 2).map((t) => { const vs = (t.players || []).filter((p) => p !== ME.id); return { g: KIND[t.kind]?.[0] || '🎮', c: '#3DD6C6', t: 'Your turn', s: `${KIND[t.kind]?.[1] || t.kind}${vs.length ? ' vs ' + vs.map(nm).join(', ') : ' · solo'}`, href: gameUrl(t.kind, t.id) }; }),
+        ...(H.unread && !H.off.has('chat') ? [{ g: '💬', c: '#B9A6FF', t: `${H.unread} new in chat`, s: (() => { const m = H.msgs.find((x) => x.author !== ME.id); return m ? `${m.is_claude ? 'Claude' : nm(m.author)}: ${m.body || '📷 Photo'}` : ''; })(), href: '/chat.html' }] : []),
+        ...(next && !H.off.has('trip') ? [{ g: '✈️', c: '#F5C542', t: next.name, s: `${daysTo > 0 ? `in ${daysTo} day${daysTo === 1 ? '' : 's'}` : 'now'}${next.place ? ' · ' + next.place : ''}`, href: '/trip.html?t=' + encodeURIComponent(next.id) }] : []),
         parent ? { g: '✎', c: '#F5C542', t: 'Clearing rollup', s: `tonight 23:30 · ${grew}`, href: 'https://diary.r4box.com/' }
-          : st.sinceLast === 0 || st.sinceLast === 1 ? { g: '🌳', c: '#B9A6FF', t: 'Your world grew', s: grew, href: '/diary.html' } : { g: '🌱', c: '#B9A6FF', t: 'Grow your world', s: 'ask, play or plan something', href: '/diary.html' },
+          : H.off.has('diary') ? null : st.sinceLast === 0 || st.sinceLast === 1 ? { g: '🌳', c: '#B9A6FF', t: 'Your world grew', s: grew, href: '/diary.html' } : { g: '🌱', c: '#B9A6FF', t: 'Grow your world', s: 'ask, play or plan something', href: '/diary.html' },
       ];
 
       const titleOf = Object.fromEntries(me.world.topics.map((t) => [t.id, t.title]));
@@ -658,14 +659,15 @@
       const chatTop = H.msgs.filter((m) => !m.reply_to).slice(0, tight ? 4 : 3).reverse();
       const chatCard = play || !chatTop.length ? '' : `<h3 class="k">Family chat</h3><a class="hchat" href="/chat.html">${chatTop.map((m) => `<span class="l${m.is_claude ? ' c' : ''}"><b>${esc(m.is_claude ? 'Claude' : nm(m.author))}</b><span>${esc(line(m))}</span></span>`).join('')}<span class="go">Open the chat ›<small>${H.unread ? H.unread + ' new' : 'all caught up'}</small></span></a>`;
       // the first screen: Claude (Where to?) and four apps, each with its badge
-      const QUICK = play ? PLAY.slice(0, 4) : (parent ? ['os', 'diary', 'chat', 'projects'] : ['games', 'chat', 'diary', 'projects']).map((k) => APPS.find((a) => a.k === k)).filter(Boolean);
+      const pref = (parent ? ['os', 'diary', 'chat', 'projects'] : ['games', 'chat', 'diary', 'projects']).map((k) => APPS.find((a) => a.k === k)).filter(Boolean);
+      const QUICK = play ? PLAY.slice(0, 4) : [...pref, ...APPS.filter((a) => !pref.includes(a))].slice(0, 4);   // an app turned off makes room for the next
       const dock = (list, big, small) => `<div class="hdock${big ? ' big' : ''}">${list.map((a) => `<a href="${a.href}" style="--c:${a.c}"${a.ask ? ' data-ask="1"' : ''}>${glyph(a)}<b>${a.k}</b>${small ? `<small class="${a.hot ? 'hot' : ''}">${esc(a.s)}</small>` : ''}${a.badge ? `<span class="badge">${a.badge > 99 ? '99+' : a.badge}</span>` : ''}</a>`).join('')}</div>`;
       $('hquick').innerHTML = `${play ? '' : `<form class="hcmd hgo" id="hgo"><input id="q" placeholder="${parent ? 'Where to? Or what should Claude do?' : 'Where to? Ask Claude, or name a seed…'}" autocomplete="off" aria-label="Where to, or start Claude"><div class="hres" id="hits" hidden></div>
           <div class="hacts"><button type="submit" class="hclaude" aria-label="Start Claude" title="Start Claude">✦</button>${parent ? '' : '<button type="button" class="hseed" id="hsd" aria-label="Plant seed" title="Plant seed">🌱</button>'}</div><p class="hmsg" id="hmsg" hidden></p></form>`}
         ${dock(QUICK, play, false)}`;
       $('htop').innerHTML = `<div class="vpick"><button class="vbtn" id="vbtn" aria-haspopup="menu" aria-expanded="false" aria-label="View: ${cur.name}"><span>${cur.em}</span>${cur.name}<i>▾</i></button>
           <div class="vmenu" id="vmenu" role="menu" hidden><p>View</p>${DENSITY.map((d) => `<button role="menuitemradio" aria-checked="${d.id === dens}" data-dens="${d.id}" class="${d.id === dens ? 'on' : ''}"><span>${d.em}</span><b>${d.name}</b><em>${d.blurb}</em></button>`).join('')}</div></div>
-        ${play ? '' : `<div class="htoday">${today.map((t) => `<a href="${t.href}" style="--c:${t.c}"><span class="g">${t.g}</span><span><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span></a>`).join('')}</div>`}`;
+        ${play ? '' : `<div class="htoday">${today.filter(Boolean).map((t) => `<a href="${t.href}" style="--c:${t.c}"><span class="g">${t.g}</span><span><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span></a>`).join('')}</div>`}`;
       $('hrest').innerHTML = `${chatCard}<h3 class="k">Apps</h3>
         ${dock(play ? PLAY : APPS, play, !play)}
         ${play ? '' : `<h3 class="k">Recent</h3><div class="hrecent">${recent.length ? recent.map((r) => `<a href="${r.href}"><span class="g" style="color:${r.c}">${r.g}</span><span class="t">${esc(r.t)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span><span class="a">${agoOf(r.at)}</span></a>`).join('') : '<div class="hempty">Nothing new this week.</div>'}</div>`}
@@ -710,6 +712,7 @@
         if (!$('hits').hidden && $('hits').querySelector('a.on')) return;   // Enter on a match goes there (below)
         const t = q.value.trim(); if (!t) { q.focus(); return; }
         if (ME.role === 'parent') { location.href = 'https://os.r4box.com/?task=' + encodeURIComponent(t); return; }
+        if (H.off.has('chat')) { hmsg('Chat is turned off for now, so Claude can’t answer here.'); return; }
         try { sessionStorage.setItem('r4.claude.draft', t); } catch {}
         location.href = '/chat.html';
       };
@@ -723,10 +726,10 @@
       // Where to? Apps, places, worlds, your own topics, the trips. Kids: anything else asks the tutor.
       const pool = [
         ...APPS.filter((a) => !a.ask).map((a) => ({ g: a.g, c: a.c, t: a.k, s: (a.k === 'diary' && ME.role === 'parent' ? 'Clearing · ' : '') + (a.href.startsWith('http') ? new URL(a.href).hostname : 'r4box.com' + a.href.split('?')[0].replace('.html', '')), href: a.href })),
-        ...Object.entries(KIND).map(([k, [g, t]]) => ({ g, c: '#3DD6C6', t, s: 'game room', href: gameUrl(k) })),
+        ...Object.entries(H.off.has('games') ? {} : KIND).map(([k, [g, t]]) => ({ g, c: '#3DD6C6', t, s: 'game room', href: gameUrl(k) })),
         ...fam().filter((p) => worldLink(p)).map((p) => ({ g: '◍', c: p.dot, t: p.id === ME.id ? 'My world' : p.name + '’s world', s: 'family', href: worldLink(p) })),
         ...(person(ME.id)?.world.topics || []).filter((t) => t.title && t.source === 'tutor').map((t) => ({ g: ME.role === 'parent' ? '✎' : '🌳', c: '#B9A6FF', t: t.title, s: ME.role === 'parent' ? 'diary idea' : 'in your world', href: ME.role === 'parent' ? 'https://diary.r4box.com/' : '/diary.html' })),
-        ...H.home.trips.map((t) => ({ g: '✈️', c: '#F5C542', t: t.name, s: 'trip', href: '/trip.html?t=' + encodeURIComponent(t.id) })),
+        ...(H.off.has('trip') ? [] : H.home.trips).map((t) => ({ g: '✈️', c: '#F5C542', t: t.name, s: 'trip', href: '/trip.html?t=' + encodeURIComponent(t.id) })),
       ];
       q.oninput = () => {
         const v = q.value.trim().toLowerCase(), box = $('hits');
@@ -788,6 +791,7 @@
       $('tsub').textContent = READONLY ? 'Flagged chat · read only' : !st ? '' : st.cap == null ? 'Your test chats (no limits for parents)' : st.open ? `${st.left} of ${st.cap} questions left today` : `Open ${st.hours}`;
     }
     async function openTutor(chat = null, first = '') {
+      if (H?.off?.has('tutor')) return;   // turned off in admin
       READONLY = false; CHAT = chat; $('tutor').hidden = false; $('tsend').hidden = false; $('tchats').hidden = false;
       $('ttitle').textContent = 'Tutor'; $('tlog').innerHTML = '';
       if (location.hash !== '#tutor') history.pushState(null, '', '#tutor');

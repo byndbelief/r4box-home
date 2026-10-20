@@ -32,10 +32,11 @@
 <script src="projects/structure.js?v=54"></script>
 <script src="projects/projects-data.js?v=54"></script>
 <script type="module">
-  import { sb, roleOf } from './auth.js';
+  import { sb, roleOf, gateApp } from './auth.js?v=114';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
   const { data: { session } } = await sb.auth.getSession();
   if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
+  await gateApp(session?.user, 'projects');
   const me = session.user.id;
   const call = async (fn, payload) => {
     const { data: { session: s } } = await sb.auth.getSession();

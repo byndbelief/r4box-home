@@ -372,13 +372,14 @@
 <input type="file" id="photofile" accept="image/*" hidden>
 
 <script type="module">
-  import { sb, roleOf } from './auth.js';
+  import { sb, roleOf, gateApp } from './auth.js?v=114';
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeLink = (u) => /^https?:\/\//i.test(u || '') ? u : '';
 
   const { data: { session } } = await sb.auth.getSession();
   if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
+  await gateApp(session?.user, 'trip');
   const ME = { id: session?.user.id, role: roleOf(session?.user) };
   const PARENT = ME.role === 'parent';
 

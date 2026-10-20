@@ -74,7 +74,7 @@
 <div id="viewer" hidden><img id="viewimg" alt=""></div>
 </div>
 <script type="module">
-  import { sb, FAMILY, roleOf } from './auth.js';
+  import { sb, FAMILY, roleOf, gateApp } from './auth.js?v=114';
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/family-chat';
@@ -83,6 +83,7 @@
 
   const { data: { session } } = await sb.auth.getSession();
   if (!session) location.replace('/?next=' + encodeURIComponent(location.href));
+  await gateApp(session?.user, 'chat');
   const ME = { id: session?.user.id, role: roleOf(session?.user) };
 
   // msgs: every loaded message, replies too (reply_to set), oldest first.

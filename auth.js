@@ -16,6 +16,18 @@ export const FAMILY = [
 
 // parent sees the whole box; anyone else, kid. Unset counts as kid: fewest doors.
 export const roleOf = (user) => (user?.app_metadata?.r4_role === 'parent' ? 'parent' : 'kid');
+// Apps a parent turned off for this kid in admin (tutor_settings.apps_off). A parent has none.
+export async function appsOff(user) {
+  if (!user || roleOf(user) === 'parent') return new Set();
+  const { data } = await sb.from('tutor_settings').select('apps_off').eq('kid', user.id).maybeSingle();
+  return new Set(data?.apps_off || []);
+}
+// On an app's own page: a kid whose app is off goes home (and the page stops here).
+export async function gateApp(user, app) {
+  if (!(await appsOff(user)).has(app)) return;
+  location.replace('/?off=' + app);
+  await new Promise(() => {});
+}
 export const nameOf = (user) => FAMILY.find((f) => f.email === user?.email)?.name || (user?.email || '').split('@')[0];
 
 // The box (os, diary...) checks who is signed in from this cookie, on every request.
