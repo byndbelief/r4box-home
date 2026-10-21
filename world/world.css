@@ -526,3 +526,18 @@ header button,header a,header input,header select,header label{pointer-events:au
 }
 /* one column that never grows past the panel: a long chip title or file name can't widen the journal past the screen */
 .subb,.cal,.dayc{grid-template-columns:minmax(0,1fr)}
+/* a journal entry, laid out to read: a lede, short paragraphs, headings, lists, code, what's unresolved set apart */
+.etext{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;min-width:0;overflow-wrap:anywhere}
+.etext p{margin:0;white-space:normal}
+.etext p.lede{font-weight:600;color:var(--ink)}
+.etext h4{margin:6px 0 -2px;font:800 12px/1.2 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--violet)}
+.etext ul{margin:0;padding-left:18px;display:grid;gap:6px}
+.etext li::marker{color:var(--violet)}
+.etext code{font:500 .86em/1.3 var(--mono,ui-monospace,monospace);padding:1px 5px;border-radius:6px;background:#ffffff12;color:var(--ink)}
+.etext h4.todo{color:var(--gold)}
+.etext ul.todo li::marker{color:var(--gold)}
+.etext div.todo{display:grid;gap:4px;padding:10px 12px;border-radius:12px;border-left:3px solid var(--gold);background:color-mix(in oklab,var(--gold) 9%,transparent)}
+.etext div.todo b{font:800 11px/1.2 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.dayc .etext,.pentry .etext{font-size:14.5px;line-height:1.6}
+.pentry .etext{margin-top:10px;font-size:17px;line-height:1.5}
+.dens-pilot .etext{gap:7px}

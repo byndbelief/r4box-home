@@ -11,6 +11,32 @@
 (function () {
   const $ = (id) => document.getElementById(id), K = window.StoryKit;
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // A journal entry, laid out to read: its paragraphs (lines that wrap in the file are one), "## " headings, "- " lists, `code`;
+  // "Unresolved" (a heading, a line of its own or a paragraph's lead) stands out, and a long paragraph is broken every three sentences.
+  const sentences = (t) => t.split(/(?<=[.!?])\s+(?=[A-Z0-9`"(])/);
+  const inl = (t) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  function entryHTML(body) {
+    const blocks = String(body || '').replace(/\r/g, '').split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+    let out = '', first = true, todo = false;
+    for (const b of blocks) {
+      const h = b.match(/^#{1,4}\s+(.+)$/m);
+      if (h && b.startsWith('#')) { todo = /^unresolved|^open|^still open|^loose ends/i.test(h[1]); out += `<h4${todo ? ' class="todo"' : ''}>${inl(h[1].replace(/:$/, ''))}</h4>`; const rest = b.replace(/^#.*$/m, '').trim(); if (!rest) continue; }
+      const lines = b.split('\n').filter((l) => !/^#/.test(l));
+      if (/^(Unresolved|Still open|Open questions?|Open)\s*:$/i.test(b)) { out += `<h4 class="todo">${esc(b.replace(/:$/, ''))}</h4>`; todo = true; continue; }
+      if (lines.length && lines.every((l) => /^\s*[-*•]\s|^\s{2,}\S/.test(l))) {   // a list; an indented line carries on the point above it
+        const items = []; lines.forEach((l) => (/^\s*[-*•]\s/.test(l) ? items.push(l.replace(/^\s*[-*•]\s+/, '')) : (items[items.length - 1] += ' ' + l.trim())));
+        out += `<ul${todo ? ' class="todo"' : ''}>${items.map((x) => `<li>${inl(x)}</li>`).join('')}</ul>`; continue;
+      }
+      const text = lines.join(' ').replace(/\s+/g, ' ').trim(), u = text.match(/^(Unresolved|Still open|Open questions?)\s*[:—-]\s*(.+)$/i);
+      if (u) { out += `<div class="todo"><b>${esc(u[1])}</b><p>${inl(u[2][0].toUpperCase() + u[2].slice(1))}</p></div>`; todo = false; continue; }
+      const ss = sentences(text);
+      for (let i = 0; i < ss.length; i += ss.length > 4 ? 3 : 99) out += `<p${first ? ' class="lede"' : ''}>${inl(ss.slice(i, i + (ss.length > 4 ? 3 : 99)).join(' '))}</p>`, first = false;
+      todo = false;
+    }
+    return out || '<p></p>';
+  }
+  // the same entry as one line of plain text (agenda rows, previews)
+  const entryText = (body) => String(body || '').replace(/^#{1,4}\s+/gm, '').replace(/^\s*[-*•]\s+/gm, '').replace(/[`*]/g, '').replace(/\s+/g, ' ').trim();
   const REALM = { tutor: ['🌳', 'Learning', 'a limb on your tree'], chat: ['✿', 'Chat', 'a flower'], trip: ['✶', 'Trips', 'stars in the sky'], game: ['🌀', 'Games', 'a bush'] };
   const KIND = { spark: 'sprouted', deepen: 'grew', branch: 'branched', pivot: 'turned', merge: 'joined', park: 'rested', revive: 'came back', ship: 'finished' };
   const FAMC = { spark: '#B9A6FF', deepen: '#B9A6FF', revive: '#B9A6FF', branch: '#FF5A4A', pivot: '#FF5A4A', merge: '#FF5A4A', ship: '#3DD6C6', park: '#5A5385' };
@@ -134,7 +160,7 @@
     function drawWeek() {
       const d0 = K.dn(sel) - new Date(sel + 'T12:00:00Z').getUTCDay(), days = Array.from({ length: 7 }, (_, i) => K.iso(d0 + i));
       el.innerHTML = `<div class="calh"><button data-w="-7" aria-label="Previous week">‹</button><b>${K.range(days[0], days[6])}</b><span></span><button data-w="7" ${days[6] >= K.today() ? 'disabled' : ''} aria-label="Next week">›</button></div>${jvBar()}
-        <div class="wk7">${days.map((day) => { const en = byDay[day], ts = topicsOn(day); return `<button data-day="${day}" class="${en ? 'en' : ''}${day === sel ? ' sel' : ''}${day === K.today() ? ' today' : ''}"><span class="dd">${nice(day, { weekday: 'short' })}<b>${+day.slice(8)}</b></span><span class="tx">${en ? `<p>${esc(en.body)}</p>` : ts.length ? '' : '<p class="none">Nothing</p>'}${ts.length ? `<span class="tg">${ts.slice(0, 3).map((t) => `<span>${REALM[t.source][0]} ${esc(t.title)}</span>`).join('')}${ts.length > 3 ? `<span>+${ts.length - 3}</span>` : ''}</span>` : ''}</span></button>`; }).join('')}</div>`;
+        <div class="wk7">${days.map((day) => { const en = byDay[day], ts = topicsOn(day); return `<button data-day="${day}" class="${en ? 'en' : ''}${day === sel ? ' sel' : ''}${day === K.today() ? ' today' : ''}"><span class="dd">${nice(day, { weekday: 'short' })}<b>${+day.slice(8)}</b></span><span class="tx">${en ? `<p>${esc(entryText(en.body))}</p>` : ts.length ? '' : '<p class="none">Nothing</p>'}${ts.length ? `<span class="tg">${ts.slice(0, 3).map((t) => `<span>${REALM[t.source][0]} ${esc(t.title)}</span>`).join('')}${ts.length > 3 ? `<span>+${ts.length - 3}</span>` : ''}</span>` : ''}</span></button>`; }).join('')}</div>`;
       el.querySelectorAll('[data-w]').forEach((b) => (b.onclick = () => { sel = K.iso(K.dn(sel) + +b.dataset.w); if (sel > K.today()) sel = K.today(); month = sel.slice(0, 7); draw(); }));
       el.querySelectorAll('[data-day]').forEach((b) => (b.onclick = () => { const again = sel === b.dataset.day; sel = b.dataset.day; month = sel.slice(0, 7); if (again) mode = 'month'; draw(); }));
       wireJv();
@@ -144,7 +170,7 @@
       let wk = null, rows = '';
       days.forEach((day) => { const w = K.iso(K.dn(day) - new Date(day + 'T12:00:00Z').getUTCDay()); if (w !== wk) { wk = w; rows += `<h4>Week of ${esc(short(w))}</h4>`; }
         const en = byDay[day], ts = topicsOn(day), n = (evDay[day] || []).length;
-        rows += `<button data-day="${day}"><span class="ad">${esc(nice(day, { weekday: 'short', day: 'numeric' }))}</span><span class="at">${en ? '✎ ' + esc(en.body) : ts.map((t) => REALM[t.source][0] + ' ' + esc(t.title)).join(' · ')}</span><span class="an">${n ? n + '●' : ''}</span></button>`; });
+        rows += `<button data-day="${day}"><span class="ad">${esc(nice(day, { weekday: 'short', day: 'numeric' }))}</span><span class="at">${en ? '✎ ' + esc(entryText(en.body)) : ts.map((t) => REALM[t.source][0] + ' ' + esc(t.title)).join(' · ')}</span><span class="an">${n ? n + '●' : ''}</span></button>`; });
       el.innerHTML = `<div class="calh"><b>Agenda</b><span>${days.length} days</span></div>${jvBar()}<div class="agd">${rows || '<p class="note">Nothing yet.</p>'}</div>`;
       el.querySelectorAll('[data-day]').forEach((b) => (b.onclick = () => { sel = b.dataset.day; month = sel.slice(0, 7); mode = 'week'; draw(); }));
       wireJv();
@@ -164,13 +190,13 @@
       el.innerHTML = `<div class="calh"><button data-m="-1" ${month <= minM ? 'disabled' : ''} aria-label="Previous month">‹</button><b>${first.toLocaleDateString([], { month: 'long', year: 'numeric', timeZone: 'UTC' })}</b><span>${count} entr${count === 1 ? 'y' : 'ies'}</span><button data-m="1" ${month >= maxM ? 'disabled' : ''} aria-label="Next month">›</button></div>
         ${jvBar()}<div class="dow">${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x) => `<span>${x}</span>`).join('')}</div><div class="grid">${cells.join('')}</div>
         <div class="calkey"><span><i class="k1"></i>wrote</span><span><i class="k2"></i>something grew</span></div>
-        <article class="dayc"><div class="d">${esc(nice(sel))}</div>${en ? `<p>${esc(en.body)}</p>` : `<p class="none">${a === 'own' ? 'Nothing written this day.' : 'Nothing shared this day.'}</p>`}
+        <article class="dayc"><div class="d">${esc(nice(sel))}</div>${en ? `<div class="etext">${entryHTML(en.body)}</div>` : `<p class="none">${a === 'own' ? 'Nothing written this day.' : 'Nothing shared this day.'}</p>`}
         ${uniq.length ? `<span class="sub">What grew · ${ev.length}</span><div class="chips">${uniq.slice(0, 6).map((t) => `<button data-t="${t.id}">${REALM[t.source][0]} <span>${esc(t.title)}</span></button>`).join('')}</div>` : ''}
         ${en && a === 'own' ? shareBtn(entryId(p, en), K.isShared(entryId(p, en))) : ''}</article>`;
       el.querySelectorAll('[data-day]').forEach((b) => (b.onclick = () => { sel = b.dataset.day; draw(); }));
       el.querySelectorAll('[data-m]').forEach((b) => (b.onclick = () => { month = shiftM(month, +b.dataset.m); const inM = (d) => d.startsWith(month); sel = list.map((e) => e.day).filter(inM).sort().pop() || Object.keys(evDay).filter(inM).sort().pop() || month + '-01'; draw(); }));
       el.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => renderStory(p, tById[b.dataset.t])));
-      wireShare(el, (id) => { const e = list.find((x) => entryId(p, x) === id); return { kind: 'entry', title: nice(e.day, { weekday: 'long' }) + '’s entry', day: e.day, text: e.body.slice(0, 160) }; });
+      wireShare(el, (id) => { const e = list.find((x) => entryId(p, x) === id); return { kind: 'entry', title: nice(e.day, { weekday: 'long' }) + '’s entry', day: e.day, text: entryText(e.body).slice(0, 160) }; });
       wireJv();
     }
     draw();
@@ -184,7 +210,7 @@
   }
   function playEntry(p) {
     const en = (p.entries || []).filter((x) => access(p) === 'own' || K.isShared(entryId(p, x)))[0];
-    return en ? `<h3 class="k">Last time</h3><article class="pentry"><div class="d">${esc(nice(en.day, { weekday: 'long' }))}</div><p>${esc(en.body)}</p></article>` : '';
+    return en ? `<h3 class="k">Last time</h3><article class="pentry"><div class="d">${esc(nice(en.day, { weekday: 'long' }))}</div><div class="etext">${entryHTML(en.body)}</div></article>` : '';
   }
   // Pilot: the real cockpit. A strip of instruments, each a number with a label.
   function gauges(p, sts, events) {
