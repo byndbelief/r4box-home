@@ -358,6 +358,52 @@
   // Newest first (as built) or oldest first: one tap flips the chapters and the moments in each, remembered on this device.
   const oldFirst = () => { try { return localStorage.getItem('r4fam.storyorder') === 'old'; } catch { return false; } };
   const sortBtn = () => `<button class="ssort" data-ssort aria-label="Change order">${oldFirst() ? '↑ Oldest first' : '↓ Newest first'}</button>`;
+  // A moment to scan: its first sentence as a headline (cut short when long), the rest on a tap.
+  function momentHTML(e, attrs = '') {
+    const txt = evText(e), ss = sentences(txt), first = ss[0] || '', cut = first.length > 140;
+    const hl = cut ? first.slice(0, 120).replace(/\s+\S*$/, '') + '…' : first, rest = cut ? txt : ss.slice(1).join(' ');
+    return `<li class="mv${cut ? ' cut' : ''}${rest ? ' more' : ''}"${attrs}><span>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</span><b class="hl">${inl(hl)}</b>${rest ? `<span class="rest">${inl(rest)}</span>` : ''}</li>`;
+  }
+  const headline = (e) => { const f = sentences(evText(e))[0] || ''; return f.length > 140 ? f.slice(0, 120).replace(/\s+\S*$/, '') + '…' : f; };
+  function wireMoments(root) { root.querySelectorAll('li.mv.more').forEach((li) => li.addEventListener('click', (ev) => { ev.stopPropagation(); li.classList.toggle('open'); })); }
+  // At a glance: where it started, where it sits now, what it is (the idea's own write-up), and a way back in.
+  function glance(p, t, s) {
+    const evs = s.evs, a = evs[0], z = evs[evs.length - 1], body = String(t.summary || '').trim(), paras = body.split(/\n\s*\n/);
+    const stage = t.stage ? `<span class="gst">${esc(t.stage)}</span>` : '';
+    return `<section class="glance"><div class="gh"><b>At a glance</b>${stage}</div>
+      ${a ? `<div class="gl"><span>Started ${esc(short(a.day))}</span>${inl(headline(a))}</div>` : ''}
+      ${z && z !== a ? `<div class="gl now"><span>Now · ${esc(short(z.day))}</span>${inl(headline(z))}</div>` : ''}
+      ${body ? `<div class="gbody${paras.length > 1 ? ' clip' : ''}">${entryHTML(paras[0])}${paras.length > 1 ? `<div class="gmore">${entryHTML(paras.slice(1).join('\n\n'))}</div><button class="gtog" data-gtog>Read what it is and where it stands ›</button>` : ''}</div>` : ''}
+      ${SOLO && SOLO.resume && access(p) === 'own' ? `<div class="gres"><a class="btn gostart" href="${esc('https://os.r4box.com/?task=' + encodeURIComponent(resumeText(t, s).slice(0, 4000)))}" target="_blank" rel="noopener">✦ Pick up in a new session</a><button class="ghost" data-gcopy>Copy for Claude</button></div><p class="gnote">Starts Claude with this idea's record in hand: you pick the project, then Start.</p>` : ''}
+    </section>`;
+  }
+  // what a new session is handed: where the full record lives, the write-up, the latest moments and the sessions they came from
+  // the write-up in brief: its opening paragraph and as many of its latest (where it stands now) as fit, each on one line
+  function brief(body) {
+    const ps = String(body || '').trim().split(/\n\s*\n/).map((x) => x.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
+    if (ps.length < 2) return (ps[0] || '').slice(0, 1800);
+    const tail = []; let n = ps[0].length;
+    for (let i = ps.length - 1; i > 0 && n + ps[i].length < 1800; i--) { tail.unshift(ps[i]); n += ps[i].length; }
+    return [ps[0], ...(tail.length < ps.length - 1 ? ['(…)'] : []), ...tail].join('\n\n');
+  }
+  function resumeText(t, s) {
+    const recent = s.evs.slice(-6), sess = [...new Set(s.evs.slice(-8).map((e) => e.session).filter(Boolean))].slice(-3);
+    return `Picking up "${t.title}" from the Clearing diary (idea \`${t.id}\`, stage ${t.stage || '?'}, started ${t.created}, last moment ${s.evs.length ? s.evs[s.evs.length - 1].day : '?'}).
+
+The full record is ~/projects/clearing/ideas/${t.id}.md on the box (what it is, where it stands, every moment). Read it first if you can reach it; if not, here it is in brief.
+
+Where it stands:
+${brief(t.summary)}
+
+Latest moments:
+${recent.map((e) => `- ${e.day} · ${KIND[e.kind] || e.kind}: ${headline(e)}`).join('\n')}
+${sess.length ? `\nSessions it came from: ${sess.join(', ')}\n` : ''}
+Get oriented, tell me in a few lines where this stands and what's open, then wait for what I want to do.`;
+  }
+  function wireGlance(root, t, s) {
+    root.querySelectorAll('[data-gtog]').forEach((b) => (b.onclick = () => { const g = b.closest('.gbody'); g.classList.toggle('open'); b.textContent = g.classList.contains('open') ? 'Show less' : 'Read what it is and where it stands ›'; }));
+    root.querySelectorAll('[data-gcopy]').forEach((b) => (b.onclick = async () => { try { await navigator.clipboard.writeText(resumeText(t, s)); b.textContent = '✓ Copied'; } catch { b.textContent = 'Couldn’t copy'; } setTimeout(() => (b.textContent = 'Copy for Claude'), 2000); }));
+  }
   function wireSort(root) {
     const flip = () => root.querySelectorAll('ol.story, ol.story ul.evs').forEach((l) => l.append(...[...l.children].reverse()));
     if (oldFirst()) flip();
@@ -370,14 +416,15 @@
     const chs = K.chapters(s.evs);
     $('body').innerHTML = `<button class="crumb" id="crumb">‹ ${a === 'own' ? 'Your world' : esc(p.name) + '’s world'}</button>
       <div class="who"><h2>${emoji} ${esc(t.title)}</h2><p>${what} · started ${esc(short(t.created))} · ${s.evs.length} moment${s.evs.length === 1 ? '' : 's'}${s.done ? ' · finished' : s.resting ? ' · resting' : ''}</p>${a === 'own' ? shareBtn(sid, K.isShared(sid)) : K.isShared(sid) ? '<span class="share on">✓ Shared with the family</span>' : ''}</div>`
+      + glance(p, t, s)
       + progress(s.evs, { color: t.source === 'trip' ? '#F5C542' : '#B9A6FF' })
       + `<h3 class="k sk"><span>The story · ${chs.length} chapter${chs.length === 1 ? '' : 's'}</span>${sortBtn()}</h3>${read ? '' : '<p class="note">You see how it grew. What happened in each moment stays private unless it’s shared.</p>'}
       <ol class="story">${chs.slice().reverse().map((c) => `<li class="chap ${c.key}" data-chap><div class="ch"><span class="n">Chapter ${c.n}</span><b>${c.name}</b><span class="r">${esc(K.range(c.start, c.end))}</span></div>
         <div class="marks">${c.evs.map((e) => `<i style="background:${FAMC[e.kind] || '#B9A6FF'};--s:${(0.7 + (+e.effort || 1) * 0.12).toFixed(2)}" title="${esc(KIND[e.kind] || e.kind)}"></i>`).join('')}<span>${c.days} day${c.days === 1 ? '' : 's'}</span></div>
-        ${read ? `<p class="lead">${esc(evText(c.evs[c.evs.length - 1]))}</p><ul class="evs">${c.evs.slice().reverse().map((e) => `<li><span>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</span>${esc(evText(e))}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
+        ${read ? `<p class="lead">${inl(headline(c.evs[c.evs.length - 1]))}</p><ul class="evs">${c.evs.slice().reverse().map((e) => momentHTML(e)).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
     $('crumb').onclick = () => { live.reset(); renderHome(p); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     $('body').querySelectorAll('[data-chap]').forEach((el) => (el.onclick = () => el.classList.toggle('open')));
-    wireSort($('body'));
+    wireSort($('body')); wireMoments($('body')); wireGlance($('body'), t, s);
     const first = $('body').querySelector('[data-chap]'); if (first && read) first.classList.add('open');
     wireShare($('body'), () => ({ kind: 'story', title: emoji + ' ' + t.title, day: lastOf(p, t), text: chs.length + ' chapters · latest: ' + (evText(s.evs[s.evs.length - 1]) || '').slice(0, 120) }));
     const top = $('worldBox').getBoundingClientRect().bottom + window.scrollY - 8; window.scrollTo({ top: Math.max(0, top - 60), behavior: 'smooth' });
@@ -389,7 +436,7 @@
   function markMoment(id, scroll) {
     let hit = null;
     $('pick').querySelectorAll('[data-ev]').forEach((li) => { const on = li.dataset.ev === String(id); li.classList.toggle('on', on); if (on) hit = li; });
-    if (hit && scroll) { hit.closest('[data-chap]')?.classList.add('open'); hit.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    if (hit && scroll) { hit.closest('[data-chap]')?.classList.add('open'); hit.classList.add('open'); hit.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
     return !!hit;
   }
   function storyPanel(p, t, back) {
@@ -399,10 +446,10 @@
       ${read ? '' : '<p>You see how it grew. What happened in each moment stays private unless it’s shared.</p>'}
       <ol class="story pstory" data-topic="${esc(t.id)}">${chs.slice().reverse().map((c) => `<li class="chap ${c.key}${read ? ' open' : ''}" data-chap><div class="ch"><span class="n">Chapter ${c.n}</span><b>${c.name}</b><span class="r">${esc(K.range(c.start, c.end))}</span></div>
         <div class="marks">${c.evs.map((e) => `<i style="background:${FAMC[e.kind] || '#B9A6FF'};--s:${(0.7 + (+e.effort || 1) * 0.12).toFixed(2)}"></i>`).join('')}<span>${c.days} day${c.days === 1 ? '' : 's'}</span></div>
-        ${read ? `<p class="lead">${esc(evText(c.evs[c.evs.length - 1]))}</p><ul class="evs">${c.evs.slice().reverse().map((e) => `<li data-ev="${esc(e.id)}"><span>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</span>${esc(evText(e))}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
+        ${read ? `<p class="lead">${inl(headline(c.evs[c.evs.length - 1]))}</p><ul class="evs">${c.evs.slice().reverse().map((e) => momentHTML(e, ` data-ev="${esc(e.id)}"`)).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
     $('pback').onclick = back;
     // a moment here and its bud on the limb: tap one, the other lights
-    $('pick').querySelectorAll('[data-ev]').forEach((li) => (li.onclick = (ev) => { ev.stopPropagation(); live.showEvent(li.dataset.ev); markMoment(li.dataset.ev, false); }));
+    $('pick').querySelectorAll('[data-ev]').forEach((li) => (li.onclick = (ev) => { ev.stopPropagation(); li.classList.toggle('open'); live.showEvent(li.dataset.ev); markMoment(li.dataset.ev, false); }));
     $('pick').querySelectorAll('[data-chap]').forEach((el) => (el.onclick = () => el.classList.toggle('open')));
     wireSort($('pick'));
     $('pick').scrollTop = 0;
