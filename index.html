@@ -794,7 +794,7 @@
         e.preventDefault();
         if (!$('hits').hidden && $('hits').querySelector('a.on')) return;   // Enter on a match goes there (below)
         const t = q.value.trim(); if (!t) { q.focus(); return; }
-        if (ME.role === 'parent') { go('https://os.r4box.com/?task=' + encodeURIComponent(t)); return; }
+        if (ME.role === 'parent') { go('https://os.r4box.com/#task=' + encodeURIComponent(t)); return; }
         if (H.off.has('chat')) { hmsg('Chat is turned off for now, so Claude can’t answer here.'); return; }
         try { sessionStorage.setItem('r4.claude.draft', t); } catch {}
         location.href = '/chat.html';

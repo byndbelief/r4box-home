@@ -374,7 +374,7 @@
       ${a ? `<div class="gl"><span>Started ${esc(short(a.day))}</span>${inl(headline(a))}</div>` : ''}
       ${z && z !== a ? `<div class="gl now"><span>Now · ${esc(short(z.day))}</span>${inl(headline(z))}</div>` : ''}
       ${body ? `<div class="gbody${paras.length > 1 ? ' clip' : ''}">${entryHTML(paras[0])}${paras.length > 1 ? `<div class="gmore">${entryHTML(paras.slice(1).join('\n\n'))}</div><button class="gtog" data-gtog>Read what it is and where it stands ›</button>` : ''}</div>` : ''}
-      ${SOLO && SOLO.resume && access(p) === 'own' ? `<div class="gres"><a class="btn gostart" href="${esc('https://os.r4box.com/?task=' + encodeURIComponent(resumeText(t, s).slice(0, 4000)))}" target="_blank" rel="noopener">✦ Pick up in a new session</a><button class="ghost" data-gcopy>Copy for Claude</button></div><p class="gnote">Starts Claude with this idea's record in hand: you pick the project, then Start.</p>` : ''}
+      ${SOLO && SOLO.resume && access(p) === 'own' ? `<div class="gres"><a class="btn gostart" href="${esc('https://os.r4box.com/#task=' + encodeURIComponent(resumeText(t, s).slice(0, 4000)))}" target="_blank" rel="noopener">✦ Pick up in a new session</a><button class="ghost" data-gcopy>Copy for Claude</button></div><p class="gnote">Starts Claude with this idea's record in hand: you pick the project, then Start.</p>` : ''}
     </section>`;
   }
   // what a new session is handed: where the full record lives, the write-up, the latest moments and the sessions they came from
