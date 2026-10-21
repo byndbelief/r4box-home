@@ -7,18 +7,31 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
+// How each kind of alert buzzes (d.kind, set by the edge functions). Android only: iPhones ignore
+// vibration, and Android may still use its own default buzz for a site's notifications.
+const BUZZ = {
+  turn: [120, 80, 120],                        // your turn: a double tap
+  round: [120, 80, 120, 80, 260],              // the next Chaos round: a double tap and a long one
+  chat: [180],                                 // a message: one buzz
+  claude: [60, 50, 60, 50, 60],                // Claude answered you: a flutter
+  call: [600, 300, 600, 300, 600, 300, 600],   // a call rings
+  tutor: [300, 150, 300, 150, 300],            // the tutor flagged something
+};
+const TITLE = 'r4box';
+
 self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch {}
-  e.waitUntil(self.registration.showNotification(d.title || 'r4box', {
+  const kind = d.kind || (d.ring ? 'call' : ''), silent = !!d.silent;
+  e.waitUntil(self.registration.showNotification(d.title || TITLE, {
     body: d.body || '',
     tag: d.tag,
-    // A grouped chat alert (a burst of messages) replaces the last one without buzzing again.
-    renotify: !d.silent,
-    silent: !!d.silent,
-    // A call rings: it stays up until answered or dismissed, and buzzes.
-    requireInteraction: !!d.ring,
-    vibrate: d.ring ? [400, 200, 400, 200, 400] : undefined,
+    // A quiet alert (a burst of chat messages, a game over) replaces the last one without a sound or buzz.
+    renotify: !!d.tag && !silent,
+    silent,
+    // A call rings: it stays up until answered or dismissed.
+    requireInteraction: kind === 'call',
+    vibrate: silent ? undefined : BUZZ[kind],   // a buzz with silent set throws
     icon: 'icon-192.png',
     badge: 'icon-192.png',
     data: { url: d.url || './' },

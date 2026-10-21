@@ -332,6 +332,32 @@
   }
   function composer() { $('left').textContent = ME.role !== 'parent' && left != null ? `${Math.max(0, left)} Claude asks left today` : 'Write @claude to ask Claude'; }
 
+  // ---- sounds: synthesized, no audio files. A page may only play sound after a tap, so every tap
+  // (re)opens the audio; until the first one the chime and the ring stay quiet (the dialog and the
+  // buzz still show). 🔊 Sounds in Settings turns them off on this device.
+  const SOUND_KEY = 'r4.chatSound';
+  const soundOn = () => { try { return localStorage.getItem(SOUND_KEY) !== '0'; } catch { return true; } };
+  let actx = null;
+  const wake = () => {
+    try { actx ||= new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume().catch(() => {}); } catch {}
+  };
+  addEventListener('pointerdown', wake, { capture: true, passive: true }); addEventListener('keydown', wake, { capture: true });
+  function tone(f, at, dur, vol, type = 'sine') {
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + at;
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.05);
+  }
+  const SOUNDS = {
+    // a new message: two soft rising notes
+    chime: () => { tone(988, 0, 0.35, 0.09); tone(1319, 0.11, 0.5, 0.08); },
+    // a call: a bright four-note marimba phrase, played twice
+    ring: () => { [0, 0.9].forEach((o) => [659, 831, 988, 831].forEach((f, i) => { tone(f, o + i * 0.13, 0.32, 0.16, 'triangle'); tone(f * 2, o + i * 0.13, 0.12, 0.04); })); },
+  };
+  function play(name) { if (!soundOn() || !actx || actx.state !== 'running') return; try { SOUNDS[name](); } catch {} }
+  let chimeAt = 0;
+  function chime() { if (Date.now() - chimeAt < 1500) return; chimeAt = Date.now(); play('chime'); }
+
   // ---- live ----
   sb.channel('family-chat')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, async ({ new: m }) => {
@@ -341,6 +367,7 @@
       if (m.ref?.type === 'poll') await loadPolls();
       if (m.is_claude && thinking) { thinking = 0; clearTimeout(thinkTimer); }
       if (m.ref?.type === 'call' && m.author !== ME.id && !inCallNow() && (!m.ref.to || m.ref.to === ME.id)) ring(m.author);
+      else if (m.author !== ME.id && m.ref?.type !== 'call' && !inCallNow()) chime();
       render(m.author === ME.id && !m.reply_to); seen(true);
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, ({ old }) => {
@@ -568,8 +595,12 @@
     const d = dens(), al = await alertsState();
     const cur = DENSITY.find((x) => x.id === d);
     el.innerHTML = `<h3 class="k">View</h3><section class="sset"><a class="srow" href="/#settings" style="color:inherit;text-decoration:none"><div><b>${cur.em} ${cur.name}</b><small>One view for every app: change it in ⚙ Settings on the home page</small></div><span aria-hidden="true">›</span></a></section>
-      <h3 class="k">Chat</h3><section class="sset"><div class="srow alertsrow"><div><b>Alerts</b><small>${al.why}</small></div>${al.can ? `<button class="tog${al.on ? ' on' : ''}" id="alTog" role="switch" aria-checked="${al.on}"${al.on ? ' disabled' : ''}><i></i></button>` : ''}</div></section>`;
+      <h3 class="k">Chat</h3><section class="sset"><div class="srow"><div><b>🔊 Sounds</b><small>A chime for new messages and a ring for calls while the chat is open, on this device</small></div><button class="tog${soundOn() ? ' on' : ''}" id="sndTog" role="switch" aria-checked="${soundOn()}" aria-label="Sounds"><i></i></button></div><div class="srow alertsrow"><div><b>Alerts</b><small>${al.why}</small></div>${al.can ? `<button class="tog${al.on ? ' on' : ''}" id="alTog" role="switch" aria-checked="${al.on}"${al.on ? ' disabled' : ''}><i></i></button>` : ''}</div></section>`;
     $('alTog')?.addEventListener('click', async () => { await turnOnAlerts(); paintSettings(); });
+    $('sndTog').addEventListener('click', () => {
+      const on = !soundOn(); try { localStorage.setItem(SOUND_KEY, on ? '1' : '0'); } catch {}
+      $('sndTog').classList.toggle('on', on); $('sndTog').setAttribute('aria-checked', String(on)); if (on) { wake(); setTimeout(() => play('chime'), 50); }
+    });
     // With alerts on: what this device hears about (117), the same switches as the games' ⚙️ Settings.
     const topics = al.on ? await alertTopics() : null;
     if (!topics) return;
@@ -662,8 +693,18 @@
     $('ringwho').textContent = `📹 ${from ? nameIn(from) + ' is calling' : 'Video call'}`;
     $('ringnote').textContent = `${callLive().map((x) => nameIn(x.user)).filter((v, k, a) => a.indexOf(v) === k).join(', ')} on the call now.`;
     if (!$('ring').open) $('ring').showModal();
-    navigator.vibrate?.([400, 200, 400]);
+    ringtone(true);
   }
+  // The ring sounds (and buzzes, on Android) until Join, Not now, or the call ends; 40 s at most.
+  let ringT = 0, ringUntil = 0;
+  function ringtone(on) {
+    clearInterval(ringT); ringT = 0;
+    if (!on) return;
+    ringUntil = Date.now() + 40_000;
+    const once = () => { if (!$('ring').open || Date.now() > ringUntil) { ringtone(false); return; } play('ring'); navigator.vibrate?.([600, 300, 600]); };
+    once(); ringT = setInterval(once, 2600);
+  }
+  $('ring').addEventListener('close', () => { ringtone(false); navigator.vibrate?.(0); });
   $('callbtn').onclick = () => { if (callCh.state !== 'joined' && !inCallNow()) { toast('Reconnecting the call line… try again in a moment.'); callCh.subscribe(onCallState); return; } startOrJoin(); };
   $('ringyes').onclick = () => joinCall();
   $('ringno').onclick = () => $('ring').close();
