@@ -362,10 +362,23 @@
   function momentHTML(e, attrs = '') {
     const txt = evText(e), ss = sentences(txt), first = ss[0] || '', cut = first.length > 140;
     const hl = cut ? first.slice(0, 120).replace(/\s+\S*$/, '') + '…' : first, rest = cut ? txt : ss.slice(1).join(' ');
-    return `<li class="mv${cut ? ' cut' : ''}${rest ? ' more' : ''}"${attrs}><span>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</span><b class="hl">${inl(hl)}</b>${rest ? `<span class="rest">${inl(rest)}</span>` : ''}</li>`;
+    // a resumed session's new work: "↩ continues Oct 19", a tap jumps to that moment (the day is in the event id)
+    const cd = /^ev-(\d{4}-\d\d-\d\d)-/.exec(e.continues || '');
+    const cont = cd ? `<button type="button" class="cont" data-cont="${esc(e.continues)}">↩ continues ${esc(short(cd[1]))}</button>` : '';
+    return `<li class="mv${cut ? ' cut' : ''}${rest ? ' more' : ''}" data-mid="${esc(e.id)}"${attrs}><span>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}${cont}</span><b class="hl">${inl(hl)}</b>${rest ? `<span class="rest">${inl(rest)}</span>` : ''}</li>`;
   }
   const headline = (e) => { const f = sentences(evText(e))[0] || ''; return f.length > 140 ? f.slice(0, 120).replace(/\s+\S*$/, '') + '…' : f; };
-  function wireMoments(root) { root.querySelectorAll('li.mv.more').forEach((li) => li.addEventListener('click', (ev) => { ev.stopPropagation(); li.classList.toggle('open'); })); }
+  function wireMoments(root) {
+    root.querySelectorAll('li.mv.more').forEach((li) => li.addEventListener('click', (ev) => { ev.stopPropagation(); li.classList.toggle('open'); }));
+    root.querySelectorAll('[data-cont]').forEach((b) => b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const to = root.querySelector(`li[data-mid="${CSS.escape(b.dataset.cont)}"]`) || document.querySelector(`li[data-mid="${CSS.escape(b.dataset.cont)}"]`);
+      if (!to) return;
+      const ch = to.closest('[data-chap]'); if (ch) ch.classList.add('open');
+      to.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      to.classList.remove('flash'); void to.offsetWidth; to.classList.add('flash');
+    }));
+  }
   // At a glance: where it started, where it sits now, what it is (the idea's own write-up), and a way back in.
   function glance(p, t, s) {
     const evs = s.evs, a = evs[0], z = evs[evs.length - 1], body = String(t.summary || '').trim(), paras = body.split(/\n\s*\n/);
