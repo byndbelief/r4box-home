@@ -13,7 +13,9 @@ self.addEventListener('push', (e) => {
   e.waitUntil(self.registration.showNotification(d.title || 'r4box', {
     body: d.body || '',
     tag: d.tag,
-    renotify: true,
+    // A grouped chat alert (a burst of messages) replaces the last one without buzzing again.
+    renotify: !d.silent,
+    silent: !!d.silent,
     // A call rings: it stays up until answered or dismissed, and buzzes.
     requireInteraction: !!d.ring,
     vibrate: d.ring ? [400, 200, 400, 200, 400] : undefined,

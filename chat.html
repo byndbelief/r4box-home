@@ -570,6 +570,33 @@
     el.innerHTML = `<h3 class="k">View</h3><section class="sset"><a class="srow" href="/#settings" style="color:inherit;text-decoration:none"><div><b>${cur.em} ${cur.name}</b><small>One view for every app: change it in ⚙ Settings on the home page</small></div><span aria-hidden="true">›</span></a></section>
       <h3 class="k">Chat</h3><section class="sset"><div class="srow alertsrow"><div><b>Alerts</b><small>${al.why}</small></div>${al.can ? `<button class="tog${al.on ? ' on' : ''}" id="alTog" role="switch" aria-checked="${al.on}"${al.on ? ' disabled' : ''}><i></i></button>` : ''}</div></section>`;
     $('alTog')?.addEventListener('click', async () => { await turnOnAlerts(); paintSettings(); });
+    // With alerts on: what this device hears about (117), the same switches as the games' ⚙️ Settings.
+    const topics = al.on ? await alertTopics() : null;
+    if (!topics) return;
+    el.querySelector('.alertsrow').insertAdjacentHTML('afterend', TOPICS.map(([k, label, hint]) =>
+      `<div class="srow"><div><b>${label}</b><small>${hint}</small></div><button class="tog${topics.includes(k) ? ' on' : ''}" data-topic="${k}" role="switch" aria-checked="${topics.includes(k)}" aria-label="${label} alerts"><i></i></button></div>`).join(''));
+    el.querySelectorAll('[data-topic]').forEach((t) => t.addEventListener('click', async () => {
+      const on = t.getAttribute('aria-checked') !== 'true';
+      t.disabled = true;
+      try { await setAlertTopic(t.dataset.topic, on); t.classList.toggle('on', on); t.setAttribute('aria-checked', String(on)); }
+      catch (err) { toast("Couldn't change alerts: " + (err.message || err)); }
+      t.disabled = false;
+    }));
+  }
+  const TOPICS = [['chat', '💬 Messages', 'New messages (a burst is one alert) and Claude’s answers to you'],
+    ['calls', '📹 Calls', 'Someone starts a video call'],
+    ['games', '🎮 Games', 'Your turn, game over, the next Chaos round']];
+  async function mySub() { const reg = await navigator.serviceWorker.getRegistration('/'); return reg?.pushManager.getSubscription(); }
+  async function alertTopics() {
+    const s = await mySub(); if (!s) return null;
+    const { data } = await sb.from('push_subscriptions').select('topics').eq('endpoint', s.endpoint).maybeSingle();
+    return data?.topics ?? ['games', 'chat', 'calls'];
+  }
+  async function setAlertTopic(topic, on) {
+    const s = await mySub(), now = (await alertTopics()) ?? [];
+    const topics = on ? [...new Set([...now, topic])] : now.filter((t) => t !== topic);
+    const { error } = await sb.from('push_subscriptions').update({ topics }).eq('endpoint', s.endpoint);
+    if (error) throw error;
   }
   $('gear').onclick = openSettings;
 
