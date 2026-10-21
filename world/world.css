@@ -524,3 +524,5 @@ header button,header a,header input,header select,header label{pointer-events:au
   body.isfull .pick .pstory .chap::before{top:15px}
   body.isfull .pick .pstory .evs{font-size:13px}
 }
+/* one column that never grows past the panel: a long chip title or file name can't widen the journal past the screen */
+.subb,.cal,.dayc{grid-template-columns:minmax(0,1fr)}
