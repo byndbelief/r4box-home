@@ -57,7 +57,7 @@
     .btn.bad { background: var(--hot-soft); border-color: transparent; }
     .x { appearance: none; cursor: pointer; border: 0; background: none; color: var(--faint); font-size: 15px; padding: 2px 6px; border-radius: 8px; }
     .x:hover { color: var(--hot); background: #FF5A4A1a; }
-    input { background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px; padding: 7px 9px; width: 100%; font-size: 15px; }
+    input, select { background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px; padding: 7px 9px; width: 100%; font-size: 15px; }
     label { display: grid; gap: 3px; font-size: 12px; font-weight: 700; color: var(--muted); }
     ul.list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
     ul.list li { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: #ffffff07; font-size: 13px; }
@@ -148,6 +148,7 @@
   import { sb, roleOf } from './auth.js';
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const hr = (h) => `${h % 12 || 12}:00 ${h % 24 < 12 ? 'AM' : 'PM'}`;   // an hour, standard: 21 -> 9:00 PM
   const TOOLS = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/admin-tools';
 
   const { data: { session } } = await sb.auth.getSession();
@@ -164,7 +165,7 @@
     const m = Math.round((Date.now() - new Date(ts)) / 60000);
     return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
   };
-  const when = (ts) => new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const when = (ts) => new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
   function confirmBox(title, text, yes = 'Delete') {
     return new Promise((res) => {
       $('dlg').innerHTML = `<h3>${esc(title)}</h3><p class="muted small" style="margin:8px 0 0">${esc(text)}</p><div class="acts"><button class="btn" data-no>Cancel</button><button class="btn bad" data-yes>${esc(yes)}</button></div>`;
@@ -212,7 +213,7 @@
     $('kidcards').innerHTML = (usage || []).map((k) => {
       const today = k.tutor_today + k.trip_today + k.chat_today, week = k.tutor_week + k.trip_week + k.chat_week;
       const w = (n) => `${Math.min(100, (n / Math.max(k.daily_cap, 1)) * 100)}%`;
-      return `<div class="card"><div class="row between"><h3>${esc(k.username)}</h3><span class="small muted">open ${k.start_hour}:00–${k.end_hour}:00</span></div>
+      return `<div class="card"><div class="row between"><h3>${esc(k.username)}</h3><span class="small muted">open ${hr(k.start_hour)}–${hr(k.end_hour)}</span></div>
         <div class="row" style="margin-top:10px;align-items:baseline"><span class="big">${today}</span><span class="muted">of ${k.daily_cap} today</span></div>
         <div class="meter" title="${today} of ${k.daily_cap}"><i style="width:${w(k.tutor_today)};background:${COLORS.tutor}"></i><i style="width:${w(k.trip_today)};background:${COLORS.trip}"></i><i style="width:${w(k.chat_today)};background:${COLORS.chat}"></i></div>
         <div class="legend"><span style="--c:${COLORS.tutor}">tutor ${k.tutor_today}</span><span style="--c:${COLORS.trip}">trips ${k.trip_today}</span><span style="--c:${COLORS.chat}">chat ${k.chat_today}</span></div>
@@ -222,8 +223,8 @@
         <p class="small muted" style="margin:8px 0 0">Last 7 days: <b style="color:var(--ink)">${week}</b> (tutor ${k.tutor_week}, trips ${k.trip_week}, chat ${k.chat_week})</p>
         <form class="limits" data-kid="${k.kid}">
           <label>A day<input name="cap" type="number" min="0" max="500" value="${k.daily_cap}"></label>
-          <label>Opens<input name="start" type="number" min="0" max="23" value="${k.start_hour}"></label>
-          <label>Closes<input name="end" type="number" min="1" max="24" value="${k.end_hour}"></label>
+          <label>Opens<select name="start">${Array.from({ length: 24 }, (_, h) => h + 0).map((h) => `<option value="${h}"${h === +k.start_hour ? ' selected' : ''}>${hr(h)}</option>`).join('')}</select></label>
+          <label>Closes<select name="end">${Array.from({ length: 24 }, (_, h) => h + 1).map((h) => `<option value="${h}"${h === +k.end_hour ? ' selected' : ''}>${hr(h)}</option>`).join('')}</select></label>
           <button class="btn">Save</button></form>
         <p class="small faint" style="margin:6px 0 0">Hours in ${esc(k.tz)}${k.tz !== tz ? ` (saving sets ${esc(tz)}, this device's)` : ''}</p></div>`;
     }).join('') || '<p class="muted">No kids yet.</p>';

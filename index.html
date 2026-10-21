@@ -58,7 +58,7 @@
     .link.quiet { color: var(--muted); }
     .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 14px; box-shadow: var(--glow); }
     label { display: grid; gap: 4px; font-weight: 700; font-size: 14px; }
-    input { font: 400 16px/1.2 var(--body); color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; }
+    input, select { font: 400 16px/1.2 var(--body); color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; }
     .msg { margin: 0; border-radius: 12px; padding: 12px 14px; font-weight: 700; background: var(--panel-2); }
     .msg.bad { background: var(--hot-soft); }
 
@@ -359,6 +359,7 @@
     import { sb, FAMILY, roleOf, nameOf, handOver } from './auth.js';
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const hr = (h) => `${h % 12 || 12}:00 ${h % 24 < 12 ? 'AM' : 'PM'}`;   // an hour, standard: 21 -> 9:00 PM
 
     // The live x: the logistic map at r = 4, one step every half second.
     let x = Math.random() * .8 + .1;
@@ -873,7 +874,7 @@
       return r.json().catch(() => ({ error: 'The tutor could not answer just now.' }));
     }
     function sub(st) {
-      $('tsub').textContent = READONLY ? 'Flagged chat · read only' : !st ? '' : st.cap == null ? 'Your test chats (no limits for parents)' : st.open ? `${st.left} of ${st.cap} questions left today` : `Open ${st.hours}`;
+      $('tsub').textContent = READONLY ? 'Flagged chat · read only' : !st ? '' : st.cap == null ? 'Your test chats (no limits for parents)' : st.open ? `${st.left} of ${st.cap} questions left today` : `Open ${st.hours.replace(/\b(\d{1,2}):00\b/g, (_, h) => hr(+h))}`;
     }
     async function openTutor(chat = null, first = '') {
       if (H?.off?.has('tutor')) return;   // turned off in admin
@@ -954,9 +955,9 @@
         const f = document.createElement('form'); f.className = 'card tset';
         f.innerHTML = `<b>${esc(who[r.kid] || 'Kid')}</b><div class="row">
           <label>Questions a day<input name="cap" type="number" min="0" max="500" value="${r.daily_cap}"></label>
-          <label>Opens at<input name="start" type="number" min="0" max="23" value="${r.start_hour}"></label>
-          <label>Closes at<input name="end" type="number" min="1" max="24" value="${r.end_hour}"></label></div>
-          <div class="row"><button class="btn">Save</button><small style="color:var(--muted)">Hours 0 to 24 (${esc(tz)})</small></div>`;
+          <label>Opens at<select name="start">${Array.from({ length: 24 }, (_, h) => h + 0).map((h) => `<option value="${h}"${h === +r.start_hour ? ' selected' : ''}>${hr(h)}</option>`).join('')}</select></label>
+          <label>Closes at<select name="end">${Array.from({ length: 24 }, (_, h) => h + 1).map((h) => `<option value="${h}"${h === +r.end_hour ? ' selected' : ''}>${hr(h)}</option>`).join('')}</select></label></div>
+          <div class="row"><button class="btn">Save</button><small style="color:var(--muted)">${esc(tz)}</small></div>`;
         f.onsubmit = async (e) => {
           e.preventDefault();
           const v = { daily_cap: +f.cap.value, start_hour: +f.start.value, end_hour: +f.end.value, tz, updated_at: new Date().toISOString() };

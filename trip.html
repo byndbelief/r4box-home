@@ -54,6 +54,7 @@
     .item:hover { border-color: #ffffff33; }
     .item .hd { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
     .item .tm.wide { flex-basis: 100%; }   /* a date (bookings) gets its own line above the title */
+    .leg .ap { font-style: normal; font-size: .68em; margin-left: 2px; }
     .item .tm { flex: none; font: 600 13px/1.4 var(--mono); color: var(--teal); }
     .item .ttl { flex: 1; min-width: 0; font-size: 16.5px; line-height: 1.35; font-weight: 800; }
     .item .cost { flex: none; font: 700 14px/1.4 var(--body); color: var(--gold); }
@@ -706,7 +707,7 @@
     await load();
     if (r.trip) location.hash = '#ideas';
     const touched = [...(r.added || []), ...(r.changed || [])].map((id) => items.find((i) => i.id === id)).filter(Boolean);
-    $('answer').innerHTML = `<div class="answer"><div class="q">${esc(shown)}</div>${r.error ? esc(r.error) : '✦ ' + esc(r.reply)}
+    $('answer').innerHTML = `<div class="answer"><div class="q">${esc(shown)}</div>${r.error ? esc(t12(r.error)) : '✦ ' + esc(t12(r.reply))}
       ${touched.length ? `<div class="chips">${touched.map((i) => `<button data-id="${i.id}">${i.kind === 'pack' ? 'packing' : i.kind}: ${esc(i.title.slice(0, 40))}</button>`).join('')}</div>` : ''}
       ${r.left != null && r.left < 10 ? `<div class="note" style="margin-top:6px">${r.left} questions left today</div>` : ''}
       <div style="margin-top:6px"><button class="link quiet" id="ansx">Dismiss</button></div></div>`;
@@ -717,14 +718,18 @@
   }
   window.addEventListener('hashchange', render);
 
+  // Times are kept as 24-hour (they sort and add up); shown as standard: 14:30 -> 2:30 PM, also inside titles and notes.
+  const t12 = (s) => String(s ?? '').replace(/\b([01]?\d|2[0-3]):([0-5]\d)\b(?!\s*[ap]\.?m)/gi, (_, h, m) => `${+h % 12 || 12}:${m} ${+h < 12 ? 'AM' : 'PM'}`);
+  // what was typed, back to 24-hour: "7:30 pm" / "7pm" -> 19:30, "9:30" -> 09:30
+  const t24 = (s) => s.replace(/\b(\d{1,2})(?::([0-5]\d))?\s*([ap])\.?m\.?(?![a-z])/gi, (_, h, m, ap) => `${String(+h % 12 + (/p/i.test(ap) ? 12 : 0)).padStart(2, '0')}:${m || '00'}`).replace(/\b(\d):([0-5]\d)\b/g, '0$1:$2');
   // tm: time or date before the title; cost: on the title row; meta: extra details (html) for the line below; foot: a footer (e.g. Booked it).
   const itemRow = (i, { tm = i.at, cost = '', icon = false, meta = [], foot = '' } = {}) => {
     const link = safeLink(i.link) ? `<a href="${esc(i.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(new URL(i.link).hostname.replace(/^www\./, ''))} ↗</a>` : '';
     const details = [...meta, link, cc(i.id) ? `<span class="cc">💬 ${cc(i.id)}</span>` : ''].filter(Boolean);
     const pic = picOf(i);
     return `<div class="item" data-id="${i.id}">
-      <div class="hd">${tm ? `<span class="tm${String(tm).length > 6 ? ' wide' : ''}">${esc(tm)}</span>` : ''}<span class="ttl">${icon && TOPIC[i.topic] ? `<span class="ti" title="${TOPIC[i.topic][1]}">${TOPIC[i.topic][0]}</span>` : ''}${esc(i.title)}${i.by_claude ? '<span class="claude" title="Added by Claude">✦</span>' : ''}</span>${cost ? `<span class="cost">${cost}</span>` : ''}${pic ? `<img class="thumb" src="${esc(pic)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
-      ${i.notes ? `<p class="notes">${esc(i.notes)}</p>` : ''}
+      <div class="hd">${tm ? `<span class="tm${t12(tm).length > 8 ? ' wide' : ''}">${esc(t12(tm))}</span>` : ''}<span class="ttl">${icon && TOPIC[i.topic] ? `<span class="ti" title="${TOPIC[i.topic][1]}">${TOPIC[i.topic][0]}</span>` : ''}${esc(t12(i.title))}${i.by_claude ? '<span class="claude" title="Added by Claude">✦</span>' : ''}</span>${cost ? `<span class="cost">${cost}</span>` : ''}${pic ? `<img class="thumb" src="${esc(pic)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
+      ${i.notes ? `<p class="notes">${esc(t12(i.notes))}</p>` : ''}
       ${details.length ? `<div class="meta">${details.join('<span aria-hidden="true">·</span>')}</div>` : ''}
       ${foot ? `<div class="foot">${foot}</div>` : ''}</div>`;
   };
@@ -744,10 +749,10 @@
   const priceOf = (i) => i.cost ? money(i.cost) : ((i.notes || '').match(/(?:about|around|roughly|~)\s*\$[\d,]+(?:\s*[–-]\s*\$?[\d,]+)?/i) || [])[0]?.replace(/^(about|around|roughly|~)\s*/i, '') || '';
   const tile = (i) => {
     const pic = picOf(i), tags = [priceOf(i) && `<span class="price">${esc(priceOf(i))}</span>`, cc(i.id) && `<span>💬 ${cc(i.id)}</span>`].filter(Boolean);
-    return `<div class="tile" data-id="${i.id}" role="button" tabindex="0" aria-label="${esc(i.title)}">
+    return `<div class="tile" data-id="${i.id}" role="button" tabindex="0" aria-label="${esc(t12(i.title))}">
       ${pic ? `<img src="${esc(pic)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=window.__geo(this.closest('.tile').dataset.id)">` : geoArt(i.id)}
       ${ytId(i.video) ? '<span class="play" aria-label="Has a video">▶</span>' : ''}
-      <div class="tt"><b>${esc(i.title)}</b>${tags.length ? `<div class="tags">${tags.join('')}</div>` : ''}</div></div>`;
+      <div class="tt"><b>${esc(t12(i.title))}</b>${tags.length ? `<div class="tags">${tags.join('')}</div>` : ''}</div></div>`;
   };
   window.__geo = geoArt;   // a picture that fails to load becomes the rosette
   // Food and things to do: fetch missing pictures in the background, two at a time; the server keeps them.
@@ -842,7 +847,7 @@
       const on = !!i.chosen, other = !on && !!chosenFor(i.topic);
       return `<div class="opt${on ? ' on' : ''}${other ? ' off' : ''}${mayChoose ? '' : ' ro'}" data-choose="${i.id}" role="radio" aria-checked="${on}" tabindex="0">
         <span class="dot" aria-hidden="true"></span>
-        <span class="ot"><b>${esc(i.title)}</b>${i.notes ? `<span>${esc(i.notes)}</span>` : ''}${cc(i.id) ? `<em class="cc" style="font-style:normal">💬 ${cc(i.id)}</em>` : ''}</span>${picOf(i) ? `<img class="thumb" src="${esc(picOf(i))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+        <span class="ot"><b>${esc(t12(i.title))}</b>${i.notes ? `<span>${esc(t12(i.notes))}</span>` : ''}${cc(i.id) ? `<em class="cc" style="font-style:normal">💬 ${cc(i.id)}</em>` : ''}</span>${picOf(i) ? `<img class="thumb" src="${esc(picOf(i))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
         <button class="more" data-more="${i.id}" aria-label="Details">Details</button></div>`;
     };
     const card = parts.length ? `<div class="choices"><h2>Choices to make <small>${done} of ${parts.length} decided</small></h2>
@@ -1040,7 +1045,7 @@
   // A readable name from an address when the site gives none: ".../things-to-do-with-kids-in-mexico-city/" -> "Things to do with kids in mexico city";
   // id-like parts are skipped, and with nothing readable left it is the site's name.
   const pageName = (u) => { try { const segs = decodeURIComponent(new URL(u).pathname).split('/').filter(Boolean), seg = segs.filter((x) => !/^[0-9a-f-]{12,}$/i.test(x) && /[a-z]{4}/i.test(x)).pop() || ''; const t = seg.replace(/\.[a-z]+$/, '').replace(/[-_]+/g, ' ').replace(/\b(pl|ttd)?\d{3,}\b/gi, '').trim(); return t ? t[0].toUpperCase() + t.slice(1) : new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
-  const when = (ts) => new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const when = (ts) => new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
   let open = null;   // the item shown in the sheet
   async function view(i) {
     if (!i) return;
@@ -1090,7 +1095,7 @@
     const isChoice = i.kind === 'idea' && CHOICES.includes(i.topic), mayChoose = canChoose();
     const place = ['stay', 'food', 'activities', 'tickets', 'transport'].includes(i.topic) || i.kind === 'plan';
     const maps = place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(i.title.replace(/^[A-Za-z ]+:\s*/, '') + (trip.place ? ', ' + trip.place : ''))}` : '';
-    const facts = [i.day && ['Day', nice(i.day)], i.at && ['Time', i.at], i.cost != null && ['Cost', money(i.cost)], i.conf && ['Confirmation', i.conf]].filter(Boolean);
+    const facts = [i.day && ['Day', nice(i.day)], i.at && ['Time', t12(i.at)], i.cost != null && ['Cost', money(i.cost)], i.conf && ['Confirmation', i.conf]].filter(Boolean);
     const talk = streamOf(i.id);
     const who = (id) => nameOf(id) || 'someone';
     $('sheet').innerHTML = `<div class="wrap">
@@ -1101,13 +1106,13 @@
           ${p.path && (p.by === ME.id || PARENT) ? `<button class="x" data-unphoto="${esc(p.path)}" aria-label="Remove photo">✕</button>` : ''}</figure>`).join('')}</div>` : ''}
         ${ytId(i.video) ? `<div class="vid" id="shvid" role="button" aria-label="Play the video"><img src="https://i.ytimg.com/vi/${ytId(i.video)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer"><span class="pl"><span>▶</span></span></div>` : ''}
         <div class="sec">
-          <h2 class="t">${esc(i.title)}</h2>
+          <h2 class="t">${esc(t12(i.title))}</h2>
           <div class="chips">
             ${i.chosen ? '<span class="chip on">✓ Chosen</span>' : ''}${i.kind !== 'idea' ? `<span class="chip">${KIND[i.kind]}</span>` : ''}
             ${i.by_claude ? '<span class="chip">✦ found by Claude</span>' : ''}<span class="chip">added by ${esc(who(i.created_by))}</span>
           </div>
           ${facts.length ? `<div class="facts">${facts.map(([k, v]) => `<div class="fact"><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div>` : ''}
-          ${i.notes ? `<p class="notes">${linkify(i.notes)}</p>` : ''}
+          ${i.notes ? `<p class="notes">${linkify(t12(i.notes))}</p>` : ''}
           ${link ? `<a class="linkcard" href="${esc(link)}" target="_blank" rel="noopener noreferrer">
               ${pv.image && /^https:\/\//.test(pv.image) && (i.photos || []).length ? `<img src="${esc(pv.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
               <div><small>${esc(pv.site || new URL(link).hostname.replace(/^www\./, ''))} ↗</small><b>${esc(pv.title || pageName(link))}</b>${pv.description ? `<span>${esc(pv.description)}</span>` : ''}</div></a>` : ''}
@@ -1208,7 +1213,7 @@
     } catch { r = { error: 'Claude could not update the rest just now.' }; }
     updating = null;
     await load();
-    $('answer').innerHTML = `<div class="answer"><div class="q">After choosing ${esc(i.title)}</div>${r.error ? esc(r.error) : '✦ ' + esc(r.reply)}
+    $('answer').innerHTML = `<div class="answer"><div class="q">After choosing ${esc(i.title)}</div>${r.error ? esc(t12(r.error)) : '✦ ' + esc(t12(r.reply))}
       <div style="margin-top:6px"><button class="link quiet" id="ansx">Dismiss</button></div></div>`;
     $('ansx').onclick = () => { $('answer').innerHTML = ''; };
   }
@@ -1367,14 +1372,14 @@
       if (d.view) facts.push(`<span>👀 ${esc(d.view)}</span>`);
       mid = d.price_each != null ? `<span>${money(d.price_each)} each${d.count ? ` × ${d.count}` : ''}</span>` : '';
     } else {
-      head = `<div class="al">${esc(MODE[d.mode] || '')} ${esc(i.title)}<small>${esc(d.when || '')}</small></div>`;
+      head = `<div class="al">${esc(MODE[d.mode] || '')} ${esc(t12(i.title))}<small>${esc(t12(d.when))}</small></div>`;
       if (d.from || d.to) mid = `<span class="route">${esc(d.from || '')} → <b>${esc(d.to || '')}</b></span>`;
       if (d.minutes) facts.push(`<span>⏱ ${hm(d.minutes)}</span>`);
       if (d.book_ahead) facts.push('<span>Book ahead</span>');
     }
     return `<div class="fcard${on ? ' on' : ''}"><div class="top"><div class="pr"><b>${tot != null ? money(tot) : '?'}</b><small>${t === 'transport' ? 'for everyone' : 'for the family'}${mid ? ' · ' : ''}${mid.replace(/<[^>]+>/g, '')}</small></div>
       <div class="badges">${on ? '<span class="badge fast">✓ Picked</span>' : ''}</div></div>${head}
-      ${facts.length ? `<div class="facts2">${facts.join('')}</div>` : ''}${i.notes ? `<p class="note" style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(i.notes)}</p>` : ''}
+      ${facts.length ? `<div class="facts2">${facts.join('')}</div>` : ''}${i.notes ? `<p class="note" style="margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(t12(i.notes))}</p>` : ''}
       <div class="acts">${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-ppick="${n}:${i.id}">${on ? 'Unpick' : '✓ Pick this'}</button>` : ''}<button class="btn" data-fmore="${i.id}">Details</button>${safeLink(i.link) ? `<a class="btn" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">Open ↗</a>` : ''}</div></div>`;
   }
   function renderPartBuilder() {
@@ -1440,7 +1445,7 @@
 
   // ---- the flight builder: the trip's legs, a pick per leg, suggested combinations ----
   const legLabel = (l) => `${l.from} → ${l.to}`;
-  const legLine = (i) => { const l = i?.flight?.legs?.[0] || {}; return i ? `${(i.flight.airlines || []).join(' + ') || i.title} · ${l.depart || '?'}–${l.arrive || '?'}${l.arrive_plus ? '+' + l.arrive_plus : ''} · ${l.stops ? l.stops + ' stop' + (l.stops > 1 ? 's' : '') : 'nonstop'}` : ''; };
+  const legLine = (i) => { const l = i?.flight?.legs?.[0] || {}; return i ? `${(i.flight.airlines || []).join(' + ') || i.title} · ${t12(l.depart) || '?'}–${t12(l.arrive) || '?'}${l.arrive_plus ? '+' + l.arrive_plus : ''} · ${l.stops ? l.stops + ' stop' + (l.stops > 1 ? 's' : '') : 'nonstop'}` : ''; };
   const ppOf = (i) => i?.flight?.price_pp ?? (i?.flight?.price_total ? i.flight.price_total / travellers() : null);
   const minOf = (i) => i?.flight?.legs?.[0]?.minutes ?? null;
   function flightPart(status) {
@@ -1467,7 +1472,7 @@
     try {
       const { data: { session: s } } = await sb.auth.getSession();
       const r = await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ trip: trip.id, text }) })).json();
-      if (r.error) alert(r.error);
+      if (r.error) alert(t12(r.error));
     } catch { alert("Couldn't reach Claude just now."); }
     flyBusy = false; await load(); if ($('fly').open) (flyMode === 'flights' ? renderBuilder() : renderPartBuilder());
   }
@@ -1547,7 +1552,7 @@
       <div class="list">
         ${uniq.length && !one ? `<div><h3 class="k" style="margin:0 0 8px">Suggested combinations</h3><div class="combos">${uniq.map((x) => { const on = x.c.map((i) => i.id).join() === current;
           return `<div class="combo${on ? ' on' : ''}"><h4>${esc(x.label)}<small>${money(x.pp * n0)}</small></h4>
-            <ul>${x.c.map((i, n) => { const l = i.flight.legs[0] || {}; return `<li><b>${esc(legLabel(plan[n]))}</b> ${esc((i.flight.airlines || [])[0] || '')} ${esc(l.depart || '')}–${esc(l.arrive || '')}${l.arrive_plus ? '+1' : ''} · ${l.stops ? l.stops + ' stop' : 'nonstop'}</li>`; }).join('')}</ul>
+            <ul>${x.c.map((i, n) => { const l = i.flight.legs[0] || {}; return `<li><b>${esc(legLabel(plan[n]))}</b> ${esc((i.flight.airlines || [])[0] || '')} ${esc(t12(l.depart))}–${esc(t12(l.arrive))}${l.arrive_plus ? '+1' : ''} · ${l.stops ? l.stops + ' stop' : 'nonstop'}</li>`; }).join('')}</ul>
             <span class="meta">${money(x.pp)} per person · ${hm(x.min)} in the air${x.stops ? ` · ${x.stops} stop${x.stops > 1 ? 's' : ''}` : ' · all nonstop'}</span>
             ${mayChoose ? `<button class="btn${on ? '' : ' p'}" data-usecombo="${x.c.map((i) => i.id).join(',')}" ${on ? 'disabled' : ''}>${on ? '✓ Your flights' : 'Use these flights'}</button>` : ''}</div>`; }).join('')}</div></div>` : ''}
         ${plan.map((l, n) => { if (one && n !== only) return ''; const opts = legOpts(n).filter(okStops).sort(sortBy), all = legOpts(n).length;
@@ -1585,6 +1590,7 @@
   const fs = { max: null, stops: 'any', hours: null, airlines: new Set(), date: '', sort: 'price' };
   let flyBusy = false;
   const hm = (min) => (min == null ? '?' : `${Math.floor(min / 60)}h${min % 60 ? ' ' + String(min % 60).padStart(2, '0') + 'm' : ''}`);
+  const apm = (t) => esc(t12(t) || '–').replace(/ ([AP]M)/, '<i class="ap">$1</i>');   // a flight time, its AM/PM small
   const toMin = (t) => { const m = String(t || '').match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; };
   function flightInfo(i) {
     const f = i.flight || {}, legs = (f.legs || []).filter((l) => l.depart || l.minutes);
@@ -1604,11 +1610,11 @@
       : `<i style="left:${at(0)}%;width:${100 - at(0)}%"></i><i style="left:0;width:${Math.max(1, ((d + w - 1440) / 1440) * 100)}%"></i>`;
     const dots = d == null ? '' : Array.from({ length: l.stops || 0 }, (_, k) => `<em style="left:${at((w * (k + 1)) / ((l.stops || 0) + 1))}%" title="Change planes${l.via?.[k] ? ' in ' + esc(l.via[k]) : ''}"></em>`).join('');
     const lm = `${hm(l.minutes)} · ${l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}${l.via?.length ? ' via ' + l.via.map(esc).join(', ') : ''}` : 'Nonstop'}`;
-    if (compact) return `<div class="leg c"><div class="lt"><b>${esc(l.depart || '–')}<small>${esc(l.from || '')}</small></b><div class="tl" aria-hidden="true">${bars}${dots}</div>
-        <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div><div class="lm">${lm}</div></div>`;
+    if (compact) return `<div class="leg c"><div class="lt"><b>${apm(l.depart)}<small>${esc(l.from || '')}</small></b><div class="tl" aria-hidden="true">${bars}${dots}</div>
+        <b class="end">${apm(l.arrive)}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div><div class="lm">${lm}</div></div>`;
     return `<div class="leg"><div class="lh"><span>${l.dir === 'back' ? 'Return' : 'Outbound'}${l.date ? ' · ' + esc(nice(l.date)) : ''}</span><span>${(l.flights || []).map(esc).join(' · ')}</span></div>
-      <div class="lt"><b>${esc(l.depart || '–')}<small>${esc(l.from || '')}</small></b><div class="tl" aria-hidden="true">${bars}${dots}</div>
-        <b class="end">${esc(l.arrive || '–')}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div>
+      <div class="lt"><b>${apm(l.depart)}<small>${esc(l.from || '')}</small></b><div class="tl" aria-hidden="true">${bars}${dots}</div>
+        <b class="end">${apm(l.arrive)}${l.arrive_plus ? `<sup>+${l.arrive_plus}</sup>` : ''}<small>${esc(l.to || '')}</small></b></div>
       <div class="lm"><b>${hm(l.minutes)}</b> · ${l.stops ? `${l.stops} stop${l.stops > 1 ? 's' : ''}${l.via?.length ? ' via ' + l.via.map(esc).join(', ') : ''}` : 'Nonstop'}</div></div>`;
   }
   function openFlights(n = null) { flyMode = 'flights'; legEdit = null; only = n; planOf() ? renderBuilder() : renderFlights(); if (!$('fly').open) $('fly').showModal(); }
@@ -1675,7 +1681,7 @@
         const { data: { session: s } } = await sb.auth.getSession();
         const r = await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ trip: trip.id, text: `Fill in the flight details (each leg's date, real scheduled departure and arrival times, airports, minutes, stops and connection airports, airlines, and the typical fare per person and for the family) for these flight ideas, with update_item: ${need.map((x) => `[${x.i.id.slice(0, 8)}] ${x.i.title}`).join('; ')}. Change nothing else.` }) })).json();
-        if (r.error) alert(r.error);
+        if (r.error) alert(t12(r.error));
       } catch (e) { alert("Couldn't look them up just now."); }
       flyBusy = false; await load(); if ($('fly').open) renderFlights();
     };
@@ -1689,7 +1695,7 @@
     const dayOpts = `<option value="">Any day</option>` + days().map((d) => `<option value="${d}" ${d === i.day ? 'selected' : ''}>${nice(d)}</option>`).join('');
     $('dform').innerHTML = `<h2>${isNew ? 'New ' + KIND[k].toLowerCase() : KIND[k]}</h2>
       <label>${k === 'booking' ? 'What (flight, hotel, car…)' : 'What'}<input name="title" required maxlength="200" value="${esc(i.title || '')}"></label>
-      ${k === 'plan' || k === 'booking' ? `<div class="row"><label>Day<select name="day">${dayOpts}</select></label><label>Time<input name="at" placeholder="9:30" maxlength="20" value="${esc(i.at || '')}"></label></div>` : ''}
+      ${k === 'plan' || k === 'booking' ? `<div class="row"><label>Day<select name="day">${dayOpts}</select></label><label>Time<input name="at" placeholder="7:30 PM" maxlength="20" value="${esc(t12(i.at))}"></label></div>` : ''}
       ${k !== 'pack' ? `<label>Part of the trip<select name="topic"><option value="">—</option>${Object.entries({ ...TOPIC, ...(i.topic && !TOPIC[i.topic] && PARTNAME[i.topic] ? { [i.topic]: PARTNAME[i.topic] } : {}) }).map(([t, [e, n]]) => `<option value="${t}" ${t === i.topic ? 'selected' : ''}>${e} ${n}</option>`).join('')}</select></label>` : ''}
       <label>Notes<textarea name="notes" maxlength="2000">${esc(i.notes || '')}</textarea></label>
       <label>Link<input name="link" type="url" placeholder="https://" value="${esc(i.link || '')}"></label>
@@ -1708,7 +1714,7 @@
     f.onsubmit = async (e) => {
       e.preventDefault();
       const v = { title: f.elements.title.value.trim(), notes: f.elements.notes.value.trim() || null, link: f.elements.link.value.trim() || null, updated_at: new Date().toISOString() };
-      if (f.elements.day) { v.day = f.elements.day.value || null; v.at = f.elements.at.value.trim() || null; v.cost = f.elements.cost.value === '' ? null : +f.elements.cost.value; }
+      if (f.elements.day) { v.day = f.elements.day.value || null; v.at = t24(f.elements.at.value.trim()) || null; v.cost = f.elements.cost.value === '' ? null : +f.elements.cost.value; }
       if (f.elements.conf) v.conf = f.elements.conf.value.trim() || null;
       if (f.elements.topic) v.topic = f.elements.topic.value || null;
       if (f.elements.video) {
