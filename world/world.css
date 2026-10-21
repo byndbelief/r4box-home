@@ -541,3 +541,8 @@ header button,header a,header input,header select,header label{pointer-events:au
 .dayc .etext,.pentry .etext{font-size:14.5px;line-height:1.6}
 .pentry .etext{margin-top:10px;font-size:17px;line-height:1.5}
 .dens-pilot .etext{gap:7px}
+/* the story's order: newest or oldest first, one tap */
+h3.k.sk{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ssort{all:unset;cursor:pointer;flex:none;font:700 11px/1 var(--body);letter-spacing:.02em;text-transform:none;color:var(--violet);padding:7px 11px;border-radius:99px;border:1px solid var(--line);background:#ffffff08}
+.ssort:hover,.ssort:focus-visible{border-color:var(--violet)}
+.pick .row .ssort{margin-left:auto}

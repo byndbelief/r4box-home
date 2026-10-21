@@ -355,6 +355,14 @@
   }
 
   // ---------- one topic's story ----------
+  // Newest first (as built) or oldest first: one tap flips the chapters and the moments in each, remembered on this device.
+  const oldFirst = () => { try { return localStorage.getItem('r4fam.storyorder') === 'old'; } catch { return false; } };
+  const sortBtn = () => `<button class="ssort" data-ssort aria-label="Change order">${oldFirst() ? '↑ Oldest first' : '↓ Newest first'}</button>`;
+  function wireSort(root) {
+    const flip = () => root.querySelectorAll('ol.story, ol.story ul.evs').forEach((l) => l.append(...[...l.children].reverse()));
+    if (oldFirst()) flip();
+    root.querySelectorAll('[data-ssort]').forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); try { localStorage.setItem('r4fam.storyorder', oldFirst() ? 'new' : 'old'); } catch {} flip(); b.textContent = oldFirst() ? '↑ Oldest first' : '↓ Newest first'; }));
+  }
   function renderStory(p, t) {
     if (!t) return;
     const a = access(p), sid = storyId(p, t), read = canRead(p, sid), s = topicState(p, t), [emoji, , what] = REALM[t.source];
@@ -363,12 +371,13 @@
     $('body').innerHTML = `<button class="crumb" id="crumb">‹ ${a === 'own' ? 'Your world' : esc(p.name) + '’s world'}</button>
       <div class="who"><h2>${emoji} ${esc(t.title)}</h2><p>${what} · started ${esc(short(t.created))} · ${s.evs.length} moment${s.evs.length === 1 ? '' : 's'}${s.done ? ' · finished' : s.resting ? ' · resting' : ''}</p>${a === 'own' ? shareBtn(sid, K.isShared(sid)) : K.isShared(sid) ? '<span class="share on">✓ Shared with the family</span>' : ''}</div>`
       + progress(s.evs, { color: t.source === 'trip' ? '#F5C542' : '#B9A6FF' })
-      + `<h3 class="k">The story · ${chs.length} chapter${chs.length === 1 ? '' : 's'}</h3>${read ? '' : '<p class="note">You see how it grew. What happened in each moment stays private unless it’s shared.</p>'}
+      + `<h3 class="k sk"><span>The story · ${chs.length} chapter${chs.length === 1 ? '' : 's'}</span>${sortBtn()}</h3>${read ? '' : '<p class="note">You see how it grew. What happened in each moment stays private unless it’s shared.</p>'}
       <ol class="story">${chs.slice().reverse().map((c) => `<li class="chap ${c.key}" data-chap><div class="ch"><span class="n">Chapter ${c.n}</span><b>${c.name}</b><span class="r">${esc(K.range(c.start, c.end))}</span></div>
         <div class="marks">${c.evs.map((e) => `<i style="background:${FAMC[e.kind] || '#B9A6FF'};--s:${(0.7 + (+e.effort || 1) * 0.12).toFixed(2)}" title="${esc(KIND[e.kind] || e.kind)}"></i>`).join('')}<span>${c.days} day${c.days === 1 ? '' : 's'}</span></div>
         ${read ? `<p class="lead">${esc(evText(c.evs[c.evs.length - 1]))}</p><ul class="evs">${c.evs.slice().reverse().map((e) => `<li><span>${esc(short(e.day))} · ${esc(KIND[e.kind] || e.kind)}</span>${esc(evText(e))}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
     $('crumb').onclick = () => { live.reset(); renderHome(p); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     $('body').querySelectorAll('[data-chap]').forEach((el) => (el.onclick = () => el.classList.toggle('open')));
+    wireSort($('body'));
     const first = $('body').querySelector('[data-chap]'); if (first && read) first.classList.add('open');
     wireShare($('body'), () => ({ kind: 'story', title: emoji + ' ' + t.title, day: lastOf(p, t), text: chs.length + ' chapters · latest: ' + (evText(s.evs[s.evs.length - 1]) || '').slice(0, 120) }));
     const top = $('worldBox').getBoundingClientRect().bottom + window.scrollY - 8; window.scrollTo({ top: Math.max(0, top - 60), behavior: 'smooth' });
@@ -385,7 +394,7 @@
   }
   function storyPanel(p, t, back) {
     const read = canRead(p, storyId(p, t)), s = topicState(p, t), [emoji, , what] = REALM[t.source], chs = K.chapters(s.evs);
-    $('pick').innerHTML = `<div class="row" style="margin-top:0"><button class="ghost" id="pback">‹ Back</button></div>
+    $('pick').innerHTML = `<div class="row" style="margin-top:0"><button class="ghost" id="pback">‹ Back</button>${sortBtn()}</div>
       <h2>${emoji} ${esc(t.title)} <small>${what} · started ${esc(short(t.created))} · ${s.evs.length} moment${s.evs.length === 1 ? '' : 's'}${s.done ? ' · finished' : s.resting ? ' · resting' : ''}</small></h2>
       ${read ? '' : '<p>You see how it grew. What happened in each moment stays private unless it’s shared.</p>'}
       <ol class="story pstory" data-topic="${esc(t.id)}">${chs.slice().reverse().map((c) => `<li class="chap ${c.key}${read ? ' open' : ''}" data-chap><div class="ch"><span class="n">Chapter ${c.n}</span><b>${c.name}</b><span class="r">${esc(K.range(c.start, c.end))}</span></div>
@@ -395,6 +404,7 @@
     // a moment here and its bud on the limb: tap one, the other lights
     $('pick').querySelectorAll('[data-ev]').forEach((li) => (li.onclick = (ev) => { ev.stopPropagation(); live.showEvent(li.dataset.ev); markMoment(li.dataset.ev, false); }));
     $('pick').querySelectorAll('[data-chap]').forEach((el) => (el.onclick = () => el.classList.toggle('open')));
+    wireSort($('pick'));
     $('pick').scrollTop = 0;
   }
 
