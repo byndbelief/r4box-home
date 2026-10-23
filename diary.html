@@ -37,7 +37,11 @@
       #app > #legend { position: absolute; z-index: 2; left: 0; right: var(--col); bottom: 14px; margin: 0; justify-content: center; }
       #app > main.page { grid-column: 2; grid-row: 1; height: 100vh; overflow-y: auto; overscroll-behavior: contain; border-left: 1px solid #251F48; background: #05040d; padding-top: max(18px, env(safe-area-inset-top)); }
       .isfull .pick { width: calc(min(560px, 100vw) - 24px); }
+      /* a card opened as its own page (Everything growing, Timeline, All ideas, the journal) takes the right column, the world stays beside it */
+      .subpage { left: auto; right: 0; transform: none; width: var(--col); max-width: none; border-left: 1px solid #251F48; animation-name: subinR; }
+      .insub #app > header, .insub #app > .world { visibility: visible; }
     }
+    @keyframes subinR { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
   </style>
 </head>
 <body>
