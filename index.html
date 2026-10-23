@@ -267,6 +267,16 @@
     .dens-pilot .hdock .g { width: 30px; height: 30px; font-size: 13px; border-radius: 8px; } .dens-pilot .hdock .g.emoji { font-size: 15px; }
     .dens-pilot .hdock b { font-size: 11.5px; } .dens-pilot .hdock small { font-size: 9.5px; }
     .dens-pilot .hrecent { border-radius: 10px; } .dens-pilot .hrecent a { padding: 6px 10px; min-height: 34px; } .dens-pilot .hrecent .t { font-size: 12px; }
+    /* a wide screen: the world, Claude and the quick apps fill the left and stay put; today, the chat, apps and the family scroll on the right */
+    @media (min-width: 1000px) {
+      :root { --col: min(600px, 44vw); }
+      #home:not([hidden]) { max-width: none; height: 100vh; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) var(--col); grid-template-rows: 100%; box-shadow: none; }
+      #home > header { right: var(--col); }
+      #home .gmenu { right: calc(var(--col) + 16px); }
+      #home > .hero { grid-column: 1; grid-row: 1; height: 100vh; min-height: 0; padding-bottom: 16px; box-sizing: border-box; }
+      #home > .hero .hmore { display: none; }
+      #home > .hpage { grid-column: 2; grid-row: 1; height: 100vh; overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; border-top: 0; border-left: 1px solid var(--line); background: #05040d; }
+    }
   </style>
 </head>
 <body>
