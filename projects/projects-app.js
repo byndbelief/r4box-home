@@ -239,45 +239,196 @@
       .then(() => toast('🤝 Asked ' + byId(p.owner).name + '. They’ll see it in Share and in the chat.'), (e) => toast(e.message)); renderHome();
   }
   // ---------- categories: ideas to start from. Each starts from a kit (its kind of plant in the worlds) and
-  // Claude builds the whole idea at once (project-build with start): real, finished projects to grow, not settings ----------
+  // Claude builds the whole idea at once (project-build with start). Tapping one shows what it is and how it
+  // plays; what it comes with (has, on unless switched off), extras to add (add, off unless picked) and their
+  // own twist go into what Claude is asked to build (planAsk) ----------
   const CATS = [
     { id: 'game', em: '🎮', name: 'Games', color: '#3DD6C6', blurb: 'Arcade, puzzles, quizzes.', ideas: [
-      { em: '🚀', name: 'Space dodger', blurb: 'Steer through asteroids; shields, slow-mo, levels.', kit: 'catch', set: { title: 'Space dodger', sprite: '🚀', item: '☄️', bg: '#000000', color: '#B9A6FF' }, ask: 'Build a space dodger game: a ship at the bottom you steer by dragging (or arrow keys), asteroids falling at different sizes and speeds, a starfield scrolling behind. Three lives shown as hearts, a short flash and shake when hit. Power-ups fall now and then: a shield (one free hit), slow-motion (5 seconds) and a bonus life. The level goes up every 30 seconds (faster, more asteroids) with a "Level 2!" banner. Score for time survived, best score saved on this device, a start screen and a game-over screen with Play again, and a pause button. Sound effects with r4.sfx for a hit, a power-up and level up, loaded at the start.' },
-      { em: '🐍', name: 'Snake', blurb: 'The classic: swipe, grow, speed up, beat your best.', kit: 'catch', set: { title: 'Snake', sprite: '🐍', item: '🍎', color: '#3DD6C6' }, ask: 'Build Snake on a grid that fits the screen: swipe (or arrow keys) to turn, eat apples to grow, it gets a little faster every 5 apples, hitting a wall or yourself ends it. Now and then a golden apple appears for a few seconds worth 5 points. Show the score and the best score (saved on this device), a start screen with three speeds (Chill, Normal, Turbo), a pause button, and a game-over screen with Play again. Smooth movement and a short tone() blip when you eat.' },
-      { em: '🧱', name: 'Brick breaker', blurb: 'Paddle, ball, bricks that take hits, power-ups.', kit: 'catch', set: { title: 'Brick breaker', sprite: '🏓', item: '🧱', color: '#FF5A4A' }, ask: 'Build a brick breaker: drag the paddle (or arrow keys), the ball bounces off walls, the paddle (angle depends on where it hits) and bricks. Rows of coloured bricks, some taking 2 or 3 hits (darker when hurt). Broken bricks sometimes drop a power-up to catch: wide paddle, multi-ball, or a slow ball. Three lives, a level complete screen and 3 different brick layouts that get harder, score and best score saved, tap to launch the ball. Little particle bursts when bricks break and tone() blips on bounces.' },
-      { em: '🏃', name: 'Endless runner', blurb: 'Jump and double-jump over obstacles; coins, speed.', kit: 'catch', set: { title: 'Runner', sprite: '🏃', item: '🪙', color: '#F5C542' }, ask: 'Build an endless runner: a character runs along the ground, tap (or space) to jump and tap again in the air to double jump. Obstacles of different heights come along, coins float to collect, and the speed slowly ramps up. Two layers of scenery scrolling at different speeds behind for depth. Show distance and coins, keep the best distance on this device, a start screen and a game-over screen with Play again. Sound effects with r4.sfx for a jump, a coin and a crash, loaded at the start.' },
-      { em: '🃏', name: 'Memory match', blurb: 'Flip cards, find pairs; sizes, timer, best times.', kit: 'catch', set: { title: 'Memory match', sprite: '🃏', item: '⭐', color: '#B9A6FF' }, ask: 'Build a memory match game: emoji cards face down in a grid, tap two to flip them (a real flip animation), matches stay up, others flip back. Three sizes to pick from (4×3, 4×4, 6×5), a move counter and a timer, a best time saved for each size on this device, and a win screen with confetti and Play again. A few emoji themes to choose from (animals, food, space).' },
-      { em: '🎙', name: 'Quiz show', blurb: 'A host who talks, a clock, streaks and a final rank.', kit: 'catch', set: { title: 'Quiz show', sprite: '🎙', item: '❓', color: '#F5C542' }, ask: 'Build a quiz show: pick a category (Science, Animals, Space, Food, plus one called My questions that I can fill in in main.js), then 10 multiple-choice questions, each with a 15-second countdown bar. Right answers score more the faster you answer, and a streak of 3 or more doubles the points. A game-show host speaks with r4.say in the announcer voice: a welcome, "Correct!" or "Not quite!", and the final result (keep those lines fixed so they are made once). Show the score, the streak, and at the end a rank (like Quiz rookie to Quiz legend) and the best score per category saved on this device. At least 8 questions per category, shuffled each time.' },
+      { em: '🚀', name: 'Space dodger', blurb: 'Steer through asteroids; shields, slow-mo, levels.', kit: 'catch', set: { title: 'Space dodger', sprite: '🚀', item: '☄️', bg: '#000000', color: '#B9A6FF' },
+        about: 'You fly a ship through a falling asteroid field that gets thicker and faster the longer you last. Grab power-ups to survive, and chase your best score.',
+        play: 'Drag to steer (arrow keys on a computer). Survive as long as you can.',
+        has: ['3 lives as hearts, a flash and shake when hit', 'Power-ups: shield, slow-mo, extra life', 'A new level every 30 seconds, with a banner', 'Best score saved on this device', 'Start, pause and game-over screens', 'Sound effects for hits, power-ups and level up'],
+        add: ['A boss asteroid every 5 levels', 'Lasers to blast asteroids', 'Unlockable ship skins', 'Background music', 'A two-player mode on one screen'],
+        mine: 'A cat dodging hairballs in a kitchen',
+        ask: 'Build a space dodger game: a ship at the bottom steered by dragging (or arrow keys), asteroids of different sizes and speeds falling, a starfield scrolling behind. Score is time survived.' },
+      { em: '🐍', name: 'Snake', blurb: 'The classic: swipe, grow, speed up, beat your best.', kit: 'catch', set: { title: 'Snake', sprite: '🐍', item: '🍎', color: '#3DD6C6' },
+        about: 'The classic: steer a snake around the grid eating apples. Every apple makes you longer, and the longer you are, the harder it is not to crash into yourself.',
+        play: 'Swipe to turn (arrow keys on a computer). Don’t hit the walls or your own tail.',
+        has: ['Speeds up every 5 apples', 'Golden apples worth 5 points', 'Three speeds: Chill, Normal, Turbo', 'Best score saved on this device', 'Pause and game-over screens', 'A blip when you eat'],
+        add: ['Walls that appear as you grow', 'Wrap around the edges instead of crashing', 'A rival snake controlled by the computer', 'Power-ups (ghost mode, shrink)', 'Background music'],
+        mine: 'A dragon eating gems in a cave',
+        ask: 'Build Snake on a grid that fits the screen: swipe (or arrow keys) to turn, eat apples to grow, hitting a wall or yourself ends it. Smooth movement.' },
+      { em: '🧱', name: 'Brick breaker', blurb: 'Paddle, ball, bricks that take hits, power-ups.', kit: 'catch', set: { title: 'Brick breaker', sprite: '🏓', item: '🧱', color: '#FF5A4A' },
+        about: 'Bounce a ball off your paddle to smash a wall of bricks. Clear every brick to move on to the next layout.',
+        play: 'Drag the paddle (arrow keys on a computer), tap to launch the ball. Where it hits the paddle sets the angle.',
+        has: ['Bricks that take 2 or 3 hits', 'Power-ups: wide paddle, multi-ball, slow ball', '3 levels with different layouts', '3 lives', 'Best score saved on this device', 'Particle bursts and bounce sounds'],
+        add: ['A level editor to design your own layouts', 'Bricks that move', 'A laser paddle power-up', 'A boss level', 'Background music'],
+        mine: 'Breaking ice blocks in the Arctic',
+        ask: 'Build a brick breaker: drag the paddle (or arrow keys), the ball bounces off walls, the paddle (angle depends on where it hits) and rows of coloured bricks. Tap to launch.' },
+      { em: '🏃', name: 'Endless runner', blurb: 'Jump and double-jump over obstacles; coins, speed.', kit: 'catch', set: { title: 'Runner', sprite: '🏃', item: '🪙', color: '#F5C542' },
+        about: 'Your runner never stops. Jump over obstacles, grab coins, and see how far you get as the world speeds up.',
+        play: 'Tap (or space) to jump, tap again in the air to double jump.',
+        has: ['Double jump', 'Coins to collect', 'Speed ramps up over time', 'Scenery in layers for depth', 'Best distance saved on this device', 'Sounds for jumps, coins and crashes'],
+        add: ['A shop to spend coins on characters', 'Slide under low obstacles', 'Day and night cycle', 'Power-ups (magnet, shield)', 'Background music'],
+        mine: 'A ninja running across rooftops',
+        ask: 'Build an endless runner: a character runs along the ground, obstacles of different heights come along, the score is distance. Start and game-over screens with Play again.' },
+      { em: '🃏', name: 'Memory match', blurb: 'Flip cards, find pairs; sizes, timer, best times.', kit: 'catch', set: { title: 'Memory match', sprite: '🃏', item: '⭐', color: '#B9A6FF' },
+        about: 'Cards are face down. Flip two at a time to find matching pairs, in as few moves and as little time as you can.',
+        play: 'Tap two cards to flip them. Matches stay up; the rest flip back.',
+        has: ['A real card-flip animation', 'Three sizes: 4×3, 4×4, 6×5', 'Moves and a timer', 'Best time per size saved on this device', 'Themes: animals, food, space', 'Confetti when you win'],
+        add: ['Two players taking turns', 'A hint button (with a limit)', 'Cards with your own pictures or words', 'Sound effects', 'A daily puzzle'],
+        mine: 'Pairs of Spanish and English words',
+        ask: 'Build a memory match game: emoji cards face down in a grid, tap two to flip, matches stay up, others flip back, a win screen with Play again.' },
+      { em: '🎙', name: 'Quiz show', blurb: 'A host who talks, a clock, streaks and a final rank.', kit: 'catch', set: { title: 'Quiz show', sprite: '🎙', item: '❓', color: '#F5C542' },
+        about: 'A game show: pick a category and answer 10 questions against the clock. A host welcomes you and reacts to every answer out loud.',
+        play: 'Tap an answer before the time bar runs out. Faster answers score more.',
+        has: ['Categories: Science, Animals, Space, Food, and My questions', 'A 15-second countdown per question', 'Streaks of 3 double the points', 'A host who talks (announcer voice)', 'A rank at the end, Quiz rookie to Quiz legend', 'Best score per category saved'],
+        add: ['Two players buzzing in on one screen', 'Lifelines (50:50, skip)', 'A lightning round', 'Background music', 'Picture questions with emoji'],
+        mine: 'All about my favourite video game',
+        ask: 'Build a quiz show: pick a category, then 10 multiple-choice questions, shuffled each time, with at least 8 questions per category. The host speaks with r4.say in the announcer voice: a welcome, "Correct!" or "Not quite!", and the final result (fixed lines).' },
     ] },
     { id: 'app', em: '🧰', name: 'Apps', color: '#F5C542', blurb: 'Tools you’ll actually use.', ideas: [
-      { em: '💪', name: 'Workout coach', blurb: 'Build a routine; a voice coaches you through it.', kit: 'timer', set: { title: 'Workout coach' }, ask: 'Build a workout coach: I make a routine from exercises (name, seconds of work, seconds of rest) and a number of rounds, and save several routines on this device (two examples to start). Playing one shows the exercise in huge letters, a ring counting down, the round, and what is next. A coach voice (r4.say, announcer) says "Work!", "Rest", "Halfway!" and "Done, great job!" (fixed lines), with a tone() beep for the last 3 seconds of each part. Pause, skip and stop, and the screen colour changes between work and rest.' },
-      { em: '✅', name: 'Habit tracker', blurb: 'Tick habits each day, see streaks and a month grid.', kit: 'timer', set: { title: 'Habits' }, ask: 'Build a habit tracker: add habits (an emoji and a name), tick each one off for today with a satisfying animation, and see each habit’s current streak and best streak. A month view shows a grid of days per habit, coloured where done, and you can tap a past day to fix it. Everything is saved on this device. A small summary at the top: how many done today out of how many. Easy to delete or reorder a habit.' },
-      { em: '🎯', name: 'Goal saver', blurb: 'Savings goals with progress bars and a history.', kit: 'timer', set: { title: 'Goal saver' }, ask: 'Build a savings goal tracker: make goals (a name, an emoji, a target amount), add or take money with a short note, and each goal shows a progress bar, how much is left, and a celebration when it is reached. A history list for each goal, the total saved across everything at the top, and everything saved on this device. Amounts shown as money with two decimals.' },
-      { em: '🎡', name: 'Decision wheel', blurb: 'A spinning wheel of your options, with sound.', kit: 'timer', set: { title: 'Decision wheel' }, ask: 'Build a decision wheel: a big colourful wheel drawn on a canvas with my options as slices (add, edit and remove them; saved on this device, with a few ready-made lists like Dinner and Movie night). Spin it with a tap or a flick: it spins fast and slows down realistically, ticking with tone() as it passes slices, then lands and shows the winner big with confetti. Keep a list of the last 5 results, and an option to remove the winner after each spin.' },
+      { em: '💪', name: 'Workout coach', blurb: 'Build a routine; a voice coaches you through it.', kit: 'timer', set: { title: 'Workout coach' },
+        about: 'Make your own workout routines, then press play and a coach talks you through each exercise and rest.',
+        play: 'Build a routine from exercises (how long to work, how long to rest, how many rounds), then press play.',
+        has: ['Several routines saved, two examples to start', 'Huge exercise name and a countdown ring', 'A coach voice: Work!, Rest, Halfway!, Done', 'Beeps for the last 3 seconds', 'Pause, skip and stop', 'Different colours for work and rest'],
+        add: ['A history of workouts done', 'A streak counter', 'Warm-up and cool-down parts', 'Background music', 'Pictures or emoji for each exercise'],
+        mine: 'Basketball drills before practice',
+        ask: 'Build a workout coach: I make routines from exercises (name, seconds of work, seconds of rest) and a number of rounds; playing one shows the exercise, a countdown ring, the round, and what is next. The coach voice uses r4.say (announcer, fixed lines).' },
+      { em: '✅', name: 'Habit tracker', blurb: 'Tick habits each day, see streaks and a month grid.', kit: 'timer', set: { title: 'Habits' },
+        about: 'Keep track of the things you want to do every day, and watch your streaks grow.',
+        play: 'Add habits, tick them off each day, look back at the month.',
+        has: ['Habits with an emoji and a name', 'A satisfying tick animation', 'Current and best streak per habit', 'A month grid you can tap to fix a day', 'Done today, out of how many', 'Saved on this device'],
+        add: ['Reminders at a time you pick', 'Habits for some days of the week only', 'Stats and a chart per habit', 'Badges for long streaks', 'A cheer sound when you finish the day'],
+        mine: 'Practising guitar, reading, drinking water',
+        ask: 'Build a habit tracker: add habits, tick each off for today, see streaks, and a month view per habit. Easy to delete or reorder a habit.' },
+      { em: '🎯', name: 'Goal saver', blurb: 'Savings goals with progress bars and a history.', kit: 'timer', set: { title: 'Goal saver' },
+        about: 'Save up for things you want. Each goal fills up as you add money, and celebrates when you get there.',
+        play: 'Make a goal, then add (or take out) money with a note.',
+        has: ['Goals with a name, emoji and target', 'A progress bar and how much is left', 'A history for each goal', 'The total saved across everything', 'A celebration when a goal is reached', 'Saved on this device'],
+        add: ['A weekly allowance added automatically', 'How many weeks until each goal', 'Splitting money between goals', 'A chart of savings over time', 'A wish list for after'],
+        mine: 'Saving for a new bike and a game',
+        ask: 'Build a savings goal tracker: goals with a name, emoji and target amount; add or take money with a short note. Amounts shown as money with two decimals.' },
+      { em: '🎡', name: 'Decision wheel', blurb: 'A spinning wheel of your options, with sound.', kit: 'timer', set: { title: 'Decision wheel' },
+        about: 'Can’t decide? Put your options on a wheel and spin it.',
+        play: 'Edit the options, then tap or flick the wheel to spin.',
+        has: ['A colourful wheel with your options as slices', 'Ready-made lists like Dinner and Movie night', 'A realistic spin that slows down, ticking', 'The winner shown big, with confetti', 'The last 5 results', 'Remove the winner after each spin (optional)'],
+        add: ['Weighted options (bigger slices)', 'Several wheels saved by name', 'Elimination mode until one is left', 'A drumroll sound effect', 'Share the result in a message'],
+        mine: 'Who does which chore this week',
+        ask: 'Build a decision wheel drawn on a canvas with my options as slices (add, edit and remove them; saved on this device). Spin with a tap or a flick, ticking with tone() as it passes slices.' },
     ] },
     { id: 'page', em: '🌐', name: 'Pages', color: '#B9A6FF', blurb: 'Sites about you and what you love.', ideas: [
-      { em: '😎', name: 'My site', blurb: 'A real personal site: sections, a dark mode, your stuff.', kit: 'page', set: { title: 'My site' }, ask: 'Build a personal website, one page with sections: a big hero with my name, an emoji and a one-line intro, an About section, a grid of cards for things I love (each an emoji, a title and a line), a "Right now" section (what I am into this week), and a footer. A sticky menu at the top that scrolls to each section, a light/dark switch that is remembered, and a nice entrance animation as sections scroll in. Keep all my content in one easy-to-edit object at the top of main.js.' },
-      { em: '🏆', name: 'Fan page', blurb: 'Your team, band or game: facts, a gallery, a quiz.', kit: 'page', set: { title: 'Fan page', sprite: '🏆' }, ask: 'Build a fan page for a team, band or game (I will fill in the details in one easy object at the top of main.js): a big title banner, a short intro, a grid of fact cards that flip over when tapped to show more, a Random fact button, a top-5 list I can reorder by dragging, and a 5-question quiz at the bottom with a score. Make it look like a real fan site with bold colours.' },
-      { em: '📚', name: 'My collection', blurb: 'Books, games, shoes: cards, ratings, search.', kit: 'page', set: { title: 'My collection', sprite: '📚' }, ask: 'Build a collection keeper for things I own or want (books, games, shoes, anything): add items with a name, an emoji, a category, a star rating and a note, shown as cards. Search, filter by category, sort by name or rating, a "wishlist" switch on each item, and tap a card to edit it. Saved on this device, with a few example items to start.' },
+      { em: '😎', name: 'My site', blurb: 'A real personal site: sections, a dark mode, your stuff.', kit: 'page', set: { title: 'My site' },
+        about: 'Your own website, with sections about you and the things you love.',
+        play: 'Scroll through it, or jump to a section from the menu. All your words live in one place in main.js.',
+        has: ['A big intro with your name and an emoji', 'An About section', 'Cards for things you love', 'A Right now section', 'A sticky menu and a light/dark switch', 'Sections that animate in as you scroll'],
+        add: ['A guestbook (saved on this device)', 'A photo gallery made of emoji', 'A favourite-songs list', 'A contact card', 'A secret page behind a password'],
+        mine: 'A site about my football team and drawing',
+        ask: 'Build a personal website, one page with sections, a footer, and all my content in one easy-to-edit object at the top of main.js.' },
+      { em: '🏆', name: 'Fan page', blurb: 'Your team, band or game: facts, a gallery, a quiz.', kit: 'page', set: { title: 'Fan page', sprite: '🏆' },
+        about: 'A fan site for your favourite team, band or game, with facts, a ranking and a quiz to test your friends.',
+        play: 'Fill in the details in one place in main.js; the page builds itself from them.',
+        has: ['A big title banner and intro', 'Fact cards that flip over', 'A Random fact button', 'A top 5 you reorder by dragging', 'A 5-question quiz with a score', 'Bold fan-site colours'],
+        add: ['A countdown to the next match, album or release', 'A timeline of big moments', 'A poll (saved on this device)', 'A cheer sound effect', 'Player or member profile cards'],
+        mine: 'For Minecraft',
+        ask: 'Build a fan page for a team, band or game, filled in from one easy object at the top of main.js. Make it look like a real fan site.' },
+      { em: '📚', name: 'My collection', blurb: 'Books, games, shoes: cards, ratings, search.', kit: 'page', set: { title: 'My collection', sprite: '📚' },
+        about: 'Keep track of things you own or want: books, games, shoes, cards, anything.',
+        play: 'Add items, rate them, search and sort. Tap a card to edit it.',
+        has: ['Cards with a name, emoji, category, stars and a note', 'Search', 'Filter by category, sort by name or rating', 'A wishlist switch on each item', 'Example items to start', 'Saved on this device'],
+        add: ['A price and a total value', 'Lent to a friend (and who)', 'Stats per category', 'Export the list as text', 'A random pick button'],
+        mine: 'My Pokémon card collection',
+        ask: 'Build a collection keeper: items shown as cards, tap a card to edit it.' },
     ] },
     { id: 'story', em: '📖', name: 'Stories', color: '#FF5A4A', blurb: 'Adventures, mysteries, characters.', ideas: [
-      { em: '🔀', name: 'Choose your path', blurb: 'Branching story, items to find, a narrator who reads it.', kit: 'comic', set: { title: 'Choose your path' }, ask: 'Build a choose-your-own-adventure: one scene at a time (a big emoji scene, a few lines, and two or three choices), at least 10 scenes and 3 different endings. An inventory: some scenes give an item (like a key or a map) that unlocks a choice later. A narrator reads each scene aloud with r4.say in the narrator voice (a 🔊 switch to turn it off), and a few scenes play a sound effect with r4.sfx. Keep the whole story in one easy-to-edit object at the top of main.js, track which endings I have found (saved on this device), and a Start again button.' },
-      { em: '🤖', name: 'Talk to a character', blurb: 'A character you talk to out loud, with captions.', kit: 'comic', set: { title: 'Robot pal', panels: [{ e: '🤖', t: 'Hi! Tap Talk to chat.' }] }, ask: 'Build a talking character: a big character in the middle (an emoji face with a glowing ring that pulses while it speaks and dims while it listens), its name and a one-line description at the top, a big Talk button that starts a live conversation with r4.talk (and Hang up while talking), and captions underneath showing what each of us says, newest at the bottom. Put the character in one easy-to-edit object at the top of main.js: name, emoji, persona (a friendly, slightly nervous robot who loves facts about space), the first thing it says, and its voice (gravelly). After a conversation, keep its captions on screen.' },
-      { em: '🕵️', name: 'Mystery', blurb: 'Search rooms, question suspects, name the culprit.', kit: 'comic', set: { title: 'The missing cake' }, ask: 'Build a detective mystery: something went missing (a birthday cake). I explore 4 rooms (tap one to search it and find clues), question 4 suspects (each has two or three questions to ask, with answers that hint or mislead), and keep a notebook of every clue found. When I am ready I accuse someone and explain with one clue; right or wrong, I get an ending. Make one set of clues truly point to the culprit. Keep the case in one object at the top of main.js so I can write new mysteries, and add suspense sounds with r4.sfx.' },
+      { em: '🔀', name: 'Choose your path', blurb: 'Branching story, items to find, a narrator who reads it.', kit: 'comic', set: { title: 'Choose your path' },
+        about: 'A story where you decide what happens. Every choice leads somewhere different, and some paths need items you found earlier.',
+        play: 'Read the scene (or listen), then pick what to do.',
+        has: ['At least 10 scenes and 3 endings', 'Items that unlock choices later', 'A narrator who reads each scene', 'Sound effects in some scenes', 'Endings found, saved on this device', 'The whole story in one easy object in main.js'],
+        add: ['Health or courage points', 'A map of where you’ve been', 'Dice rolls for risky choices', 'Background music', 'A second story to pick from'],
+        mine: 'Lost in a haunted (but not too scary) castle',
+        ask: 'Build a choose-your-own-adventure: one scene at a time (a big emoji scene, a few lines, and two or three choices). The narrator uses r4.say in the narrator voice, with a 🔊 switch; a Start again button.' },
+      { em: '🤖', name: 'Talk to a character', blurb: 'A character you talk to out loud, with captions.', kit: 'comic', set: { title: 'Robot pal', panels: [{ e: '🤖', t: 'Hi! Tap Talk to chat.' }] },
+        about: 'A character you can talk to out loud, and it talks back. You decide who it is and how it acts.',
+        play: 'Tap Talk and just speak. Tap Hang up when you’re done.',
+        has: ['A character with a glow that pulses as it speaks', 'A live voice conversation', 'Captions of what each of you says', 'Its name, emoji, personality and voice in one place in main.js'],
+        add: ['Pick from several characters', 'A mood that changes the colour', 'Save past conversations on this device', 'Suggested things to say', 'An animated face with a moving mouth'],
+        mine: 'A pirate parrot who tells sea stories',
+        ask: 'Build a talking character: a big character in the middle (an emoji face with a glowing ring), its name and a line about it at the top, a big Talk button that starts r4.talk (Hang up while talking), and captions underneath, newest at the bottom. The default character: a friendly, slightly nervous robot who loves facts about space, in the gravelly voice.' },
+      { em: '🕵️', name: 'Mystery', blurb: 'Search rooms, question suspects, name the culprit.', kit: 'comic', set: { title: 'The missing cake' },
+        about: 'Something has gone missing. Search the house, question the suspects, and work out who did it.',
+        play: 'Tap rooms to search them, tap suspects to question them, then make your accusation.',
+        has: ['4 rooms to search for clues', '4 suspects with questions to ask', 'A notebook of every clue found', 'Accuse someone and explain with a clue', 'Clues that truly point to the culprit', 'Suspense sound effects'],
+        add: ['A timer to solve it', 'Red herrings and a twist', 'A second case', 'A suspect who lies', 'A narrator voice'],
+        mine: 'Who stole the school trophy',
+        ask: 'Build a detective mystery: a birthday cake went missing; I explore rooms, question suspects, and accuse someone at the end, right or wrong I get an ending. Keep the case in one object at the top of main.js so I can write new mysteries.' },
     ] },
     { id: 'toy', em: '🎨', name: 'Music & art', blurb: 'Beats, songs, drawings.', ideas: [
-      { em: '🎛', name: 'Beat maker', blurb: 'A 16-step sequencer: drums, tempo, patterns.', kit: 'drums', set: { title: 'Beat maker', pads: 8 }, ask: 'Build a beat maker: a grid of 6 instruments (kick, snare, hi-hat, clap, bass, bell, all synthesised with the Web Audio API, no files) by 16 steps. Tap squares to turn them on, press Play and a playhead runs across, with a tempo slider (60 to 180 BPM) and a swing control. Save up to 4 patterns on this device and switch between them, a Clear button, and a Random beat button. Squares light up as they play.' },
-      { em: '🎹', name: 'Piano + recorder', blurb: 'Play keys, record a tune, play it back.', kit: 'drums', set: { title: 'Piano' }, ask: 'Build a piano: two octaves of white and black keys laid out like a real keyboard (scroll sideways on a phone), each playing its note with a nice synthesised sound when tapped, with keys lighting up, and computer keys playing them too. Add a Record button that records what I play with its timing, Play to hear it back, and save up to 3 recordings on this device. A sound switch between piano, organ and synth.' },
-      { em: '🖌', name: 'Paint studio', blurb: 'Brushes, colours, undo, symmetry, save a picture.', kit: 'drums', set: { title: 'Paint studio' }, ask: 'Build a paint studio: a full-screen canvas I draw on with a finger or mouse, smooth lines, a colour palette plus a custom colour, brush sizes, an eraser, a rainbow brush, a mirror (symmetry) mode, undo and redo, clear, and a Save button that downloads the picture as a PNG. The toolbar folds away so the canvas gets the whole screen.' },
-      { em: '🎵', name: 'Mood music', blurb: 'Pick a vibe; real music is made for it, with a visualiser.', kit: 'drums', set: { title: 'Mood music' }, ask: 'Build a mood music player: I pick a mood (Chill, Epic, Spooky, Happy, Focus) and a style (8-bit, Lo-fi, Orchestra, Rock), and r4.music makes a 30-second track from a description built from those (keep each description fixed per combination so it is made once). While it plays, an animated visualiser of bars and colours that match the mood moves on screen, with Play/Pause and a list of the tracks made so far (saved on this device) to replay.' },
+      { em: '🎛', name: 'Beat maker', blurb: 'A 16-step sequencer: drums, tempo, patterns.', kit: 'drums', set: { title: 'Beat maker', pads: 8 },
+        about: 'Make beats on a grid: each row is an instrument, each column a step. Press play and it loops.',
+        play: 'Tap squares to turn them on, press play, change the tempo.',
+        has: ['6 instruments: kick, snare, hi-hat, clap, bass, bell', '16 steps with a moving playhead', 'Tempo (60 to 180 BPM) and swing', '4 patterns saved on this device', 'Clear and Random beat', 'Squares light up as they play'],
+        add: ['A melody row with notes', 'Volume per instrument', 'Chain patterns into a song', 'Record and download it', 'More drum kits'],
+        mine: 'A hip-hop beat',
+        ask: 'Build a beat maker: a grid of instruments (all synthesised with the Web Audio API, no files) by 16 steps; tap squares to turn them on and press Play.' },
+      { em: '🎹', name: 'Piano + recorder', blurb: 'Play keys, record a tune, play it back.', kit: 'drums', set: { title: 'Piano' },
+        about: 'A piano you can play on screen, record tunes on, and play back.',
+        play: 'Tap the keys (or use the computer keyboard). Press Record, play, then Play it back.',
+        has: ['Two octaves laid out like a real keyboard', 'Keys light up as they play', 'Computer keys play notes too', 'Record and play back with timing', '3 recordings saved on this device', 'Piano, organ and synth sounds'],
+        add: ['Songs to learn, with keys lighting up', 'A metronome', 'Chords with one tap', 'Slow-down playback', 'Note names on the keys'],
+        mine: 'Learn the Mario theme',
+        ask: 'Build a piano: keys laid out like a real keyboard (scroll sideways on a phone), each playing its note with a nice synthesised sound when tapped.' },
+      { em: '🖌', name: 'Paint studio', blurb: 'Brushes, colours, undo, symmetry, save a picture.', kit: 'drums', set: { title: 'Paint studio' },
+        about: 'Draw and paint with your finger, then save your picture.',
+        play: 'Draw on the canvas, pick colours and brushes from the toolbar.',
+        has: ['Smooth lines and brush sizes', 'A palette plus any colour', 'Eraser and rainbow brush', 'Mirror (symmetry) mode', 'Undo, redo and clear', 'Save as a picture'],
+        add: ['Stickers and stamps', 'Layers', 'A fill bucket', 'Shapes (lines, circles, boxes)', 'Draw-along prompts'],
+        mine: 'Pixel art on a grid',
+        ask: 'Build a paint studio: a full-screen canvas I draw on with a finger or mouse; the toolbar folds away so the canvas gets the whole screen.' },
+      { em: '🎵', name: 'Mood music', blurb: 'Pick a vibe; real music is made for it, with a visualiser.', kit: 'drums', set: { title: 'Mood music' },
+        about: 'Pick a mood and a style, and a real music track is made for it, with visuals that move to it.',
+        play: 'Choose a mood and a style, press Make, then play it.',
+        has: ['Moods: Chill, Epic, Spooky, Happy, Focus', 'Styles: 8-bit, Lo-fi, Orchestra, Rock', '30-second tracks made by r4.music', 'A visualiser in the mood’s colours', 'Tracks made so far, to replay'],
+        add: ['Longer tracks', 'A sleep timer', 'A playlist that plays them in turn', 'Your own words to describe the music', 'A different visualiser for each style'],
+        mine: 'Music for studying',
+        ask: 'Build a mood music player: I pick a mood and a style, and r4.music makes a 30-second track from a description built from those (keep each description fixed per combination so it is made once), with Play/Pause.' },
     ] },
   ];
   function ideas(cat) {
-    const left0 = left(), d = sheet(`<div class="playh"><b>${cat.em} ${esc(cat.name)}</b><small>Pick one to start</small><button data-close aria-label="Close">✕</button></div>
-      <div class="ideas">${cat.ideas.map((x, i) => `<button class="idea" data-i="${i}" style="--kc:${cat.color}"><span class="ie">${x.em}</span><span class="it"><b>${esc(x.name)}</b><small>${esc(x.blurb)}</small></span><span class="ig">›</span></button>`).join('')}</div>
-      <p class="note" style="margin:8px 2px 0">✦ Claude builds the whole thing for you (about a minute).${left0 !== Infinity ? ' Your first 3 a day are free; after that one uses a build.' : ''}</p>`);
-    d.querySelectorAll('[data-i]').forEach((b) => (b.onclick = () => { const x = cat.ideas[+b.dataset.i]; d.close(); newFromKit(x.kit, x.set, x.ask); }));
+    const d = sheet(`<div class="playh"><b>${cat.em} ${esc(cat.name)}</b><small>Pick one to see what it is</small><button data-close aria-label="Close">✕</button></div>
+      <div class="ideas">${cat.ideas.map((x, i) => `<button class="idea" data-i="${i}" style="--kc:${cat.color}"><span class="ie">${x.em}</span><span class="it"><b>${esc(x.name)}</b><small>${esc(x.blurb)}</small></span><span class="ig">›</span></button>`).join('')}</div>`);
+    d.querySelectorAll('[data-i]').forEach((b) => (b.onclick = () => plan(cat, cat.ideas[+b.dataset.i])));
   }
+  // An idea up close: what it is, how it plays, what it comes with (tap to leave one out), extras (tap to add)
+  // and their own twist; ✦ Build it asks Claude for exactly that.
+  function plan(cat, x) {
+    const off = new Set(), on = new Set(), left0 = left();
+    const d = sheet(`<div class="playh"><button class="iback" data-back aria-label="Back to ${esc(cat.name)}">‹</button><b>${x.em} ${esc(x.name)}</b><button data-close aria-label="Close">✕</button></div>
+      <div class="iplan" style="--kc:${cat.color}">
+        <p class="iabout">${esc(x.about)}</p>
+        <p class="iplay"><b>How it plays</b>${esc(x.play)}</p>
+        <h4>What it comes with <small>tap to leave one out</small></h4>
+        <div class="ichips">${x.has.map((h, i) => `<button class="on" data-has="${i}" aria-pressed="true">✓ ${esc(h)}</button>`).join('')}</div>
+        <h4>Add more <small>tap to add</small></h4>
+        <div class="ichips">${x.add.map((h, i) => `<button data-add="${i}" aria-pressed="false">＋ ${esc(h)}</button>`).join('')}</div>
+        <h4>Make it yours <small>optional</small></h4>
+        <textarea id="imine" rows="2" maxlength="300" placeholder="Like: ${esc(x.mine)}"></textarea>
+        <button class="go" id="ibuild">✦ Build it</button>
+        <p class="note" style="margin:0">Claude builds the whole thing (about a minute), then you can keep changing it.${left0 !== Infinity ? ' Your first 3 a day are free; after that one uses a build.' : ''}</p>
+      </div>`);
+    d.querySelector('[data-back]').onclick = () => ideas(cat);
+    d.querySelectorAll('[data-has]').forEach((b) => (b.onclick = () => { const i = +b.dataset.has, out = !off.has(i); out ? off.add(i) : off.delete(i); b.classList.toggle('on', !out); b.setAttribute('aria-pressed', !out); b.textContent = (out ? '' : '✓ ') + x.has[i]; }));
+    d.querySelectorAll('[data-add]').forEach((b) => (b.onclick = () => { const i = +b.dataset.add, inn = !on.has(i); inn ? on.add(i) : on.delete(i); b.classList.toggle('on', inn); b.setAttribute('aria-pressed', inn); b.textContent = (inn ? '✓ ' : '＋ ') + x.add[i]; }));
+    d.querySelector('#ibuild').onclick = () => { const mine = d.querySelector('#imine').value.trim(); d.close(); newFromKit(x.kit, x.set, planAsk(x, off, on, mine)); };
+  }
+  // what Claude is asked to build: the idea, what it comes with (less what they left out), the extras they picked, their twist
+  const planAsk = (x, off, on, mine) => [
+    x.ask,
+    'Include: ' + x.has.filter((_, i) => !off.has(i)).join('; ') + '.',
+    off.size ? 'Leave out: ' + x.has.filter((_, i) => off.has(i)).join('; ') + '.' : '',
+    on.size ? 'Also add: ' + x.add.filter((_, i) => on.has(i)).join('; ') + '.' : '',
+    mine ? 'Make it theirs, changing the theme, look and names to fit: ' + mine : '',
+  ].filter(Boolean).join('\n');
   function newFromKit(kit, set = {}, autoAsk) {
     const k = { ...PR.KITS[kit], defaults: { ...PR.KITS[kit].defaults, ...set } }, id = kit + '-' + Date.now().toString(36);
     // every project is code: the kit is where it starts, as real files (its settings live in main.js)
@@ -425,7 +576,7 @@
 
   // ---------- play, phone test, share ----------
   function sheet(html, o) { const d = $('sheet'); if (d.parked) { d.parked = false; d.dispatchEvent(new Event('close')); }   // a panel set aside for Vibes gives way
-    d.classList.toggle('full', !!(o && o.full)); d.innerHTML = html; d.showModal(); d.scrollTop = 0; d.onclick = (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); }; return d; }
+    d.classList.toggle('full', !!(o && o.full)); d.innerHTML = html; if (!d.open) d.showModal(); d.scrollTop = 0; d.onclick = (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); }; return d; }
   function player(p) { sheet(`<div class="playh"><b>${esc(p.name)}</b><small>by ${esc(byId(p.owner).name)}</small><button data-close aria-label="Close">✕</button></div><iframe class="playf" sandbox="allow-scripts" title="${esc(p.name)}"></iframe>`).querySelector('iframe').srcdoc = PR.html(p); }
   function phoneTest(p) {
     const link = 'https://r4box.com/p/' + p.id;   // 404.html sends it on to projects.html?play=
