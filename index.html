@@ -132,7 +132,7 @@
     .gmenu .gview button { display: grid; grid-template-columns: 28px 1fr; column-gap: 8px; align-items: center; padding: 8px 10px; }
     .gmenu .gview span { grid-row: span 2; font-size: 19px; text-align: center; } .gmenu .gview b { font-size: 14px; } .gmenu .gview em { font-style: normal; font-weight: 500; font-size: 12px; color: var(--muted); }
     .gmenu .gview button.on { background: #ffffff12; box-shadow: inset 2px 0 0 var(--teal); }
-    /* the first screen: the world, then Claude and four apps; the rest is a swipe up */
+    /* the first screen: the world, then Claude and two rows of apps; the rest is a swipe up */
     .hero { display: flex; flex-direction: column; height: 100dvh; min-height: 520px; }
     .world { position: relative; overflow: hidden; flex: 1; min-height: 240px; }
     .world .pick { position: absolute; z-index: 3; left: 12px; right: 12px; bottom: 12px; margin: 0; max-height: 70%; overflow: auto; }
@@ -320,7 +320,7 @@
   </main>
 
   <!-- signed in: the home (design system: r4box home). The first screen is only the family world,
-       Claude (Where to?) and four apps; swiping up reveals today, the chat, all apps, recent, the family. -->
+       Claude (Where to?) and two rows of apps; swiping up reveals today, the chat, all apps, recent, the family. -->
   <div id="home" hidden>
     <header><a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1>home</h1>
       <button class="gear" id="gear" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">⚙</button></header>
@@ -695,9 +695,9 @@
       const line = (m) => (m.ref && ({ poll: '📊 Poll', item: '📍 Trip place', call: '📹 Video call', story: '🌳 Shared a story', added: '✦ Added to a trip', project: '⚒ ' + (m.ref.name || 'A project') }[m.ref.type])) || m.body || (m.image ? '📷 Photo' : '');
       const chatTop = H.msgs.filter((m) => !m.reply_to).slice(0, tight ? 4 : 3).reverse();
       const chatCard = play || !chatTop.length ? '' : `<h3 class="k">Family chat</h3><a class="hchat" href="/chat.html">${chatTop.map((m) => `<span class="l${m.is_claude ? ' c' : ''}"><b>${esc(m.is_claude ? 'Claude' : nm(m.author))}</b><span>${esc(line(m))}</span></span>`).join('')}<span class="go">Open the chat ›<small>${H.unread ? H.unread + ' new' : 'all caught up'}</small></span></a>`;
-      // the first screen: Claude (Where to?) and four apps, each with its badge
+      // the first screen: Claude (Where to?) and two rows of apps (eight), each with its badge
       const pref = (parent ? ['os', 'diary', 'chat', 'projects'] : ['games', 'chat', 'diary', 'projects']).map((k) => APPS.find((a) => a.k === k)).filter(Boolean);
-      const QUICK = play ? PLAY.slice(0, 4) : [...pref, ...APPS.filter((a) => !pref.includes(a))].slice(0, 4);   // an app turned off makes room for the next
+      const QUICK = play ? PLAY.slice(0, 4) : [...pref, ...APPS.filter((a) => !pref.includes(a))].slice(0, 8);   // an app turned off makes room for the next
       const dock = (list, big, small) => `<div class="hdock${big ? ' big' : ''}">${list.map((a) => `<a href="${a.href}" style="--c:${a.c}"${a.ask ? ' data-ask="1"' : ''}>${glyph(a)}<b>${a.k}</b>${small ? `<small class="${a.hot ? 'hot' : ''}">${esc(a.s)}</small>` : ''}${a.badge ? `<span class="badge">${a.badge > 99 ? '99+' : a.badge}</span>` : ''}</a>`).join('')}</div>`;
       $('hquick').innerHTML = `${play ? '' : `<form class="hcmd hgo" id="hgo"><input id="q" placeholder="${parent ? 'Where to? Or what should Claude do?' : 'Where to? Ask Claude, or name a seed…'}" autocomplete="off" aria-label="Where to, or start Claude"><div class="hres" id="hits" hidden></div>
           <div class="hacts"><button type="submit" class="hclaude" aria-label="Start Claude" title="Start Claude">✦</button>${parent ? '' : '<button type="button" class="hseed" id="hsd" aria-label="Plant seed" title="Plant seed">🌱</button>'}</div><p class="hmsg" id="hmsg" hidden></p></form>`}
