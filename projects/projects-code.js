@@ -41,7 +41,7 @@
   const dirty = () => draft && Object.keys(draft).some((k) => draft[k] !== (head().files[k] ?? null)) || (draft && Object.keys(head().files).some((k) => !(k in draft)));
   // the preview opens as its own panel: big, with its own run button and the console under it
   let panel = null, pvFiles = null, pvBack = null;   // pvFiles: a block editor's change, shown in the panel without applying it
-  function run() { logs = []; paintConsole(); const doc = PR.codeDoc((panel && pvFiles) || draft || head().files); if (panel) { $('pv2').srcdoc = X.withShot(doc); $('pv').srcdoc = ''; } else $('pv').srcdoc = doc; }
+  function run() { logs = []; paintConsole(); const doc = PR.codeDoc((panel && pvFiles) || draft || head().files, p.id); if (panel) { $('pv2').srcdoc = X.withShot(doc); $('pv').srcdoc = ''; } else $('pv').srcdoc = doc; }
   function openPanel() {
     panel = document.createElement('section'); panel.className = 'pvpanel'; panel.setAttribute('aria-label', 'Preview');
     panel.innerHTML = `<header><button class="sb" id="pclose" aria-label="Back to the code">‹</button><span><b>${esc(p.name)}</b><small>v${head().v}${pvFiles ? ' · with your change' : dirty() ? ' · unsaved changes' : ''}</small></span><span class="grow"></span>${X.canEdit(p) ? '<button class="bb" id="pmk" title="Mark it up and ask Claude">✏️ Mark</button>' : ''}<button class="bb" id="prun" title="Run again">▶</button><button class="bb" id="pphone" aria-label="Test on phone">📱</button></header><iframe id="pv2" title="Preview" sandbox="allow-scripts allow-modals"></iframe><div class="cons big" id="cons"></div>`;
@@ -290,7 +290,7 @@
     let going = false, edited = false;   // the whole project runs only after ▶, and stops with ■
     const showPlay = () => { const w = !peeked || whole; play.hidden = !w; play.textContent = going ? '■' : '▶'; play.title = going ? 'Stop' : 'Run'; cover.hidden = !w || going; cover.querySelector('span').textContent = edited ? '▶ Run with your change' : '▶ Run'; };
     const full = (start) => { if (start) going = true; fr.style.height = ''; if (!going) { fr.srcdoc = '<!doctype html><body style="margin:0;background:#0D0B1F"></body>'; label(); showPlay(); return; }
-      const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L.splice(line - 1, span, ta.value); F[file] = L.join('\n'); fr.srcdoc = PR.codeDoc(F); label(); showPlay(); };
+      const F = { ...(draft || head().files) }, L = (F[file] ?? '').split('\n'); L.splice(line - 1, span, ta.value); F[file] = L.join('\n'); fr.srcdoc = PR.codeDoc(F, p.id); label(); showPlay(); };
     cover.onclick = () => full(true);
     play.onclick = () => { if (going) { going = false; full(); } else full(true); };
     const run = () => {
