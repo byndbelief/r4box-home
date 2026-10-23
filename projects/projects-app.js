@@ -629,10 +629,10 @@
       sb.innerHTML = '<p class="note">Loading voices…</p>';
       let info;
       try { info = await B.voice({}); } catch (err) { sb.innerHTML = `<p class="note">${esc(err.message)}</p>`; return; }
-      const fam = info.voices.filter((v) => !v.stock), stock = info.voices.filter((v) => v.stock).map((v) => v.name);
+      const fam = info.voices.filter((v) => !v.stock), stock = info.voices.filter((v) => v.stock);
       const left = info.left ? info.left.design : null;
       sb.innerHTML = `<h3 class="k">Family voices</h3><section class="sset" style="display:grid;gap:6px">${fam.length ? fam.map((v) => `<div class="srow"><div style="flex:1;min-width:0"><b>${esc(v.name)}</b><small>${esc(v.description || '')}</small></div>${v.sample ? `<button class="go alt" style="width:auto;padding:8px 12px" data-play="${esc(v.sample)}">▶</button>` : ''}${v.mine || viewer.role === 'parent' ? `<button class="go alt" style="width:auto;padding:8px 12px" data-forget="${esc(v.id)}" aria-label="Remove ${esc(v.name)}">🗑</button>` : ''}</div>`).join('') : '<p class="note" style="margin:0">None yet: make the first one below.</p>'}</section>
-        <p class="note" style="margin:6px 0 0">Ready-made: ${stock.map(esc).join(', ')}.</p>
+        <h3 class="k">Ready-made</h3><section class="sset" style="display:grid;gap:6px">${stock.map((v) => `<div class="srow"><div style="flex:1;min-width:0"><b>${esc(v.name)}</b><small>${esc(v.about || '')}</small></div><button class="go alt" style="width:auto;padding:8px 12px" data-hear="${esc(v.name)}" aria-label="Hear ${esc(v.name)}">▶</button></div>`).join('')}</section>
         <h3 class="k">Make a voice</h3><section class="sset" style="display:grid;gap:8px">
           <textarea id="vdesc" rows="3" maxlength="600" placeholder="Who are they and how do they sound? Like: a grumpy old robot, slow and crackly, who secretly loves pizza" style="box-sizing:border-box;width:100%;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);font:400 15px var(--body);resize:vertical">${esc(said)}</textarea>
           <button class="go" id="vmake"${left === 0 ? ' disabled' : ''}>Make 3 takes</button>
@@ -641,6 +641,13 @@
           <p class="capn" style="margin:0">${left == null ? 'No limit for parents.' : left + ' voice designs left today · you can keep 5 voices'}</p></section>`;
       let playing = null;
       sb.querySelectorAll('[data-play]').forEach((b) => (b.onclick = () => { playing?.pause(); playing = new Audio(b.dataset.play); playing.play().catch(() => {}); }));
+      // a ready-made voice saying one fixed line: made once for everyone, then it's free
+      sb.querySelectorAll('[data-hear]').forEach((b) => (b.onclick = async () => {
+        playing?.pause(); b.disabled = true;
+        try { const r = await B.voice({ say: { text: 'Hi! This is how I sound. Want me in your project?', voice: b.dataset.hear } }); playing = new Audio(r.url); playing.play().catch(() => {}); }
+        catch (err) { toast(err.message); }
+        b.disabled = false;
+      }));
       sb.querySelectorAll('[data-forget]').forEach((b) => (b.onclick = async () => {
         if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Remove?'; return; }
         try { await B.voice({ forget: { id: b.dataset.forget } }); note = ''; } catch (err) { note = err.message; } voices();
