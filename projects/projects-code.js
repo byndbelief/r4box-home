@@ -514,7 +514,7 @@
     $('crun').onclick = run; $('popen').onclick = openPanel; X.sw('bench', null, openPanel, true); $('cphone').onclick = () => X.phoneTest(p); $('cshare').onclick = () => X.shareSheet(p); $('cshare').hidden = p.owner !== X.viewer().id;
     if (X.canEdit(p)) { const f = head().files, s = ST.structure(f); if (Object.keys(f).some((k) => f[k] !== s[k])) commit('One thing per line, so each line opens on its own', f, X.viewer().id); }
     paint(); run(); window.scrollTo(0, 0);
-    if (autoAsk) { tab = 'claude'; paint(); claude(autoAsk); }   // an idea that Claude builds: it starts at once
+    if (autoAsk) { tab = 'claude'; paint(); claude(autoAsk, true); }   // an idea that Claude builds whole: it starts at once
   }
   // line numbers; a line that opens a block (a style rule, a function…) is marked: tap its code to open it whole
   const gutter = () => curLines().map((_, i) => blockAt(i + 1) ? `<b class="gb">${i + 1}</b>` : i + 1).join('\n');
@@ -595,10 +595,10 @@
     }
   }
   let asking = false;
-  async function claude(q) {
+  async function claude(q, start) {
     if (!q || asking) return; const chat = chatSoFar(); ask.push({ me: true, t: q }, { t: '…' }); asking = true; paint();
     try {
-      const r = await X.claude(p, q, dirty() ? draft : null, logs, null, chat);
+      const r = await X.claude(p, q, dirty() ? draft : null, logs, null, chat, start);
       ask.pop(); if (Array.isArray(r.next) && r.next.length) sugs = r.next.slice(0, 3);
       if (r.name) p.name = r.name;
       if (r.files) { ask.push({ t: r.say + ' Committed as v' + (head().v + 1) + ': open Commits to read the diff, or check out the one before if you don’t want it.', ok: true }); commit(r.note, r.files, X.viewer().id); run(); }

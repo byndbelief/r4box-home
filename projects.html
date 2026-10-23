@@ -18,7 +18,7 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
   <link rel="stylesheet" href="world/world.css?v=57">
-  <link rel="stylesheet" href="projects/projects.css?v=56">
+  <link rel="stylesheet" href="projects/projects.css?v=57">
   <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }
     .talkbar { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 22px; background: #141130; border: 1px solid #3DD6C688; box-shadow: 0 10px 24px #000c; font-size: 14px; max-width: calc(100% - 32px); }
     .talkbar i { font-style: normal; animation: talkp 1.4s ease-in-out infinite; } @keyframes talkp { 50% { opacity: .45; } }
@@ -99,11 +99,12 @@
     left: built.left,
     saved: () => chain,
     // Claude changes (or answers about) a project. Saved first, so it reads what's on screen.
-    async ask(p, ask, files, logs, image, chat) {
+    // start: a project just begun from an idea, which Claude builds whole (a kid's first few a day are free)
+    async ask(p, ask, files, logs, image, chat, start) {
       await chain;
       // a kit project sends the page it builds, so Claude can rebuild it as code when the kit can't do it
       const html = window.R4Projects.isCode(p) ? undefined : window.R4Projects.html(p);
-      const r = await call('project-build', { project: p.id, ask, files: files || undefined, logs: logs || undefined, image: image || undefined, chat: chat || undefined, html });
+      const r = await call('project-build', { project: p.id, ask, files: files || undefined, logs: logs || undefined, image: image || undefined, chat: chat || undefined, html, start: start || undefined });
       if (r.left !== undefined) this.left = r.left;
       if (r.brief) p.brief = r.brief;   // Claude's note on the project (it saves it itself)
       return r;
