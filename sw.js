@@ -29,8 +29,12 @@ self.addEventListener('push', (e) => {
     // A quiet alert (a burst of chat messages, a game over) replaces the last one without a sound or buzz.
     renotify: !!d.tag && !silent,
     silent,
-    // A call rings: it stays up until answered or dismissed.
-    requireInteraction: kind === 'call',
+    // A call rings, and a missed one waits: they stay up until answered or dismissed. Answer and Decline
+    // sit on the alert itself where the phone or computer shows buttons (Android, Chrome and Edge; an iPhone
+    // has none: a tap answers).
+    requireInteraction: kind === 'call' || kind === 'missed',
+    actions: kind === 'call' ? [{ action: 'answer', title: '📹 Answer' }, { action: 'decline', title: 'Decline' }]
+      : kind === 'missed' ? [{ action: 'callback', title: '📹 Call back' }] : [],
     vibrate: silent ? undefined : BUZZ[kind],   // a buzz with silent set throws
     icon: 'icon-192.png',
     badge: 'icon-192.png',
@@ -40,6 +44,7 @@ self.addEventListener('push', (e) => {
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
+  if (e.action === 'decline') return;
   const to = new URL(e.notification.data?.url || './', 'https://games.r4box.com/').href;
   // a game opens inside r4box.com (open.html), so the installed app keeps no address bar
   const url = /^https:\/\/[a-z0-9-]+\.r4box\.com\//.test(to) ? new URL('/open.html?to=' + encodeURIComponent(to), self.location.origin).href : to;
@@ -48,6 +53,13 @@ self.addEventListener('notificationclick', (e) => {
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const same = wins.find((w) => w.url.split('#')[0] === url.split('#')[0]);
     if (same) return same.focus();
+    // Answering a call, or calling back, with r4box open already: that window goes there (one in a call stays put).
+    if (/\/call\.html\?answer|#callback=/.test(url)) {
+      const busy = wins.find((w) => new URL(w.url).pathname === '/call.html');
+      if (busy) return busy.focus();
+      const w = wins.find((x) => new URL(x.url).origin === self.location.origin);
+      if (w) try { await w.focus(); return await w.navigate(url); } catch {}
+    }
     return self.clients.openWindow(url);
   })());
 });

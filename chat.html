@@ -721,11 +721,17 @@
   $('callbtn').onclick = () => { if (callCh.state !== 'joined' && !inCallNow()) { toast('Reconnecting the call line… try again in a moment.'); callCh.subscribe(onCallState); return; } startOrJoin(); };
   $('ringyes').onclick = () => joinCall();
   $('ringno').onclick = () => $('ring').close();
-  // Opened from a call's ring: offer to join once we know the call is still on.
-  if (location.hash === '#call') {
+  // Opened from a call's ring (an older alert): offer to join once we know the call is still on. From a missed
+  // call's alert (Call back): who to call, one tap away (or straight in, when they're calling again). An alert
+  // tapped while the chat is open changes only the #, so this runs then too.
+  function fromAlert() {
+    const h = location.hash;
+    if (h !== '#call' && !/^#callback=[0-9a-f-]{36}$/.test(h)) return;
     history.replaceState(null, '', location.pathname + location.search);
-    for (const ms of [1500, 4000]) setTimeout(() => ring([...msgs].reverse().find((x) => x.ref?.type === 'call')?.author), ms);
+    if (h === '#call') for (const ms of [1500, 4000]) setTimeout(() => ring([...msgs].reverse().find((x) => x.ref?.type === 'call')?.author), ms);
+    else setTimeout(() => { if (callCh.state === 'joined' && !$('pick').open) startOrJoin(); }, 1500);
   }
+  fromAlert(); addEventListener('hashchange', fromAlert);
 
   // ---- alerts: a push for new messages when the chat isn't open ----
   const b64 = (s) => Uint8Array.from(atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));

@@ -120,6 +120,7 @@
   const left = new Set();             // peers who said bye (their presence can linger a moment)
   const AUDIO = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
   let calling = null;   // who this call rang (null: everyone)
+  let callId = null, picked = false, tok = '';   // the call this window started (its chat card), until someone picks up
   let inCall = false, local = null, facing = 'user', wake = null, aloneSince = 0, joined = null;
   const callCh = sb.channel('family-call', { config: { private: true, presence: { key: PEER } } });
   const ready = new Promise((ok) => { joined = ok; });
@@ -148,6 +149,7 @@
       if (p.pc.connectionState !== 'connected' || Date.now() - p.gone > 20e3) drop(id);
     }
     aloneSince = others.length ? 0 : aloneSince || Date.now();
+    if (others.length && callId && !picked) { picked = true; tell({ answered: callId, by: [...new Set(others.map((o) => o.user))] }); }
     paint();
   }
 
@@ -319,11 +321,32 @@
   // Big (the stage) or small (the bubble, over the page).
   function big(on) { $('call').hidden = !on; $('bubble').hidden = on || !inCall; if (!on) { placeBubble(); paintBubble(); } }
 
-  // Starting a call (who to ring: an id, or null for everyone), or joining the one that's on.
-  async function joinCall(to) {
+  // About the call this window started, to family-chat: ring again, someone picked up, nobody did. It goes out
+  // even as the page closes (keepalive), so it holds the sign-in token it needs.
+  function tell(b) {
+    sb.auth.getSession().then(({ data: { session: s } }) => { if (s) tok = s.access_token; }).catch(() => {});
+    fetch(FN, { method: 'POST', keepalive: true, headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).catch(() => {});
+  }
+  // One ring is easy to miss with the phone across the room: while nobody has picked up, it rings again every
+  // 15 seconds for the first minute.
+  function ringAgain(id, n) {
+    setTimeout(() => {
+      if (!inCall || picked || callId !== id || n > 4) return;
+      if (!callLive().length) tell({ ring: id });
+      ringAgain(id, n + 1);
+    }, 15e3);
+  }
+
+  // Starting a call (who to ring: an id, or null for everyone), or joining the one that's on. Answering (from a
+  // ring's alert) only joins: if the call is over by then, it says so instead of starting a new one.
+  async function joinCall(to, answering) {
     if (inCall) { big(true); return; }
     await Promise.race([ready, new Promise((ok) => setTimeout(ok, 8000))]);
     if (callCh.state !== 'joined') { toast('The call line isn’t connected. Try again in a moment.'); return setTimeout(exitShell, 2500); }
+    if (answering) {
+      for (let i = 0; i < 16 && !callLive().length; i++) await new Promise((ok) => setTimeout(ok, 250));   // who's on arrives just after joining
+      if (!callLive().length) { toast('The call has ended. You can call back from the chat.'); return setTimeout(exitShell, 2800); }
+    }
     if (new Set(callLive().map((x) => x.peer)).size >= MAX) { toast(`The call is full: ${MAX} people at most for now.`); return setTimeout(exitShell, 2500); }
     try {
       local = await navigator.mediaDevices.getUserMedia({ audio: AUDIO,
@@ -334,7 +357,7 @@
     }
     local.getAudioTracks()[0].onended = fixMic;
     await loadIce();
-    facing = 'user'; inCall = true; left.clear(); aloneSince = 0; calling = to || null;
+    facing = 'user'; inCall = true; left.clear(); aloneSince = 0; calling = to || null; callId = null; picked = false;
     $('stage').innerHTML = ''; big(true);
     const nobody = !callLive().length;
     await callCh.track({ user: ME.id });
@@ -343,13 +366,16 @@
     navigator.mediaDevices.enumerateDevices().then((d) => { $('flip').hidden = d.filter((x) => x.kind === 'videoinput').length < 2; }).catch(() => {});
     // The first one in rings everyone else (a card in the chat, and a push).
     if (nobody) {
-      const { data: { session: s } } = await sb.auth.getSession();
-      fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ call: true, to: calling }) }).catch(() => {});
+      const { data: { session: s } } = await sb.auth.getSession(); tok = s?.access_token || '';
+      fetch(FN, { method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ call: true, to: calling }) })
+        .then((r) => r.json()).then((j) => { if (inCall && typeof j.id === 'number') { callId = j.id; if (callLive().length) syncCall(); else ringAgain(j.id, 1); } }).catch(() => {});
     }
   }
   function leaveCall() {
     if (!inCall) return;
     sig('*', 'bye');
+    if (callId && !picked) tell({ missed: callId });   // nobody picked up: their ring becomes "Missed call"
+    callId = null;
     inCall = false; $('hear').hidden = true;
     callCh.untrack();
     for (const id of [...peers.keys()]) drop(id);
@@ -412,6 +438,7 @@
   window.R4Call = { peer: PEER, inCall: () => inCall, join: (to) => joinCall(to || null), show: () => big(true) };
 
   if (q.has('join')) joinCall(q.get('join') || null);
+  else if (q.has('answer')) joinCall(null, true);   // a ring's alert: Answer
   else exitShell();   // opened without a call to make (a reload, an old link): just the page
 </script>
 </body>
