@@ -502,6 +502,8 @@
     }, (e) => { reading.delete(key); X.toast(e.message); if (helpOn && tab === 'files') paint(); });
   }
 
+  // what's open, for the ✦ button (back to the Claude chat): only while this bench is on screen
+  window.R4Here = () => (p && document.querySelector('.codebench') ? { name: p.name, v: (p.versions[p.cur] || {}).v, errors: logs.filter((l) => l[0] === 'error').slice(-3).map((l) => String(l[1]).slice(0, 300)) } : null);
   function open(proj, ctx, intro, autoAsk) {
     if (parked && parked.d.parked) { parked.d.parked = false; parked.d.dispatchEvent(new Event('close')); } parked = null;
     X = ctx; p = proj; file = Object.keys(head().files).includes('main.js') ? 'main.js' : Object.keys(head().files)[0]; tab = p.kit === 'code' ? 'files' : 'claude'; draft = null; viewV = null;
