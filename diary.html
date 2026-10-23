@@ -27,6 +27,17 @@
     .empty p { margin: 0; color: #ACA5D6; font-size: 14px; }
     .xbody { min-width: 0; overflow: hidden; padding: 4px 16px 8px; } .xbody > * { max-width: 100%; }
     .built { margin: 22px 0 0; font-size: 12px; color: #7A73A8; }
+    /* a wide screen: the world fills the left and stays put; the diary (journal, cards, a story) scrolls in its own column on the right */
+    @media (min-width: 1000px) {
+      :root { --col: min(600px, 44vw); }
+      body { overflow: hidden; }
+      #app { max-width: none; height: 100vh; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--col); grid-template-rows: 100%; box-shadow: none; }
+      #app > header { right: var(--col); }
+      #app > .world:not(.full) { grid-column: 1; grid-row: 1; height: 100vh; min-height: 0; border-bottom: 0; }
+      #app > #legend { position: absolute; z-index: 2; left: 0; right: var(--col); bottom: 14px; margin: 0; justify-content: center; }
+      #app > main.page { grid-column: 2; grid-row: 1; height: 100vh; overflow-y: auto; overscroll-behavior: contain; border-left: 1px solid #251F48; background: #05040d; padding-top: max(18px, env(safe-area-inset-top)); }
+      .isfull .pick { width: calc(min(560px, 100vw) - 24px); }
+    }
   </style>
 </head>
 <body>
