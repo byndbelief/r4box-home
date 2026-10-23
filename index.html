@@ -209,6 +209,13 @@
     .htoday b { display: block; font-size: 13.5px; line-height: 1.25; }
     .htoday small { display: block; margin-top: 3px; font-size: 11.5px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
     #home h3.k { font: 700 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin: 22px 0 10px; }
+    /* choosing the home screen's apps: tap them in order; the number is where each goes */
+    #home h3.hk { display: flex; align-items: center; justify-content: space-between; }
+    .hedit { all: unset; cursor: pointer; padding: 6px 2px; margin: -6px 0; font: 700 13px/1 var(--body); letter-spacing: 0; text-transform: none; color: var(--teal); }
+    .hpickn { display: flex; justify-content: space-between; gap: 10px; margin: -2px 0 10px; font-size: 12.5px; color: var(--muted); }
+    .hpickn button { all: unset; cursor: pointer; flex: none; font-weight: 700; color: var(--faint); }
+    .hdock.picking a { opacity: .45; } .hdock.picking a.on { opacity: 1; border-color: var(--c); }
+    .hdock .pn { position: absolute; top: 6px; left: 8px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 99px; background: var(--c); color: #0B0A1A; font: 800 11px/20px var(--body); text-align: center; }
     .hdock { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     .hdock a { position: relative; display: grid; justify-items: center; align-content: start; gap: 5px; padding: 12px 4px 10px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); text-decoration: none; min-width: 0; text-align: center; transition: border-color .15s, background .15s; }
     .hdock a:hover { border-color: var(--c); background: color-mix(in srgb, var(--c) 7%, var(--panel)); }
@@ -641,6 +648,8 @@
     // The view (r4.density.<id>, on this device) is one setting for every app, set from ⚙ Settings here.
     function viewOf() { try { const v = localStorage.getItem('r4.density.' + ME.id); if (DENSITY.some((d) => d.id === v && (!d.parent || ME.role === 'parent'))) return v; } catch {} return ME.role === 'parent' ? 'pilot' : 'explore'; }
     function densityOf() { const v = viewOf(); return v === 'dev' ? 'pilot' : v; }   // the home shows Developer as Pilot
+    // The home screen's apps (r4.quick.<id>, on this device): the ones you chose, in that order; none chosen, the usual.
+    function quickChosen() { try { const v = JSON.parse(localStorage.getItem('r4.quick.' + ME.id)); return Array.isArray(v) ? v : null; } catch { return null; } }
     function renderHome() {
       const parent = ME.role === 'parent', dens = densityOf(), play = dens === 'play', tight = dens === 'pilot';
       $('home').classList.remove('dens-play', 'dens-explore', 'dens-pilot'); $('home').classList.add('dens-' + dens);
@@ -697,14 +706,18 @@
       const chatCard = play || !chatTop.length ? '' : `<h3 class="k">Family chat</h3><a class="hchat" href="/chat.html">${chatTop.map((m) => `<span class="l${m.is_claude ? ' c' : ''}"><b>${esc(m.is_claude ? 'Claude' : nm(m.author))}</b><span>${esc(line(m))}</span></span>`).join('')}<span class="go">Open the chat ›<small>${H.unread ? H.unread + ' new' : 'all caught up'}</small></span></a>`;
       // the first screen: Claude (Where to?) and two rows of apps (eight), each with its badge
       const pref = (parent ? ['os', 'diary', 'chat', 'projects'] : ['games', 'chat', 'diary', 'projects']).map((k) => APPS.find((a) => a.k === k)).filter(Boolean);
-      const QUICK = play ? PLAY.slice(0, 4) : [...pref, ...APPS.filter((a) => !pref.includes(a))].slice(0, 8);   // an app turned off makes room for the next
-      const dock = (list, big, small) => `<div class="hdock${big ? ' big' : ''}">${list.map((a) => `<a href="${a.href}" style="--c:${a.c}"${a.ask ? ' data-ask="1"' : ''}>${glyph(a)}<b>${a.k}</b>${small ? `<small class="${a.hot ? 'hot' : ''}">${esc(a.s)}</small>` : ''}${a.badge ? `<span class="badge">${a.badge > 99 ? '99+' : a.badge}</span>` : ''}</a>`).join('')}</div>`;
+      const chosen = (H.picking || quickChosen() || []).map((k) => APPS.find((a) => a.k === k)).filter(Boolean);
+      const QUICK = play ? PLAY.slice(0, 4) : (chosen.length || H.picking ? chosen : [...pref, ...APPS.filter((a) => !pref.includes(a))]).slice(0, 8);   // an app turned off makes room for the next
+      H.quickNow = QUICK.map((a) => a.k);
+      const pk = !play && H.picking, at = (list, a) => pk && list === APPS ? pk.indexOf(a.k) : -2;   // -2: not choosing here
+      const dock = (list, big, small) => `<div class="hdock${big ? ' big' : ''}${pk && list === APPS ? ' picking' : ''}">${list.map((a) => `<a href="${a.href}" style="--c:${a.c}"${a.ask ? ' data-ask="1"' : ''}${at(list, a) > -2 ? ` data-pick="${a.k}"${at(list, a) >= 0 ? ' class="on"' : ''}` : ''}>${at(list, a) >= 0 ? `<span class="pn">${at(list, a) + 1}</span>` : ''}${glyph(a)}<b>${a.k}</b>${small ? `<small class="${a.hot ? 'hot' : ''}">${esc(a.s)}</small>` : ''}${a.badge ? `<span class="badge">${a.badge > 99 ? '99+' : a.badge}</span>` : ''}</a>`).join('')}</div>`;
       $('hquick').innerHTML = `${play ? '' : `<form class="hcmd hgo" id="hgo"><input id="q" placeholder="${parent ? 'Where to? Or what should Claude do?' : 'Where to? Ask Claude, or name a seed…'}" autocomplete="off" aria-label="Where to, or start Claude"><div class="hres" id="hits" hidden></div>
           <div class="hacts"><button type="submit" class="hclaude" aria-label="Start Claude" title="Start Claude">✦</button>${parent ? '' : '<button type="button" class="hseed" id="hsd" aria-label="Plant seed" title="Plant seed">🌱</button>'}</div><p class="hmsg" id="hmsg" hidden></p></form>`}
         ${dock(QUICK, play, false)}
         ${H.off.has('chat') ? '' : talkBar()}`;
       $('htop').innerHTML = `${play ? '' : `<div class="htoday">${today.filter(Boolean).map((t) => `<a href="${t.href}" style="--c:${t.c}"><span class="g">${t.g}</span><span><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span></a>`).join('')}</div>`}`;
-      $('hrest').innerHTML = `${chatCard}<h3 class="k">Apps</h3>
+      $('hrest').innerHTML = `${chatCard}<h3 class="k hk">Apps${play ? '' : `<button class="hedit" id="hedit">${pk ? 'Done' : 'Choose home apps'}</button>`}</h3>
+        ${pk ? `<p class="hpickn"><span>Tap the apps for your home screen, in order (up to 8). ${pk.length}/8</span><button id="hreset">Reset</button></p>` : ''}
         ${dock(play ? PLAY : APPS, play, !play)}
         ${play ? '' : `<h3 class="k">Recent</h3><div class="hrecent">${recent.length ? recent.map((r) => `<a href="${r.href}"><span class="g" style="color:${r.c}">${r.g}</span><span class="t">${esc(r.t)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span><span class="a">${agoOf(r.at)}</span></a>`).join('') : '<div class="hempty">Nothing new this week.</div>'}</div>`}
         ${familyCard()}`;
@@ -786,6 +799,12 @@
     function wireHome(APPS) {
       if ($('hpeek')) { $('hpeek').onclick = quickChat; $('hvid').onclick = callPick; watchCalls(); paintCall(); }
       $('hmore').onclick = () => $('hpage').scrollIntoView({ behavior: 'smooth' });   // the same as swiping up
+      if ($('hedit')) $('hedit').onclick = () => {
+        if (H.picking) { try { localStorage.setItem('r4.quick.' + ME.id, JSON.stringify(H.picking)); } catch {} H.picking = null; }
+        else H.picking = [...H.quickNow];
+        renderHome();
+      };
+      if ($('hreset')) $('hreset').onclick = () => { try { localStorage.removeItem('r4.quick.' + ME.id); } catch {} H.picking = null; renderHome(); };
       const fc = $('famcard');
       fc.querySelector('.ctxh').onclick = () => { const o = !fc.classList.contains('open'); fc.classList.toggle('open', o); fc.querySelector('.ctxh').setAttribute('aria-expanded', String(o)); };
       fc.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => { pickWorld({ shared: live.shared[+b.dataset.s] }); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
@@ -841,6 +860,11 @@
     // Links: the game room gets the sign-in handed over; the tutor opens here.
     $('home').addEventListener('click', (e) => {
       const a = e.target.closest('a[href]');
+      if (a?.dataset.pick && H.picking) {   // choosing home apps: a tap adds it at the end, or takes it off
+        e.preventDefault(); const k = a.dataset.pick, i = H.picking.indexOf(k);
+        if (i >= 0) H.picking.splice(i, 1); else if (H.picking.length < 8) H.picking.push(k);
+        renderHome(); return;
+      }
       if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
       if (a.dataset.ask) { e.preventDefault(); if ($('q')?.value.trim()) askFromBar(); else openTutor(); return; }
       if (/^https:\/\/[a-z0-9-]+\.r4box\.com\//.test(a.href) && a.target !== '_blank') { e.preventDefault(); go(a.href); }
