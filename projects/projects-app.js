@@ -94,7 +94,6 @@
       } catch (err) { say(err.message); }
       btn.disabled = false;
     };
-    setTimeout(() => bar.querySelector('input').focus(), 50);
   }
   function openKitPanel(p) {
     const pn = document.createElement('section'); pn.className = 'pvpanel';
