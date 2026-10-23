@@ -461,8 +461,49 @@
     const paint = () => {
       const cur = VIEWS.find(([id]) => id === dens) || VIEWS[1];
       $('sbody').innerHTML = `<h3 class="k">View</h3><section class="sset"><a class="srow" href="/#settings" style="color:inherit;text-decoration:none"><div><b>${cur[1]} ${cur[2]}</b><small>One view for every app: change it in ⚙ Settings on the home page</small></div><span aria-hidden="true">›</span></a></section>
-        <h3 class="k">Builder</h3><section class="sset"><div class="srow"><div><b>⌨ Developer only</b><small>Start from code, no kits. Off: kits and code side by side (every project is code either way).</small></div><button class="tog${devOnly(viewer) ? ' on' : ''}" id="devT" role="switch" aria-checked="${devOnly(viewer)}"><i></i></button></div></section><p class="note" style="margin:6px 0 0">For ${esc(viewer.name)}, in Projects.</p>`;
+        <h3 class="k">Builder</h3><section class="sset"><div class="srow"><div><b>⌨ Developer only</b><small>Start from code, no kits. Off: kits and code side by side (every project is code either way).</small></div><button class="tog${devOnly(viewer) ? ' on' : ''}" id="devT" role="switch" aria-checked="${devOnly(viewer)}"><i></i></button></div></section><p class="note" style="margin:6px 0 0">For ${esc(viewer.name)}, in Projects.</p>
+        <h3 class="k">Sound</h3><section class="sset"><button class="srow" id="voicesB" style="all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;background:var(--panel);border:1px solid var(--line)"><div style="flex:1"><b>🎤 Voices</b><small>Make a voice from a description; any project can use it by name</small></div><span aria-hidden="true">›</span></button></section>`;
+      $('voicesB').onclick = () => voices();
       $('devT').onclick = () => { try { devOnly(viewer) ? localStorage.removeItem('r4.builder.' + viewer.id) : localStorage.setItem('r4.builder.' + viewer.id, 'developer'); } catch {} paint(); };
+    };
+    // 🎤 Voices: the family's own voices (project_voices, through project-voice). Describe one, hear three
+    // takes, keep one by name; r4.say('Hi!', 'Its name') and r4.talk({ voice: 'Its name' }) use it.
+    let takes = null, said = '', note = '';
+    const voices = async () => {
+      const B = window.R4Build, sb = $('sbody');
+      pg.querySelector('small').textContent = 'Voices';
+      sb.innerHTML = '<p class="note">Loading voices…</p>';
+      let info;
+      try { info = await B.voice({}); } catch (err) { sb.innerHTML = `<p class="note">${esc(err.message)}</p>`; return; }
+      const fam = info.voices.filter((v) => !v.stock), stock = info.voices.filter((v) => v.stock).map((v) => v.name);
+      const left = info.left ? info.left.design : null;
+      sb.innerHTML = `<h3 class="k">Family voices</h3><section class="sset" style="display:grid;gap:6px">${fam.length ? fam.map((v) => `<div class="srow"><div style="flex:1;min-width:0"><b>${esc(v.name)}</b><small>${esc(v.description || '')}</small></div>${v.sample ? `<button class="go alt" style="width:auto;padding:8px 12px" data-play="${esc(v.sample)}">▶</button>` : ''}${v.mine || viewer.role === 'parent' ? `<button class="go alt" style="width:auto;padding:8px 12px" data-forget="${esc(v.id)}" aria-label="Remove ${esc(v.name)}">🗑</button>` : ''}</div>`).join('') : '<p class="note" style="margin:0">None yet: make the first one below.</p>'}</section>
+        <p class="note" style="margin:6px 0 0">Ready-made: ${stock.map(esc).join(', ')}.</p>
+        <h3 class="k">Make a voice</h3><section class="sset" style="display:grid;gap:8px">
+          <textarea id="vdesc" rows="3" maxlength="600" placeholder="Who are they and how do they sound? Like: a grumpy old robot, slow and crackly, who secretly loves pizza" style="box-sizing:border-box;width:100%;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);font:400 15px var(--body);resize:vertical">${esc(said)}</textarea>
+          <button class="go" id="vmake"${left === 0 ? ' disabled' : ''}>Make 3 takes</button>
+          ${takes ? takes.map((t, i) => `<div class="srow"><div style="flex:1"><b>Take ${i + 1}</b></div><button class="go alt" style="width:auto;padding:8px 12px" data-play="${esc(t.audio)}">▶</button><button class="go" style="width:auto;padding:8px 12px" data-keep="${i}">Keep</button></div>`).join('') : ''}
+          ${note ? `<p class="note" style="margin:0">${esc(note)}</p>` : ''}
+          <p class="capn" style="margin:0">${left == null ? 'No limit for parents.' : left + ' voice designs left today · you can keep 5 voices'}</p></section>`;
+      let playing = null;
+      sb.querySelectorAll('[data-play]').forEach((b) => (b.onclick = () => { playing?.pause(); playing = new Audio(b.dataset.play); playing.play().catch(() => {}); }));
+      sb.querySelectorAll('[data-forget]').forEach((b) => (b.onclick = async () => {
+        if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Remove?'; return; }
+        try { await B.voice({ forget: { id: b.dataset.forget } }); note = ''; } catch (err) { note = err.message; } voices();
+      }));
+      $('vmake').onclick = async () => {
+        said = $('vdesc').value.trim(); const btn = $('vmake'); btn.disabled = true; btn.textContent = 'Making 3 takes…';
+        try { const r = await B.voice({ design: { text: said } }); takes = r.previews; note = takes.length ? 'Play each, then keep the one that fits.' : 'No takes came back. Try describing it another way.'; }
+        catch (err) { takes = null; note = err.message; }
+        voices();
+      };
+      sb.querySelectorAll('[data-keep]').forEach((b) => (b.onclick = async () => {
+        const name = (prompt('Name this voice (projects use it by name):', '') || '').trim(); if (!name) return;
+        b.disabled = true; b.textContent = 'Keeping…';
+        try { await B.voice({ keep: { id: takes[+b.dataset.keep].id, audio: takes[+b.dataset.keep].audio, name, text: said } }); takes = null; said = ''; note = `Kept ${name}. Try it: ask Claude to make your project talk in the ${name} voice.`; }
+        catch (err) { note = err.message; }
+        voices();
+      }));
     };
     paint();
   };

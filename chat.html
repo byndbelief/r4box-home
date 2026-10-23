@@ -454,7 +454,7 @@
   function openActs(id, el) {
     closeActs(); const m = msgs.find((x) => x.id === id); if (!m) return;
     const a = document.createElement('div'); a.className = 'acts';
-    a.innerHTML = REACT.map((e) => `<button data-r="${e}" aria-label="React ${e}">${e}</button>`).join('') + (isMedia(m) && seenSet.has(m.id) && (opened.has(m.id) || bigNow.has(m.id)) ? '<button class="t" data-a="small">Make small</button>' : '') + (m.reply_to ? '' : '<button class="t" data-a="reply">Reply</button>') + (canDel(m) ? '<button class="t bad" data-a="del">Delete</button>' : '');
+    a.innerHTML = REACT.map((e) => `<button data-r="${e}" aria-label="React ${e}">${e}</button>`).join('') + (isMedia(m) && seenSet.has(m.id) && (opened.has(m.id) || bigNow.has(m.id)) ? '<button class="t" data-a="small">Make small</button>' : '') + (words(m).trim() ? '<button class="t" data-a="read" aria-label="Read aloud">🔊</button>' : '') + (m.reply_to ? '' : '<button class="t" data-a="reply">Reply</button>') + (canDel(m) ? '<button class="t bad" data-a="del">Delete</button>' : '');
     document.body.append(a);
     const r = el.getBoundingClientRect(), w = a.offsetWidth;
     a.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px'; a.style.top = Math.max(8, r.top - a.offsetHeight - 6) + 'px';
@@ -462,8 +462,21 @@
       if (b.dataset.r) return react(id, b.dataset.r);
       if (b.dataset.a === 'small') { opened.delete(id); bigNow.delete(id); return render(false); }
       if (b.dataset.a === 'reply') return openThread(id);
+      if (b.dataset.a === 'read') return readAloud(m);
       if (b.dataset.a === 'del') return askDelete(id); };
     setTimeout(() => document.addEventListener('click', closeActs, { once: true }), 0);
+  }
+  // 🔊 a message read aloud (project-voice's private read, ElevenLabs): nothing is kept, so it's made each time.
+  let reading = null;
+  async function readAloud(m) {
+    reading?.pause(); if (reading) URL.revokeObjectURL(reading.src);
+    const text = words(m).replace(/\p{Extended_Pictographic}|\u200d|\ufe0f/gu, '').trim(); if (!text) return;
+    const { data: { session: s } } = await sb.auth.getSession();
+    try {
+      const r = await fetch(FN.replace(/family-chat$/, 'project-voice'), { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ read: { text, voice: m.is_claude ? 'calm' : 'narrator' } }) });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Couldn’t read that one out.');
+      reading = new Audio(URL.createObjectURL(await r.blob())); await reading.play();
+    } catch (err) { toast(err.message); }
   }
   async function react(id, e) {
     const mine = (reacts.get(id)?.[e] || []).includes(ME.id), row = { message: id, user_id: ME.id, emoji: e };

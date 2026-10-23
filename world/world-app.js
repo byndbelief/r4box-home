@@ -15,6 +15,7 @@
   // "Unresolved" (a heading, a line of its own or a paragraph's lead) stands out, and a long paragraph is broken every three sentences.
   const sentences = (t) => t.split(/(?<=[.!?])\s+(?=[A-Z0-9`"(])/);
   const inl = (t) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  let listening = null;   // the journal entry being read aloud (▶ Listen)
   function entryHTML(body) {
     const blocks = String(body || '').replace(/\r/g, '').split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
     let out = '', first = true, todo = false;
@@ -190,10 +191,18 @@
       el.innerHTML = `<div class="calh"><button data-m="-1" ${month <= minM ? 'disabled' : ''} aria-label="Previous month">‹</button><b>${first.toLocaleDateString([], { month: 'long', year: 'numeric', timeZone: 'UTC' })}</b><span>${count} entr${count === 1 ? 'y' : 'ies'}</span><button data-m="1" ${month >= maxM ? 'disabled' : ''} aria-label="Next month">›</button></div>
         ${jvBar()}<div class="dow">${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x) => `<span>${x}</span>`).join('')}</div><div class="grid">${cells.join('')}</div>
         <div class="calkey"><span><i class="k1"></i>wrote</span><span><i class="k2"></i>something grew</span></div>
-        <article class="dayc"><div class="d">${esc(nice(sel))}</div>${en ? `<div class="etext">${entryHTML(en.body)}</div>` : `<p class="none">${a === 'own' ? 'Nothing written this day.' : 'Nothing shared this day.'}</p>`}
+        <article class="dayc"><div class="d">${esc(nice(sel))}${en && window.R4Voice ? '<button class="listen" data-listen>▶ Listen</button>' : ''}</div>${en ? `<div class="etext">${entryHTML(en.body)}</div>` : `<p class="none">${a === 'own' ? 'Nothing written this day.' : 'Nothing shared this day.'}</p>`}
         ${uniq.length ? `<span class="sub">What grew · ${ev.length}</span><div class="chips">${uniq.slice(0, 6).map((t) => `<button data-t="${t.id}">${REALM[t.source][0]} <span>${esc(t.title)}</span></button>`).join('')}</div>` : ''}
         ${en && a === 'own' ? shareBtn(entryId(p, en), K.isShared(entryId(p, en))) : ''}</article>`;
       el.querySelectorAll('[data-day]').forEach((b) => (b.onclick = () => { sel = b.dataset.day; draw(); }));
+      // ▶ Listen: the day's entry read aloud (the page's R4Voice: project-voice, ElevenLabs); made once, then instant
+      const lb = el.querySelector('[data-listen]');
+      if (lb) lb.onclick = async () => {
+        if (listening) { listening.pause(); listening = null; lb.textContent = '▶ Listen'; return; }
+        lb.textContent = 'Getting it ready…';
+        try { listening = await window.R4Voice(String(en.body).replace(/[`*#>_]+/g, '').replace(/^\s*[-•]\s*/gm, '')); listening.onended = () => { listening = null; lb.textContent = '▶ Listen'; }; lb.textContent = '■ Stop'; }
+        catch (err) { lb.textContent = err.message; setTimeout(() => lb.isConnected && (lb.textContent = '▶ Listen'), 4000); }
+      };
       el.querySelectorAll('[data-m]').forEach((b) => (b.onclick = () => { month = shiftM(month, +b.dataset.m); const inM = (d) => d.startsWith(month); sel = list.map((e) => e.day).filter(inM).sort().pop() || Object.keys(evDay).filter(inM).sort().pop() || month + '-01'; draw(); }));
       el.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => renderStory(p, tById[b.dataset.t])));
       wireShare(el, (id) => { const e = list.find((x) => entryId(p, x) === id); return { kind: 'entry', title: nice(e.day, { weekday: 'long' }) + '’s entry', day: e.day, text: entryText(e.body).slice(0, 160) }; });

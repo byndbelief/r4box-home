@@ -18,8 +18,11 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
   <link rel="stylesheet" href="world/world.css?v=57">
-  <link rel="stylesheet" href="projects/projects.css?v=55">
-  <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }</style>
+  <link rel="stylesheet" href="projects/projects.css?v=56">
+  <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }
+    .talkbar { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 22px; background: #141130; border: 1px solid #3DD6C688; box-shadow: 0 10px 24px #000c; font-size: 14px; max-width: calc(100% - 32px); }
+    .talkbar i { font-style: normal; animation: talkp 1.4s ease-in-out infinite; } @keyframes talkp { 50% { opacity: .45; } }
+    .talkbar button { all: unset; cursor: pointer; padding: 8px 14px; border-radius: 16px; background: #FF5A4A; color: #fff; font-weight: 800; }</style>
 </head>
 <body>
 <div id="app">
@@ -30,7 +33,7 @@
 <script src="world/story-kit.js?v=2"></script>
 <script src="projects/beautifier.min.js?v=54"></script>
 <script src="projects/structure.js?v=54"></script>
-<script src="projects/projects-data.js?v=55"></script>
+<script src="projects/projects-data.js?v=56"></script>
 <script type="module">
   import { sb, roleOf, gateApp } from './auth.js?v=114';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
@@ -114,17 +117,65 @@
     post: (text, id) => call('family-chat', { text, ref: { type: 'project', id } }),
   };
 
-  // r4.say / r4.sfx in a preview: the frame asks, project-voice makes (or finds) the clip, the frame plays its URL.
-  let voiceNoted = false;
+  // The voice kit in a preview (project-voice, ElevenLabs). r4.say / r4.sfx / r4.music: the frame asks,
+  // project-voice makes (or finds) the clip, the frame plays its URL. r4.talk: a live conversation with
+  // the project's character, run here (the frame has no microphone), its lines and turns passed back.
+  window.R4Build.voice = (q) => call('project-voice', q);
+  let voiceNoted = false, talking = null;
+  const fromPreview = (e) => [...document.querySelectorAll('iframe')].some((f) => f.contentWindow === e.source);
   addEventListener('message', async (e) => {
-    const m = e.data && e.data.r4voice;
-    if (!m || ![...document.querySelectorAll('iframe')].some((f) => f.contentWindow === e.source)) return;
-    const q = m.q && (m.q.say ? { say: m.q.say } : m.q.sfx ? { sfx: m.q.sfx } : null);
+    const d = e.data || {};
+    if (!(d.r4voice || d.r4talk || d.r4hangup) || !fromPreview(e)) return;
+    if (d.r4hangup) return talking && talking.src === e.source && talking.end();
+    if (d.r4talk) return talk(e.source, d.r4talk);
+    const m = d.r4voice, q = m.q && (m.q.say ? { say: m.q.say } : m.q.sfx ? { sfx: m.q.sfx } : m.q.music ? { music: m.q.music } : null);
     let back;
     try { back = q ? { id: m.id, ...(await call('project-voice', q)) } : { id: m.id, error: 'Not a sound.' }; }
     catch (err) { back = { id: m.id, error: err.message }; if (!voiceNoted) { voiceNoted = true; toastErr(err.message); } }
     e.source.postMessage({ r4voiceback: back }, '*');
   });
+  async function talk(src, { id, q }) {
+    const send = (ev) => { try { src.postMessage({ r4talkev: { id, ...ev } }, '*'); } catch {} };
+    if (talking) return send({ type: 'end', error: 'Already talking: hang up first.' });
+    const bar = document.createElement('div'); bar.className = 'talkbar';
+    bar.innerHTML = '<i>🎙</i><span>Starting…</span><button>End</button>';
+    document.body.append(bar);
+    const state = (t) => { bar.querySelector('span').textContent = t; };
+    let conv = null, log = null, done = false, watch;
+    const end = async () => {
+      if (done) return; done = true; clearInterval(watch); bar.remove(); talking = null;
+      const cid = conv && conv.getId && conv.getId();
+      try { await conv?.endSession(); } catch {}
+      send({ type: 'end' });
+      if (cid && log) call('project-voice', { talked: { log, conversation: cid } }).catch(() => {});
+    };
+    talking = { src, end };
+    bar.querySelector('button').onclick = end;
+    // the preview closed or the page went away: hang up
+    watch = setInterval(() => { if (![...document.querySelectorAll('iframe')].some((f) => f.contentWindow === src)) end(); }, 1000);
+    try {
+      const [{ Conversation }, t] = await Promise.all([
+        import('https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.30.0/+esm'),
+        call('project-voice', { talk: { persona: q.persona, voice: q.voice, project: q.project } }),
+      ]);
+      log = t.log;
+      if (done) return;
+      conv = await Conversation.startSession({
+        signedUrl: t.signedUrl, connectionType: 'websocket',
+        overrides: { agent: q.first ? { firstMessage: q.first } : {}, tts: { voiceId: t.voiceId } },
+        dynamicVariables: { persona: t.persona, project: String(q.project || 'a project').slice(0, 80), who: t.who },
+        onConnect: () => state('Listening… talk any time'),
+        onModeChange: ({ mode }) => { state(mode === 'speaking' ? 'Speaking…' : 'Listening… talk any time'); send({ type: 'mode', mode }); },
+        onMessage: ({ message, source }) => send({ type: 'message', who: source === 'ai' ? 'character' : 'me', text: message }),
+        onDisconnect: () => end(),
+        onError: (msg) => console.warn('talk', msg),
+      });
+      if (done) conv.endSession().catch(() => {});
+    } catch (err) {
+      const msg = /permission|denied|notallowed/i.test(String(err && (err.name + err.message))) ? 'Talking needs the microphone: allow it for r4box.com.' : err.message || 'Talking didn’t start.';
+      toastErr(msg); send({ type: 'end', error: msg }); done = true; clearInterval(watch); bar.remove(); talking = null;
+    }
+  }
 
   // ?v= changes with each update, so a phone never runs a stale bench (Pages lets browsers keep files 10 minutes).
   const V = document.querySelector('link[href*="projects.css"]').href.split('?v=')[1];
