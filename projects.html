@@ -30,7 +30,7 @@
 <script src="world/story-kit.js?v=2"></script>
 <script src="projects/beautifier.min.js?v=54"></script>
 <script src="projects/structure.js?v=54"></script>
-<script src="projects/projects-data.js?v=54"></script>
+<script src="projects/projects-data.js?v=55"></script>
 <script type="module">
   import { sb, roleOf, gateApp } from './auth.js?v=114';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
@@ -113,6 +113,18 @@
     // A line in the family chat with the project's card (family-chat builds the card from the row).
     post: (text, id) => call('family-chat', { text, ref: { type: 'project', id } }),
   };
+
+  // r4.say / r4.sfx in a preview: the frame asks, project-voice makes (or finds) the clip, the frame plays its URL.
+  let voiceNoted = false;
+  addEventListener('message', async (e) => {
+    const m = e.data && e.data.r4voice;
+    if (!m || ![...document.querySelectorAll('iframe')].some((f) => f.contentWindow === e.source)) return;
+    const q = m.q && (m.q.say ? { say: m.q.say } : m.q.sfx ? { sfx: m.q.sfx } : null);
+    let back;
+    try { back = q ? { id: m.id, ...(await call('project-voice', q)) } : { id: m.id, error: 'Not a sound.' }; }
+    catch (err) { back = { id: m.id, error: err.message }; if (!voiceNoted) { voiceNoted = true; toastErr(err.message); } }
+    e.source.postMessage({ r4voiceback: back }, '*');
+  });
 
   // ?v= changes with each update, so a phone never runs a stale bench (Pages lets browsers keep files 10 minutes).
   const V = document.querySelector('link[href*="projects.css"]').href.split('?v=')[1];
