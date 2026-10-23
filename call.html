@@ -57,12 +57,14 @@
     #bubble .bacts button { all: unset; cursor: pointer; flex: 1; text-align: center; padding: 8px 0; font-size: 16px; background: #141130; }
     #bubble .bacts button + button { border-left: 1px solid #ffffff1a; }
     #bubble .bacts .end { background: var(--hot); }
+    #hear { all: unset; cursor: pointer; position: fixed; z-index: 60; left: 50%; top: calc(12px + env(safe-area-inset-top)); transform: translateX(-50%); padding: 10px 16px; border-radius: 99px; background: var(--teal, #3DD6C6); color: #062A26; font: 800 14px/1 var(--font-body, sans-serif); box-shadow: 0 8px 22px #000a; }
   </style>
 </head>
 <body>
 <iframe id="page" title="r4box" allow="fullscreen; clipboard-read; clipboard-write; autoplay"></iframe>
 <div id="call" hidden role="dialog" aria-label="Video call"><div class="stage" id="stage"></div><div class="bar"><button id="callmin" aria-label="Keep browsing (the call stays on)">⌄</button><button id="mic" aria-pressed="false" aria-label="Mute">🎤</button><button id="cam" aria-pressed="false" aria-label="Turn camera off">📷</button><button id="flip" aria-label="Switch camera" hidden>🔄</button><button id="hang" class="end" aria-label="Leave the call">✕</button></div></div>
 <div id="bubble" hidden role="region" aria-label="Video call, small"><div class="bv" id="bv" role="button" aria-label="Make the call big"><span class="bf" id="bf"></span><video id="bvid" autoplay playsinline muted></video><span class="bn" id="bn"></span></div><div class="bacts"><button id="bmic" aria-label="Mute">🎤</button><button id="bhang" class="end" aria-label="Leave the call">✕</button></div></div>
+<div id="ears" hidden></div><button id="hear" hidden>🔈 Tap to hear the call</button>
 <script type="module">
   import { sb, FAMILY } from './auth.js?v=115';
   const $ = (id) => document.getElementById(id);
@@ -114,7 +116,9 @@
     } catch {}
   }
   const PEER = crypto.randomUUID();   // this window in the call (one person may join from two devices)
-  const peers = new Map();            // peer -> { pc, user, ice: [], out: [], timer, cam, mic }
+  const peers = new Map();            // peer -> { pc, user, ice: [], out: [], timer, cam, mic, ear, ... }
+  const left = new Set();             // peers who said bye (their presence can linger a moment)
+  const AUDIO = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
   let calling = null;   // who this call rang (null: everyone)
   let inCall = false, local = null, facing = 'user', wake = null, aloneSince = 0, joined = null;
   const callCh = sb.channel('family-call', { config: { private: true, presence: { key: PEER } } });
@@ -136,18 +140,28 @@
   function syncCall() {
     if (!inCall) return;
     const others = callLive();
-    for (const o of others) if (!peers.has(o.peer)) { const p = connect(o.peer, o.user); if (PEER < o.peer) offer(o.peer, p); }
-    for (const id of [...peers.keys()]) if (!others.some((o) => o.peer === id)) drop(id);
+    for (const o of others) if (!peers.has(o.peer) && !left.has(o.peer)) { const p = connect(o.peer, o.user); if (PEER < o.peer) offer(o.peer, p); }
+    // Gone from the list: often only their line (or ours) reconnecting, so a connection that still works gets 20s to come back.
+    for (const [id, p] of peers) {
+      if (others.some((o) => o.peer === id)) { p.gone = 0; continue; }
+      p.gone = p.gone || Date.now();
+      if (p.pc.connectionState !== 'connected' || Date.now() - p.gone > 20e3) drop(id);
+    }
     aloneSince = others.length ? 0 : aloneSince || Date.now();
     paint();
   }
 
   function connect(peer, user) {
     const pc = new RTCPeerConnection({ iceServers: ICE });
-    const p = { pc, user, ice: [], out: [], timer: 0, cam: true, mic: true, stream: null, state: 'new' };
+    // Their sound plays in its own <audio>, apart from the videos: a phone may pause a video it isn't showing
+    // (the call folded into the bubble), and the sound went with it.
+    const ear = document.createElement('audio'); ear.autoplay = true; ear.setAttribute('playsinline', '');
+    const p = { pc, user, ice: [], out: [], timer: 0, cam: true, mic: true, stream: null, state: 'new', ear, rx: null, still: 0, fixAt: 0, gone: 0 };
+    ear.addEventListener('pause', () => { if (inCall && peers.get(peer) === p) setTimeout(hear, 300); });   // something else stopped it: play again
+    $('ears').append(ear);
     peers.set(peer, p);
     for (const t of local.getTracks()) pc.addTrack(t, local);
-    pc.ontrack = ({ track, streams }) => { p.stream = streams[0] || new MediaStream([track]); paint(); };
+    pc.ontrack = ({ track, streams }) => { p.stream = streams[0] || new MediaStream([track]); if (ear.srcObject !== p.stream) ear.srcObject = p.stream; hear(); paint(); };
     // Candidates go out in small batches, so a connection doesn't flood the channel.
     pc.onicecandidate = ({ candidate }) => {
       if (!candidate) return;
@@ -157,8 +171,8 @@
     pc.onconnectionstatechange = () => {
       p.state = pc.connectionState; paint();
       if (pc.connectionState === 'connected') { sig(peer, 'state', { cam: camOn(), mic: micOn() }); setTimeout(() => viaRelay(p), 1500); }
-      // Lost the way through (a network change): the one who called finds a new one.
-      if (pc.connectionState === 'failed' && PEER < peer) { pc.restartIce(); offer(peer, p); }
+      // Lost the way through (a network change): the one who called finds a new one (the other asks them to).
+      if (pc.connectionState === 'failed') fix(peer, p);
     };
     sig(peer, 'state', { cam: camOn(), mic: micOn() });
     return p;
@@ -173,6 +187,19 @@
       p.relay = !!(lc && lc.candidateType === 'relay') || !!(rc && rc.candidateType === 'relay'); paint();
     } catch {}
   }
+  // A new way through: fresh relay logins (the day's may have run out in a long call), then a new handshake.
+  async function restart(peer, p) {
+    await loadIce(); try { p.pc.setConfiguration({ iceServers: ICE }); } catch {}
+    if (peers.get(peer) !== p) return;
+    p.pc.restartIce(); offer(peer, p);
+  }
+  // No sound from them: they check their mic, and the connection is renewed (at most every 20s).
+  function fix(peer, p) {
+    if (Date.now() - p.fixAt < 20e3) return;
+    p.fixAt = Date.now();
+    sig(peer, 'deaf');
+    if (PEER < peer) restart(peer, p); else sig(peer, 'restart');
+  }
   async function offer(peer, p) {
     try { await p.pc.setLocalDescription(await p.pc.createOffer()); sig(peer, 'offer', p.pc.localDescription.toJSON()); }
     catch (e) { console.error('offer', e); }
@@ -180,6 +207,9 @@
   async function onSignal(m) {
     if (!inCall || m.from === PEER) return;
     if (m.kind === 'state') { const p = peers.get(m.from); if (p) { p.cam = !!m.data.cam; p.mic = !!m.data.mic; paint(); } return; }
+    if (m.kind === 'bye') { left.add(m.from); drop(m.from); paint(); return; }
+    if (m.kind === 'deaf') { fixMic(); return; }
+    if (m.kind === 'restart') { const p = peers.get(m.from); if (p && PEER < m.from) restart(m.from, p); return; }
     let p = peers.get(m.from);
     if (!p) { if (m.kind !== 'offer') return; p = connect(m.from, m.user); }
     try {
@@ -192,7 +222,43 @@
       }
     } catch (e) { console.error('signal', e); }
   }
-  function drop(peer) { const p = peers.get(peer); if (!p) return; clearTimeout(p.timer); p.pc.close(); peers.delete(peer); }
+  function drop(peer) { const p = peers.get(peer); if (!p) return; clearTimeout(p.timer); p.pc.close(); p.ear.srcObject = null; p.ear.remove(); peers.delete(peer); }
+
+  // Their sound, playing: anything that stopped it (another sound on the page, a phone call, the screen locking) gets
+  // a play again; a browser that wants a tap first gets a button.
+  function hear() {
+    if (!inCall) return;
+    for (const p of peers.values()) if (p.stream && p.ear.paused) p.ear.play().then(() => { if (![...peers.values()].some((x) => x.stream && x.ear.paused)) $('hear').hidden = true; }).catch((e) => { if (e.name === 'NotAllowedError') $('hear').hidden = false; });
+  }
+  $('hear').onclick = () => { $('hear').hidden = true; hear(); };
+  // Our mic, back after the phone took it (a phone call, Siri, another app): a new one goes out in its place.
+  async function fixMic() {
+    const old = local?.getAudioTracks()[0];
+    if (!inCall || (old && old.readyState === 'live')) return;
+    try {
+      const [t] = (await navigator.mediaDevices.getUserMedia({ audio: AUDIO })).getAudioTracks();
+      if (!inCall) { t.stop(); return; }
+      t.enabled = old ? old.enabled : true; t.onended = fixMic;
+      if (old) local.removeTrack(old);
+      local.addTrack(t);
+      for (const p of peers.values()) p.pc.getSenders().find((x) => x.track === old || x.track?.kind === 'audio')?.replaceTrack(t);
+    } catch {}
+  }
+  // Every 4s, for each person: is their sound still arriving? (A muted mic still sends a trickle.) None for 8s on a
+  // connection that says it's up, or one stuck reconnecting for 8s: fix it.
+  setInterval(async () => {
+    if (!inCall) return;
+    syncCall();
+    for (const [peer, p] of [...peers]) {
+      let got = null;
+      try { (await p.pc.getStats()).forEach((r) => { if (r.type === 'inbound-rtp' && r.kind === 'audio') got = (got || 0) + (r.packetsReceived || 0); }); } catch {}
+      const cs = p.pc.connectionState, stuck = cs === 'disconnected' || (cs === 'connected' && got != null && got === p.rx);
+      p.rx = got; p.still = stuck ? p.still + 1 : 0;
+      if (p.deaf !== p.still >= 2) { p.deaf = p.still >= 2; paint(); }
+      if (p.deaf) fix(peer, p);
+    }
+    hear();
+  }, 4000);
 
   const camOn = () => !!local?.getVideoTracks()[0]?.enabled;
   const micOn = () => !!local?.getAudioTracks()[0]?.enabled;
@@ -214,14 +280,15 @@
         let t = st.querySelector(`[data-peer="${peer}"]`);
         if (!t) {
           t = Object.assign(document.createElement('div'), { className: 'tile' }); t.dataset.peer = peer;
-          t.innerHTML = `<video autoplay playsinline></video><div class="off"><b>${face(p.user)}</b></div><span class="nm">${esc(nameIn(p.user))}<small class="via" hidden> · via relay</small></span><span class="flag" hidden></span>`;
+          t.innerHTML = `<video autoplay playsinline muted></video><div class="off"><b>${face(p.user)}</b></div><span class="nm">${esc(nameIn(p.user))}<small class="via" hidden> · via relay</small></span><span class="flag" hidden></span>`;
           st.append(t);
         }
         const v = t.querySelector('video');
-        if (p.stream && v.srcObject !== p.stream) { v.srcObject = p.stream; v.play().catch(() => {}); }
+        v.muted = true;   // the sound is the <audio> (hear)
+        if (p.stream && (v.srcObject !== p.stream || v.paused)) { if (v.srcObject !== p.stream) v.srcObject = p.stream; v.play().catch(() => {}); }
         t.querySelector('.off').hidden = !!p.stream && p.cam;
         t.querySelector('.via').hidden = !p.relay;
-        const flag = t.querySelector('.flag'), bad = ['disconnected', 'failed'].includes(p.state);
+        const flag = t.querySelector('.flag'), bad = ['disconnected', 'failed'].includes(p.state) || p.deaf;
         flag.hidden = p.mic && !bad && p.state !== 'connecting' && p.state !== 'new';
         flag.textContent = bad ? 'Reconnecting…' : p.state === 'connecting' || p.state === 'new' ? 'Connecting…' : '🔇';
       }
@@ -259,14 +326,15 @@
     if (callCh.state !== 'joined') { toast('The call line isn’t connected. Try again in a moment.'); return setTimeout(exitShell, 2500); }
     if (new Set(callLive().map((x) => x.peer)).size >= MAX) { toast(`The call is full: ${MAX} people at most for now.`); return setTimeout(exitShell, 2500); }
     try {
-      local = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      local = await navigator.mediaDevices.getUserMedia({ audio: AUDIO,
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } } });
     } catch (e) {
       toast(e.name === 'NotAllowedError' ? 'The call needs your camera and microphone: allow them for r4box.com and try again.' : "Couldn't start the camera.");
       return setTimeout(exitShell, 3000);
     }
+    local.getAudioTracks()[0].onended = fixMic;
     await loadIce();
-    facing = 'user'; inCall = true; aloneSince = 0; calling = to || null;
+    facing = 'user'; inCall = true; left.clear(); aloneSince = 0; calling = to || null;
     $('stage').innerHTML = ''; big(true);
     const nobody = !callLive().length;
     await callCh.track({ user: ME.id });
@@ -281,7 +349,8 @@
   }
   function leaveCall() {
     if (!inCall) return;
-    inCall = false;
+    sig('*', 'bye');
+    inCall = false; $('hear').hidden = true;
     callCh.untrack();
     for (const id of [...peers.keys()]) drop(id);
     local?.getTracks().forEach((t) => t.stop()); local = null;
@@ -307,8 +376,12 @@
       paint();
     } catch { toast("Couldn't switch the camera."); }
   };
-  // Back to the page with the screen on: the wake lock was let go while it was hidden.
-  document.addEventListener('visibilitychange', async () => { if (inCall && !document.hidden && (!wake || wake.released)) try { wake = await navigator.wakeLock?.request('screen'); } catch {} });
+  // Back to the page with the screen on: the wake lock was let go while it was hidden, and the sound or the mic may have been stopped.
+  document.addEventListener('visibilitychange', async () => {
+    if (!inCall || document.hidden) return;
+    hear(); fixMic();
+    if (!wake || wake.released) try { wake = await navigator.wakeLock?.request('screen'); } catch {}
+  });
   addEventListener('pagehide', leaveCall);
 
   // ---- the bubble: drag it anywhere; it settles against the nearest side ----
