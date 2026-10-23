@@ -147,6 +147,50 @@
     catch (err) { back = { id: m.id, error: err.message }; if (!voiceNoted) { voiceNoted = true; toastErr(err.message); } }
     e.source.postMessage({ r4voiceback: back }, '*');
   });
+  // The microphone for a preview: the sandboxed frame is refused it, so a project that asks for sound gets it
+  // through here. The bar says which project is listening, with a Stop; it ends when the project stops, runs
+  // again or closes. The frame gets the sound only, never the page.
+  let hearing = null;
+  addEventListener('message', (e) => {
+    const m = (e.data || {}).r4mic;
+    if (!m || !fromPreview(e)) return;
+    if (m.stop) return hearing && hearing.src === e.source && hearing.end(true);
+    if (m.start) listenFor(e.source, m.start, String(m.name || '').slice(0, 60));
+  });
+  async function listenFor(src, want, name) {
+    const tell = (x) => { try { src.postMessage({ r4mic: x }, '*'); } catch {} };
+    if (hearing && hearing.src !== src) hearing.end();
+    if (hearing) return tell({ ok: 1 });
+    const bar = document.createElement('div'); bar.className = 'talkbar';
+    bar.innerHTML = '<i>🎤</i><span></span><button>Stop</button>';
+    bar.querySelector('span').textContent = (name || 'This project') + ' is listening';
+    let stream = null, ac = null, done = false, watch;
+    const end = (fromFrame) => {
+      if (done) return; done = true; clearInterval(watch); bar.remove(); if (hearing && hearing.src === src) hearing = null;
+      stream?.getTracks().forEach((t) => t.stop()); ac?.close().catch(() => {});
+      if (!fromFrame) tell({ ended: 1 });
+    };
+    hearing = { src, end };
+    bar.querySelector('button').onclick = () => end();
+    bar.onclick = () => ac?.state === 'suspended' && ac.resume();
+    watch = setInterval(() => { if (!fromPreview({ source: src })) end(true); }, 1000);
+    document.body.append(bar);
+    try {
+      const pick = (k) => (want && typeof want === 'object' && typeof want[k] === 'boolean' ? want[k] : undefined);
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: pick('echoCancellation'), noiseSuppression: pick('noiseSuppression'), autoGainControl: pick('autoGainControl') } });
+      if (done) return stream.getTracks().forEach((t) => t.stop());
+      ac = new AudioContext(); await ac.resume().catch(() => {});
+      if (ac.state === 'suspended') bar.querySelector('span').textContent = 'Tap here so ' + (name || 'this project') + ' can listen';
+      ac.onstatechange = () => { if (ac.state === 'running') bar.querySelector('span').textContent = (name || 'This project') + ' is listening'; };
+      const node = ac.createScriptProcessor(2048, 1, 1);
+      node.onaudioprocess = (ev) => { const pcm = new Float32Array(ev.inputBuffer.getChannelData(0)); try { src.postMessage({ r4mic: { pcm, rate: ac.sampleRate } }, '*', [pcm.buffer]); } catch {} };
+      ac.createMediaStreamSource(stream).connect(node); node.connect(ac.destination);   // (it outputs silence; it runs only when connected)
+      tell({ ok: 1 });
+    } catch (err) {
+      const no = /permission|denied|notallowed/i.test(String(err && (err.name + err.message))) ? 'The microphone is off for r4box.com: allow it in the browser.' : (err && err.message) || 'No microphone.';
+      tell({ no }); toastErr(no); end(true);
+    }
+  }
   async function talk(src, { id, q }) {
     const send = (ev) => { try { src.postMessage({ r4talkev: { id, ...ev } }, '*'); } catch {} };
     if (talking) return send({ type: 'end', error: 'Already talking: hang up first.' });
