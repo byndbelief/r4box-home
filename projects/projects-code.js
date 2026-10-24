@@ -52,7 +52,7 @@
       X.markUp(panel, $('pv2'), async (text, image) => {
         const r = await X.claude(p, text, dirty() ? draft : null, logs, image);
         ask.push({ me: true, t: '✏️ ' + text }, { t: r.say, ok: !!r.files });
-        if (r.files) { commit(r.note, r.files, X.viewer().id); run(); }
+        if (r.files) { if (r.saved) { draft = null; X.save(); paint(); } else commit(r.note, r.files, X.viewer().id); run(); }
         return r.say + (r.files ? ' (v' + head().v + ')' : '');
       }); }; $('pphone').onclick = () => X.phoneTest(p);
     history.pushState({ pv: 1 }, ''); run(); X.sw('prev', () => closePanel(), null, true);
@@ -514,7 +514,12 @@
       <div class="prev mini" hidden><iframe id="pv" title="Preview" sandbox="allow-scripts allow-modals" tabindex="-1"></iframe><button class="pcover" id="popen" aria-label="Open the preview"><span>⤢ Open preview</span></button><span class="live">● run</span></div><div class="cons" id="cons"></div>
       <div class="btabs" id="ctabs"></div><div id="parkhost"></div><div class="tbody" id="ctb"></div></div>`;
     $('crun').onclick = run; $('popen').onclick = openPanel; X.sw('bench', null, openPanel, true); $('cphone').onclick = () => X.phoneTest(p); $('cshare').onclick = () => X.shareSheet(p); $('cshare').hidden = p.owner !== X.viewer().id;
-    if (X.canEdit(p)) { const f = head().files, s = ST.structure(f); if (Object.keys(f).some((k) => f[k] !== s[k])) commit('One thing per line, so each line opens on its own', f, X.viewer().id); }
+    if (X.canEdit(p)) {
+      const f = head().files, s = ST.structure(f);
+      // a version Claude saved while this page was closed: laid out one thing per line in place, not as a version of its own
+      if (head().srv) { const { srv, ...h } = head(); p.versions[p.cur] = { ...h, files: s }; X.save(); }
+      else if (Object.keys(f).some((k) => f[k] !== s[k])) commit('One thing per line, so each line opens on its own', f, X.viewer().id);
+    }
     paint(); run(); window.scrollTo(0, 0);
     if (autoAsk) { tab = 'claude'; paint(); claude(autoAsk, true); }   // an idea that Claude builds whole: it starts at once
   }
@@ -608,7 +613,7 @@
       const r = await X.claude(p, q, dirty() ? draft : null, logs, null, chat, start);
       ask.pop(); if (Array.isArray(r.next) && r.next.length) sugs = r.next.slice(0, 3);
       if (r.name) p.name = r.name;
-      if (r.files) { ask.push({ t: r.say + ' Committed as v' + (head().v + 1) + ': open Commits to read the diff, or check out the one before if you don’t want it.', ok: true }); commit(r.note, r.files, X.viewer().id); run(); }
+      if (r.files) { ask.push({ t: r.say + ' Committed as v' + (r.saved ? head().v : head().v + 1) + ': open Commits to read the diff, or check out the one before if you don’t want it.', ok: true }); if (r.saved) { draft = null; X.save(); paint(); } else commit(r.note, r.files, X.viewer().id); run(); }
       else { ask.push({ t: r.say, wall: r.wall, asked: q }); paint(); }
     } catch (e) { ask.pop(); ask.push({ t: e.message }); paint(); }
     asking = false;

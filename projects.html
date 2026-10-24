@@ -18,7 +18,7 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
   <link rel="stylesheet" href="world/world.css?v=57">
-  <link rel="stylesheet" href="projects/projects.css?v=64">
+  <link rel="stylesheet" href="projects/projects.css?v=65">
   <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }
     .talkbar { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 22px; background: #141130; border: 1px solid #3DD6C688; box-shadow: 0 10px 24px #000c; font-size: 14px; max-width: calc(100% - 32px); }
     .talkbar i { font-style: normal; animation: talkp 1.4s ease-in-out infinite; } @keyframes talkp { 50% { opacity: .45; } }
@@ -119,7 +119,14 @@
       const r = await call('project-build', { project: p.id, ask, files: files || undefined, logs: logs || undefined, image: image || undefined, chat: chat || undefined, html, start: start || undefined });
       if (r.left !== undefined) this.left = r.left;
       if (r.brief) p.brief = r.brief;   // Claude's note on the project (it saves it itself)
-      return r.files ? tryOut(p, r) : r;
+      if (!r.files) return r;
+      const t = await tryOut(p, r);
+      // project-build saved the new version itself (kept even if this page had closed): take it, one thing per line
+      if (t.saved) {
+        p.versions = t.saved.versions.map((x, i) => (i === t.saved.cur && x.srv ? (({ srv, ...y }) => ({ ...y, files: window.R4Structure.structure(y.files) }))(x) : x));
+        p.cur = t.saved.cur; if (t.saved.name) p.name = t.saved.name;
+      }
+      return t;
     },
     // 💡 Help: Claude's note for the lines of one file ({ help: [{ n, text }] }); counts as a question, not a build.
     explain: (p, file, src) => call('project-build', { project: p.id, explain: { file, src } }),
@@ -161,7 +168,7 @@
       try { f = await call('project-build', { project: p.id, fix: true, ask: 'Running it showed errors as it started: fix them.', files: r.files, logs: errs.map((x) => ['error', x]) }); }
       catch { return r; }
       if (!f.files) return { ...r, say: r.say + (f.say ? ' ' + f.say : '') };
-      r = { ...r, files: f.files, say: r.say + (f.say ? ' ' + f.say : '') };
+      r = { ...r, files: f.files, saved: f.saved || r.saved, say: r.say + (f.say ? ' ' + f.say : '') };
     }
   }
 
