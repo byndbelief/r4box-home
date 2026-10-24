@@ -568,10 +568,15 @@
     }
     if (tab === 'claude') {
       // 📋 the brief: Claude's own note on the project, read with every question (projects.brief)
-      el.innerHTML = `${p.brief ? `<details class="brief"><summary>📋 Claude’s notes on ${esc(p.name)}</summary><p>${esc(p.brief)}</p></details>` : ''}<div class="bchat" id="cchat">${ask.map((m) => `<div class="bm${m.me ? ' me' : ''}${m.ok ? ' ok' : ''}">${m.me ? '' : '<i>✦</i>'}<span>${m.html || esc(m.t)}</span></div>`).join('')}</div>
+      el.innerHTML = `${p.brief ? `<details class="brief"><summary>📋 Claude’s notes on ${esc(p.name)}</summary><p>${esc(p.brief)}</p></details>` : ''}<div class="bchat" id="cchat">${ask.map((m) => `<div class="bm${m.me ? ' me' : ''}${m.ok ? ' ok' : ''}">${m.me ? '' : '<i>✦</i>'}<span>${m.html || esc(m.t)}${m.wall ? `<button class="wallb" data-wall="${ask.indexOf(m)}">🧱 ${X.viewer().role === 'parent' ? 'Send to Claude on r4box' : 'Ask a parent to fix r4box'}</button>` : ''}</span></div>`).join('')}</div>
         ${ed ? `<div class="sugs">${(sugs || firstSugs()).map((s) => `<button data-s="${s}">${s}</button>`).join('')}</div><form class="bask" id="cask"><input id="cq" placeholder="Ask about the code…" autocomplete="off"><button class="ibtn send" aria-label="Send">↑</button></form><p class="capn">${X.left() === Infinity ? 'No build limit.' : X.left() + ' builds left today · reading and explaining don’t use one'}</p>` : ''}`;
       const go = (q) => claude(q.trim());
       if (ed) { $('cask').onsubmit = (e) => { e.preventDefault(); go($('cq').value); }; el.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => go(b.dataset.s))); }
+      el.querySelectorAll('[data-wall]').forEach((b) => (b.onclick = async () => {
+        const m = ask[+b.dataset.wall]; b.disabled = true;
+        try { await window.R4Build.wall(p, m.wall, m.asked); if (X.viewer().role !== 'parent') b.textContent = '🧱 Asked in the family chat'; else b.disabled = false; }
+        catch (e) { b.disabled = false; X.toast(e.message); }
+      }));
       $('cchat').scrollTop = 1e6; return;
     }
     if (tab === 'log') {
@@ -604,7 +609,7 @@
       ask.pop(); if (Array.isArray(r.next) && r.next.length) sugs = r.next.slice(0, 3);
       if (r.name) p.name = r.name;
       if (r.files) { ask.push({ t: r.say + ' Committed as v' + (head().v + 1) + ': open Commits to read the diff, or check out the one before if you don’t want it.', ok: true }); commit(r.note, r.files, X.viewer().id); run(); }
-      else { ask.push({ t: r.say }); paint(); }
+      else { ask.push({ t: r.say, wall: r.wall, asked: q }); paint(); }
     } catch (e) { ask.pop(); ask.push({ t: e.message }); paint(); }
     asking = false;
   }

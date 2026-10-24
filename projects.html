@@ -18,7 +18,7 @@
     @font-face { font-family: "Sora"; font-weight: 100 800; font-display: swap; src: url("fonts/sora-latin.woff2") format("woff2"); }
   </style>
   <link rel="stylesheet" href="world/world.css?v=57">
-  <link rel="stylesheet" href="projects/projects.css?v=63">
+  <link rel="stylesheet" href="projects/projects.css?v=64">
   <style>:root { --mint: #C9FFF8; } #app { max-width: 760px; margin: 0 auto; } [hidden] { display: none !important; } main.page { box-sizing: border-box; width: 100%; max-width: 100%; } .bbar { min-width: 0; flex-wrap: wrap; } .pcard { flex-wrap: wrap; } .pcard .pmain { min-width: 150px; } .pacts { margin-left: auto; }
     .talkbar { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 22px; background: #141130; border: 1px solid #3DD6C688; box-shadow: 0 10px 24px #000c; font-size: 14px; max-width: calc(100% - 32px); }
     .talkbar i { font-style: normal; animation: talkp 1.4s ease-in-out infinite; } @keyframes talkp { 50% { opacity: .45; } }
@@ -33,7 +33,7 @@
 <script src="world/story-kit.js?v=2"></script>
 <script src="projects/beautifier.min.js?v=54"></script>
 <script src="projects/structure.js?v=54"></script>
-<script src="projects/projects-data.js?v=59"></script>
+<script src="projects/projects-data.js?v=60"></script>
 <script type="module">
   import { sb, roleOf, gateApp } from './auth.js?v=114';
   const FN = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/';
@@ -128,6 +128,14 @@
     askHelp: async (id) => { const { error: e } = await sb.rpc('project_ask_help', { p_id: id }); if (e) throw new Error(e.message); },
     // A line in the family chat with the project's card (family-chat builds the card from the row).
     post: (text, id) => call('family-chat', { text, ref: { type: 'project', id } }),
+    // 🧱 What they asked needs something r4box doesn't let projects do yet (Claude says so, with what r4box would need).
+    // A parent sends it to Claude on r4box: os fills in a task for r4box-home (to read and start, never started by
+    // itself). A kid asks a parent in the family chat, with the project's card.
+    wall(p, wall, asked) {
+      if (roleOf(session.user) !== 'parent') return call('family-chat', { text: `🧱 ${p.name} needs something r4box can’t do yet: ${wall}. Can a parent send it to Claude on r4box?`, ref: { type: 'project', id: p.id } });
+      const t = `A project on r4box.com hit a limit of r4box itself, not of its code.\nProject: ${p.name} (projects row ${p.id}, ${location.origin}/projects.html?open=${p.id})\nThey asked: ${String(asked || '').slice(0, 600)}\nThe projects Claude says r4box would need: ${wall}\n\nMake r4box able to do it if it can be done safely (projects run in a sandboxed frame: r4box-home projects.html and projects/*.js; what the projects Claude is told it can and can't do is in r4box's supabase/functions/project-build), then update that list and check the project works. If it shouldn't be allowed, say why.`;
+      window.open('https://os.r4box.com/#project=r4box-home&task=' + encodeURIComponent(t), 'r4-os.r4box.com');
+    },
   };
 
   // The voice kit in a preview (project-voice, ElevenLabs). r4.say / r4.sfx / r4.music: the frame asks,

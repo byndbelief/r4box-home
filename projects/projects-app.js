@@ -467,7 +467,7 @@
       if (r.change && open === p.id) {
         chat.push({ t: r.say + ' That’s v' + (p.versions[p.versions.length - 1].v + 1) + '. Undo with ⤺ if you don’t like it.', ok: true });
         commit(p, r.change, r.note);
-      } else { chat.push({ t: r.say }); paintTab(); }
+      } else { chat.push({ t: r.say, wall: r.wall, asked: text }); paintTab(); }
     } catch (e) { chat = chat.filter((m) => !m.wait); chat.push({ t: e.message }); paintTab(); }
     asking = false;
   }
@@ -511,12 +511,17 @@
       if (!mine) { el.innerHTML = `<p class="note">${esc(p.name)} by ${esc(byId(p.owner).name)}${p.from ? ', remixed from ' + esc(p.from.name) : ''}. ${p.versions.length} versions.</p><p class="note" style="margin-top:-4px">🤝 <b>Help</b> works on this same project with ${esc(byId(p.owner).name)}, once they let you in. ⑂ <b>Remix</b> makes your own copy to change however you like.</p><div class="hacts2"><button class="go" id="hlp"${(p.requests || []).includes(viewer.id) ? ' disabled' : ''}>${(p.requests || []).includes(viewer.id) ? 'Asked to help' : '🤝 Ask to help'}</button><button class="go alt" id="rmx">⑂ Remix it</button></div>`; $('rmx').onclick = () => remix(p.id); $('hlp').onclick = () => { askHelp(p); openBench(p.id); }; return; }
       const LVn = level(p).n, adv = { catch: ['make it 3× faster', 'I’m 🚀 catching 🪐, black background'], timer: ['45 minutes, gold', 'call it Deep work'], page: ['add a line: My best game is Deep sea catch', 'navy background, bigger'], comic: ['add a panel 🏁 where it ends', 'call it Dragon pizza night'], drums: ['8 pads, red', 'smaller'] }[p.kit];
       const sug0 = { catch: ['make it faster', 'I’m a 🐱 catching 🍩', 'blue background'], timer: ['25 minutes', 'make it red', 'bigger'], page: ['add a line: I play chess', 'pink', 'I’m 🦖'], comic: ['add a panel 🚀 where they fly away', 'bigger', 'call it Pizza dragon'], drums: ['more pads', 'purple', 'bigger'] }[p.kit], sug = LVn >= 3 ? [...sug0.slice(0, 1), ...adv] : sug0;
-      el.innerHTML = `<div class="bchat" id="bchat">${chat.map((m) => `<div class="bm${m.me ? ' me' : ''}${m.ok ? ' ok' : ''}">${m.me ? '' : '<i>✦</i>'}<span>${esc(m.t)}</span></div>`).join('')}</div>
+      el.innerHTML = `<div class="bchat" id="bchat">${chat.map((m) => `<div class="bm${m.me ? ' me' : ''}${m.ok ? ' ok' : ''}">${m.me ? '' : '<i>✦</i>'}<span>${esc(m.t)}${m.wall ? `<button class="wallb" data-wall="${chat.indexOf(m)}">🧱 ${viewer.role === 'parent' ? 'Send to Claude on r4box' : 'Ask a parent to fix r4box'}</button>` : ''}</span></div>`).join('')}</div>
         <div class="sugs">${sug.map((s) => `<button data-s="${esc(s)}">${esc(s)}</button>`).join('')}</div>
         <form class="bask" id="bask"><input id="bq" placeholder="Tell Claude what to change…" autocomplete="off"><button class="ibtn send" aria-label="Send">↑</button></form>
         <p class="capn">${viewer.role === 'parent' ? 'No build limit for parents.' : left() + ' of ' + CAP + ' builds left today · the parts shelf is free'}</p>`;
       $('bask').onsubmit = (e) => { e.preventDefault(); ask($('bq').value); };
       el.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => ask(b.dataset.s)));
+      el.querySelectorAll('[data-wall]').forEach((b) => (b.onclick = async () => {
+        const m = chat[+b.dataset.wall]; b.disabled = true;
+        try { await window.R4Build.wall(p, m.wall, m.asked); if (viewer.role !== 'parent') b.textContent = '🧱 Asked in the family chat'; else b.disabled = false; }
+        catch (e) { b.disabled = false; toast(e.message); }
+      }));
       const bc = $('bchat'); bc.scrollTop = bc.scrollHeight; return;
     }
     if (tab === 'parts') {
