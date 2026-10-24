@@ -352,6 +352,7 @@
     dialog label { display: grid; gap: 4px; font-weight: 700; font-size: 14px; }
     dialog .row { display: flex; gap: 10px; } dialog .row > * { flex: 1; min-width: 0; } dialog .row input { min-width: 0; }
     dialog .acts { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+    dialog .acts .end { display: flex; gap: inherit; margin-left: auto; }   /* Cancel and Save stay together, on the right */
     dialog h2 { margin: 0; font: 800 20px/1.2 var(--display); }
     /* The view (⚙ Settings on the home page, one for every app). Pilot: every instrument, packed
        tighter. Explore: the main things, less small print. Play: a few big controls. */
@@ -412,6 +413,14 @@
     .dens-pilot .tile .play { width: 22px; height: 22px; top: 5px; right: 5px; font-size: 10px; }
     .dens-pilot .total { padding: 8px 10px; font-size: 13px; }
     .dens-pilot .packs { gap: 6px; } .dens-pilot .pack { padding: 8px 10px; } .dens-pilot .pack label { padding: 2px 0; font-size: 13.5px; } .dens-pilot .pack h3 { font-size: 13px; margin-bottom: 4px; }
+    /* Pilot: the dialogs (Edit a trip, an item) as tight as the page under them */
+    .dens-pilot dialog { padding: 14px; border-radius: 16px; } .dens-pilot dialog h2 { font-size: 17px; }
+    .dens-pilot dialog form { gap: 8px; } .dens-pilot dialog label { gap: 2px; font-size: 12.5px; } .dens-pilot dialog .row { gap: 8px; }
+    .dens-pilot dialog :is(input:not([type=radio], [type=checkbox]), select, textarea) { padding: 6px 9px; font-size: 14px; border-radius: 9px; } .dens-pilot dialog textarea { min-height: 52px; }
+    .dens-pilot dialog .note { font-size: 12px; line-height: 1.4; } .dens-pilot dialog .note:empty { display: none; }
+    .dens-pilot dialog .acts { gap: 6px; margin-top: 2px; }
+    .dens-pilot .types { display: flex; flex-wrap: wrap; gap: 5px; }   /* the kinds as one-line chips; the hint under each is for the roomier views */
+    .dens-pilot .types .ty span { padding: 4px 10px; border-radius: 999px; } .dens-pilot .types .ty b { font-size: 12.5px; white-space: nowrap; } .dens-pilot .types .ty small { display: none; }
     .dens-explore .est ul, .dens-explore .est .legend, .dens-explore .est > .note, .dens-explore .item .meta { display: none; }
     .dens-explore .item .notes { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .dens-play { font-size: 17px; }
@@ -1749,7 +1758,7 @@
       <label id="dcur">Currency<input name="currency" maxlength="3" value="${esc(t.currency || 'USD')}"></label>
       <p class="note" id="dnote"></p>
       <p class="note" id="derr"></p>
-      <div class="acts">${t.id ? `${t.ended_at ? '<button type="button" class="btn" id="dreopen">Reopen trip</button>' : over(t) ? '' : '<button type="button" class="btn" id="dend">End trip</button>'}${PARENT ? '<button type="button" class="btn bad" id="dtripdel">Delete trip</button>' : ''}<span style="flex:1"></span>` : ''}<button type="button" class="btn" id="dcancel">Cancel</button><button class="btn p">Save</button></div>`;
+      <div class="acts">${t.id ? `${t.ended_at ? '<button type="button" class="btn" id="dreopen">Reopen trip</button>' : over(t) ? '' : '<button type="button" class="btn" id="dend">End trip</button>'}${PARENT ? '<button type="button" class="btn bad" id="dtripdel">Delete trip</button>' : ''}` : ''}<span class="end"><button type="button" class="btn" id="dcancel">Cancel</button><button class="btn p">Save</button></span></div>`;
     const f = $('dform');
     const ty = () => f.elements.type.value || 'away';
     // The form follows the type: one date for a day out or a night in, no "travelling from" at home.
