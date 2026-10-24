@@ -424,7 +424,7 @@
     .dens-explore .est ul, .dens-explore .est .legend, .dens-explore .est > .note, .dens-explore .item .meta { display: none; }
     .dens-explore .item .notes { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .dens-play { font-size: 17px; }
-    .dens-play .est, .dens-play #asks, .dens-play .item .meta, .dens-play .item .notes, .dens-play .opt .ot span, .dens-play .choices > p, .dens-play .build span,
+    .dens-play .est, .dens-play .cchat .step, .dens-play .item .meta, .dens-play .item .notes, .dens-play .opt .ot span, .dens-play .choices > p, .dens-play .build span,
     .dens-play [data-setuppart], .dens-play [data-compare], .dens-play .going form, .dens-play .tile .tags, .dens-play #goal { display: none; }
     .dens-play .tabs a { flex: 1 0 auto; text-align: center; padding: 12px; font-size: 16px; } .dens-play .item { padding: 18px; } .dens-play .item .ttl { font-size: 19px; }
     .dens-play .opt { padding: 16px; } .dens-play .opt .ot b { font-size: 18px; } .dens-play .opt .dot { width: 28px; height: 28px; }
@@ -474,9 +474,32 @@
     .topic h3 { font: 800 14px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
     .topic h3 small { color: var(--teal); font-weight: 700; letter-spacing: 0; text-transform: none; }
     .ti { margin-right: 6px; }
-    details.asks { margin-top: 8px; color: var(--muted); font-size: 13px; }
-    details.asks summary { cursor: pointer; }
-    details.asks p { margin: 6px 0; }
+    /* The chat with Claude: the trip's asks and answers, a part at a time for a big one */
+    .cchat { margin-top: 12px; border: 1px solid #F5C54240; border-radius: 16px; background: color-mix(in srgb, var(--gold) 5%, var(--panel)); padding: 10px 12px; }
+    .cchat .ch { display: flex; align-items: center; gap: 10px; }
+    .cchat .ch b { color: var(--gold); flex: 1; }
+    .cchat .thread { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; }
+    .cchat .thread[hidden] { display: none; }
+    .cchat .me, .cchat .cl { max-width: 88%; padding: 8px 11px; border-radius: 14px; font-size: 14.5px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .cchat .me { align-self: flex-end; background: #ffffff14; border-bottom-right-radius: 4px; }
+    .cchat .me small { display: block; color: var(--muted); font-size: 12px; }
+    .cchat .me .clip { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .cchat .cl { align-self: flex-start; background: color-mix(in srgb, var(--gold) 11%, var(--panel-2)); border-bottom-left-radius: 4px; }
+    .cchat .cl.wait { color: var(--muted); }
+    .cchat .cl.bad { border: 1px solid #FF5A4A66; }
+    .cchat .step { align-self: center; color: var(--muted); font-size: 12.5px; text-align: center; max-width: 92%; }
+    .cchat .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; white-space: normal; }
+    .cchat .chips button { all: unset; cursor: pointer; font-size: 12.5px; padding: 3px 9px; border-radius: 99px; background: #ffffff12; }
+    .cchat .plan { margin: 0; padding: 8px 10px; border-radius: 12px; background: #00000040; font-size: 13.5px; list-style: none; }
+    .cchat .plan li { padding: 2px 0; color: var(--muted); } .cchat .plan li.ok { color: var(--ink); } .cchat .plan li.now { color: var(--gold); font-weight: 700; }
+    .cchat .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; white-space: normal; }
+    .cchat .acts button { all: unset; cursor: pointer; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 99px; border: 1px solid var(--line); }
+    .cchat .acts .go { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+    .cchat form { display: flex; gap: 8px; margin-top: 8px; }
+    .cchat form input { padding: 10px 12px; background: var(--panel); border-radius: 12px; font-size: 16px; min-width: 0; }
+    .cchat form .btn { flex: none; padding: 0 14px; border-radius: 12px; }
+    .cchat .dots::after { content: '…'; animation: dots 1.4s steps(4) infinite; display: inline-block; width: 1.2em; overflow: hidden; vertical-align: bottom; }
+    @keyframes dots { from { width: 0 } to { width: 1.2em } }
   </style>
 </head>
 <body>
@@ -502,8 +525,7 @@
       <form id="askf"><input id="askq" placeholder="Search the trip, or ask Claude…" autocomplete="off" aria-label="Search the trip, or ask Claude" maxlength="2000"><button class="btn" id="askgo">✦ Ask</button></form>
       <div class="found" id="found" hidden></div>
     </div>
-    <div id="answer"></div>
-    <details class="asks" id="asks" hidden><summary>Recent asks</summary><div id="asklist"></div></details>
+    <section class="cchat" id="cchat" hidden aria-label="Chat with Claude"></section>
     <div class="over" id="over"></div>
     <nav class="tabs" aria-label="Trip sections">
       <a href="#plan">Plan</a><a href="#ideas">Ideas</a><a href="#bookings" id="tabbook">Bookings</a><a href="#packing" id="tabpack">Packing</a>
@@ -580,8 +602,8 @@
       polls = pl || []; pollVotes = (pv || []).filter((v) => polls.some((q) => q.id === v.poll));
       const need = [...new Set(items.flatMap((i) => i.photos || []))].filter((p) => !photoUrls.has(p));
       if (need.length) { const { data: su } = await sb.storage.from('trip-photos').createSignedUrls(need, 3600); for (const x of su || []) if (x.signedUrl) photoUrls.set(x.path, x.signedUrl); }
-      const { data: a } = await sb.from('trip_asks').select('asker, text, reply, added, created_at').eq('trip', trip.id).order('created_at', { ascending: false }).limit(8);
-      asks = a || [];
+      const { data: a } = await sb.from('trip_asks').select('id, asker, text, label, reply, added, created_at, updated_at, status, plan, part, next, auto, items').eq('trip', trip.id).order('created_at', { ascending: false }).limit(24);
+      asks = (a || []).reverse();
     }
     // Drafts and the poll being made live in drafts/builder; only focus and scroll need carrying over.
     const focusKey = document.activeElement?.dataset?.f, inSheet = !!document.activeElement?.closest?.('#sheet');
@@ -633,8 +655,7 @@
     document.querySelectorAll('.tabs a').forEach((a) => a.setAttribute('aria-current', String(a.hash === '#' + tab)));
     ({ plan, ideas, bookings, packing }[tab] || plan)();
     overview();   // the trip-wide chat tab is gone: talk in the family chat, or on an item's own page
-    $('asks').hidden = !asks.length;
-    $('asklist').innerHTML = asks.map((a) => `<p><b>${esc(nameOf(a.asker))}:</b> ${esc(a.text)}<br>✦ ${esc(a.reply || '')}</p>`).join('');
+    drawChat();
   }
 
   // ---- search the trip as you type; Enter or ✦ Ask asks Claude ----
@@ -666,7 +687,6 @@
   }
   // What a choice changes further down: the parts Claude reworks to fit it.
   const AFFECTS = { dates: ['flights', 'route', 'tickets', 'stay', 'transport'], flights: ['transport'], route: ['stay'], tickets: ['stay', 'transport'], stay: ['transport'], transport: [], pick: [] };
-  let updating = null;     // { text } while Claude reworks the parts below a choice
   const showOthers = new Set();   // decided parts whose other options are shown again
   const bookedFor = (t) => items.find((i) => i.kind === 'booking' && i.topic === t);
   const chosenFor = (t) => items.find((i) => i.kind === 'idea' && i.topic === t && i.chosen);
@@ -702,33 +722,86 @@
   };
   document.addEventListener('click', (e) => { if (!e.target.closest('.ask')) $('found').hidden = true; });
   const HELPER = 'https://okywhdfmdpdvrfhbkyeo.supabase.co/functions/v1/trip-helper';
-  let asking = false;
   $('askf').onsubmit = (e) => { e.preventDefault(); const text = $('askq').value.trim(); if (text) askTrip(text); };
-  // shown: what the answer box says was asked (a built-in ask like ✦ Build our itinerary sends a longer brief)
-  async function askTrip(text, shown = text) {
-    if (!text || asking) return;
-    asking = true; $('askgo').disabled = true; $('found').hidden = true; $('askq').value = '';
-    if ($('buildit')) $('buildit').disabled = true;
-    $('answer').innerHTML = `<div class="answer wait"><div class="q">${esc(shown)}</div>✦ Claude is on it… (research can take a minute)</div>`;
-    $('answer').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    let r;
+  // ---- the chat with Claude ----
+  // An ask is kept in trip_asks and Claude works on it on the server (a locked phone or a closed page doesn't
+  // stop it); the chat follows the rows. A big ask goes a part at a time, each next part asked by itself.
+  // A row still 'working' after 3 minutes was cut off on the server.
+  const live = (a) => a.status === 'working' && Date.now() - Date.parse(a.updated_at || a.created_at) < 3 * 60_000;
+  let chatOpen = null, chatAll = false, chatNote = '', sending = false;
+  const seenDone = new Set();
+  async function call(body) {
     try {
       const { data: { session: s } } = await sb.auth.getSession();
-      r = await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ trip: trip.id, text }) })).json();
-    } catch { r = { error: 'Claude could not help just now. Try again in a minute.' }; }
-    asking = false; $('askgo').disabled = false;
-    await load();
-    if (r.trip) location.hash = '#ideas';
-    const touched = [...(r.added || []), ...(r.changed || [])].map((id) => items.find((i) => i.id === id)).filter(Boolean);
-    $('answer').innerHTML = `<div class="answer"><div class="q">${esc(shown)}</div>${r.error ? esc(t12(r.error)) : '✦ ' + esc(t12(r.reply))}
-      ${touched.length ? `<div class="chips">${touched.map((i) => `<button data-id="${i.id}">${i.kind === 'pack' ? 'packing' : i.kind}: ${esc(i.title.slice(0, 40))}</button>`).join('')}</div>` : ''}
-      ${r.left != null && r.left < 10 ? `<div class="note" style="margin-top:6px">${r.left} questions left today</div>` : ''}
-      <div style="margin-top:6px"><button class="link quiet" id="ansx">Dismiss</button></div></div>`;
-    $('ansx').onclick = () => { $('answer').innerHTML = ''; };
-    $('answer').querySelectorAll('.chips button').forEach((b) => b.onclick = () => { const i = items.find((x) => x.id === b.dataset.id); if (i) { location.hash = TAB[i.kind]; setTimeout(() => view(i), 50); } });
-    if (touched[0] && !touched.some((i) => i.kind === 'plan')) location.hash = TAB[touched[0].kind];
-    else if (touched.some((i) => i.kind === 'plan')) location.hash = '#plan';
+      return await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ trip: trip.id, ...body }) })).json();
+    } catch { return { error: 'Claude could not help just now. Try again in a minute.' }; }
   }
+  // shown: what the chat says was asked (a built-in ask like ✦ Build our itinerary sends a longer brief)
+  async function askTrip(text, shown = text) {
+    if (!text || sending || asks.some(live)) { if (asks.some(live)) { chatNote = 'Claude is still on the last one. Wait for it, or Stop it.'; drawChat(); } return; }
+    sending = true; chatOpen = true; chatNote = ''; $('found').hidden = true; $('askq').value = '';
+    pending = { text, label: shown !== text ? shown : null, asker: ME.id, status: 'working', created_at: new Date().toISOString(), id: 'local' };
+    drawChat(); $('cchat').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const r = await call({ text, label: shown !== text ? shown : undefined });
+    sending = false; pending = null;
+    if (r.error) chatNote = t12(r.error);
+    else if (r.left != null && r.left < 10) chatNote = `${r.left} questions left today`;
+    await load();
+  }
+  let pending = null;
+  function drawChat() {
+    const box = $('cchat'), list = pending ? [...asks, pending] : asks;
+    box.hidden = !list.length && !chatNote;
+    if (box.hidden) return;
+    const busy = list.some(live), last = list[list.length - 1];
+    if (chatOpen == null) chatOpen = busy || Date.now() - Date.parse(last?.updated_at || last?.created_at || 0) < 30 * 60_000;
+    if (busy) chatOpen = true;
+    // The plan a big ask is working through: the newest one, its parts done, on and to come.
+    const pa = [...list].reverse().find((a) => Array.isArray(a.plan) && a.plan.length > 1);
+    const planHTML = (a) => { const at = a.part || 1, now = live(a);
+      return `<ol class="plan">${a.plan.map((x, n) => `<li class="${n + 1 < at || (n + 1 === at && !now && a.status === 'done') ? 'ok' : n + 1 === at && now ? 'now' : ''}">${n + 1 < at || (n + 1 === at && !now && a.status === 'done') ? '✓' : n + 1 === at && now ? '◐' : '○'} ${esc(x)}</li>`).join('')}</ol>`; };
+    const shown = chatAll ? list : list.slice(-8);
+    const bubble = (a) => {
+      const who = a.asker === ME.id ? '' : `<small>${esc(nameOf(a.asker))}</small>`;
+      const q = a.auto ? `<div class="step">▸ ${esc(t12((a.text.match(/^Part \d+ of \d+[^:]*/) || [''])[0] || 'The next part'))}, asked by itself</div>`
+        : `<div class="me">${who}<span class="clip">${esc(t12(a.label || a.text))}</span></div>`;
+      const its = (a.items || []).map((id) => items.find((i) => i.id === id)).filter(Boolean);
+      const ans = live(a) ? `<div class="cl wait">✦ ${a.auto && a.plan ? `Working on part ${a.part} of ${a.plan.length}` : 'Claude is on it'}<span class="dots"></span> <small>(research takes a minute or two; it carries on if you close the page)</small><div class="acts"><button data-stop>Stop</button></div></div>`
+        : a.status === 'working' ? `<div class="cl bad">✦ That one was cut off before it finished. Ask again, or say "keep going".</div>`
+        : a.status === 'stopped' ? `<div class="cl wait">✦ Stopped.${a.reply ? ' ' + esc(t12(a.reply)) : ''}</div>`
+        : `<div class="cl${a.status === 'failed' ? ' bad' : ''}">✦ ${esc(t12(a.reply || ''))}${its.length ? `<div class="chips">${its.slice(0, 12).map((i) => `<button data-id="${i.id}">${i.kind === 'pack' ? 'packing' : i.kind}: ${esc(t12(i.title).slice(0, 40))}</button>`).join('')}${its.length > 12 ? `<span class="note">+${its.length - 12} more</span>` : ''}</div>` : ''}</div>`;
+      return q + ans;
+    };
+    const waiting = !busy && last && last.status === 'done' && last.next && last.id !== 'local';
+    box.innerHTML = `<div class="ch"><b>✦ Claude</b>${busy ? '<span class="note">working<span class="dots"></span></span>' : ''}<button class="link quiet" data-tog>${chatOpen ? 'Hide' : `Show chat${list.length ? ` · ${list.length}` : ''}`}</button></div>
+      <div class="thread" ${chatOpen ? '' : 'hidden'}>
+        ${list.length > shown.length ? `<button class="link quiet" data-all style="align-self:center">Earlier</button>` : ''}
+        ${shown.map(bubble).join('')}
+        ${pa && (busy || waiting || pa === last) ? `<div class="step">🗺 The plan, a part at a time</div>${planHTML(pa === last ? pa : { ...pa, part: last.part || pa.part, status: last.status, updated_at: last.updated_at })}` : ''}
+        ${waiting ? `<div class="acts" style="align-self:flex-start"><button class="go" data-next>Keep going${pa ? ` · part ${(last.part || 1) + 1} of ${pa.plan.length}` : ''}</button></div>` : ''}
+        ${chatNote ? `<div class="step">${esc(chatNote)}</div>` : ''}
+      </div>
+      ${chatOpen ? `<form data-say><input maxlength="2000" placeholder="${busy ? 'Claude is working… you can stop it above' : 'Reply to Claude…'}" aria-label="Reply to Claude" ${busy ? 'disabled' : ''}><button class="btn" ${busy ? 'disabled' : ''}>Send</button></form>` : ''}`;
+    const th = box.querySelector('.thread'); if (th && !th.hidden) th.scrollTop = th.scrollHeight;
+    box.querySelector('[data-tog]').onclick = () => { chatOpen = !chatOpen; drawChat(); };
+    const all = box.querySelector('[data-all]'); if (all) all.onclick = () => { chatAll = true; drawChat(); };
+    box.querySelectorAll('.chips button').forEach((b) => b.onclick = () => { const i = items.find((x) => x.id === b.dataset.id); if (i) { location.hash = TAB[i.kind]; setTimeout(() => view(i), 50); } });
+    const st = box.querySelector('[data-stop]'); if (st) st.onclick = async () => { st.disabled = true; st.textContent = 'Stopping…'; await call({ stop: true }); load(); };
+    const nx = box.querySelector('[data-next]'); if (nx) nx.onclick = () => askTrip(last.next, `Keep going${pa ? `: part ${(last.part || 1) + 1} of ${pa.plan.length}` : ''}`);
+    const f = box.querySelector('[data-say]'); if (f) f.onsubmit = (e) => { e.preventDefault(); const v = f.querySelector('input').value.trim(); if (v) askTrip(v); };
+    // An ask of mine just finished: go where its items landed, once.
+    for (const a of asks) if (a.status !== 'working' && !seenDone.has(a.id)) {
+      const fresh = Date.now() - Date.parse(a.updated_at || a.created_at) < 20_000;
+      seenDone.add(a.id);
+      if (!fresh || a.asker !== ME.id || !first) continue;
+      const its = (a.items || []).map((id) => items.find((i) => i.id === id)).filter(Boolean);
+      if (its.some((i) => i.kind === 'plan')) location.hash = '#plan'; else if (its[0]) location.hash = '#' + TAB[its[0].kind];
+    }
+    first = true;
+  }
+  let first = false;
+  // While Claude works, look again now and then in case a live update was missed.
+  setInterval(() => { if (!document.hidden && asks.some(live)) load(); }, 10_000);
   window.addEventListener('hashchange', render);
 
   // Times are kept as 24-hour (they sort and add up); shown as standard: 14:30 -> 2:30 PM, also inside titles and notes.
@@ -801,7 +874,7 @@
         ? { t: planned ? 'Rework the night' : 'Plan the night', s: 'Claude lays out the evening: when to start, food, the main event, with times.' }
         : { t: planned ? 'Rework the day' : 'Plan the day', s: 'Claude lays out the day around the event: leaving, parking or the ride, food, doors and the show, and getting home.' })
       : { t: planned ? 'Rework the itinerary' : 'Build our itinerary', s: TY === TYPES.road ? 'Claude lays out every day around the drive: driving legs, stops, where you sleep, with the ideas you chose.' : 'Claude lays out every day around your flights, stay and bookings, with the ideas you chose and the best of the rest, in an order that makes sense.' };
-    const build = ds.length ? `<div class="build"><div><b>✦ ${B.t}</b><span>${B.s}</span></div><button class="btn p" id="buildit"${asking ? ' disabled' : ''}>${planned ? 'Rework' : one ? 'Plan it' : 'Build it'}</button></div>` : '';
+    const build = ds.length ? `<div class="build"><div><b>✦ ${B.t}</b><span>${B.s}</span></div><button class="btn p" id="buildit"${asks.some(live) ? ' disabled' : ''}>${planned ? 'Rework' : one ? 'Plan it' : 'Build it'}</button></div>` : '';
     // A row of days: tap one to see just that day (All shows the lot). On a trip that's happening, today comes first.
     const anyDay = list.some((i) => !i.day) || !ds.length;
     if (planFor !== trip.id) { planFor = trip.id; planDay = undefined; }
@@ -864,7 +937,6 @@
         <button class="more" data-more="${i.id}" aria-label="Details">Details</button></div>`;
     };
     const card = parts.length ? `<div class="choices"><h2>Choices to make <small>${done} of ${parts.length} decided</small></h2>
-      ${updating ? `<div class="answer wait" style="margin-top:10px">✦ ${esc(updating.text)}</div>` : ''}
       <p class="note">${mayChoose ? 'Tap an option to choose it, tap again to undo. Claude builds on what you choose.' : `${trip.created_by && family.find((f) => f.id === trip.created_by)?.role === 'kid' ? 'Whoever started this trip' : 'Dad'} makes the choices. Tap Details to read an option.`}</p>
       ${parts.map((t) => {
         const bk = bookedFor(t), opts = list.filter((i) => i.topic === t);
@@ -1214,21 +1286,10 @@
   // found that no longer fit, keeping what still does, finding new ones where a part runs short).
   async function reworkBelow(i) {
     const below = (AFFECTS[i.topic] || []).filter((t) => TOPIC[t] && !decided(t) && (items.some((x) => x.kind === 'idea' && x.topic === t) || i.topic === 'dates'));
-    if (!below.length || updating) return;
+    if (!below.length || asks.some(live)) return;
     const names = below.map((t) => TOPIC[t][1].toLowerCase());
-    updating = { text: `Updating ${names.join(', ')} for “${i.title.replace(/^[A-Za-z ]+:\s*/, '')}”… (about a minute)` };
-    render();
-    let r;
-    try {
-      const { data: { session: s } } = await sb.auth.getSession();
-      r = await (await fetch(HELPER, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trip: trip.id, text: `The family just chose "${i.title}" [${i.id.slice(0, 8)}] for ${TOPIC[i.topic][1].toLowerCase()}.${i.topic === 'dates' ? ' Set the trip dates to match it with update_trip (travel days included).' : ''} Now make ${names.join(', ')} fit this choice: retire the options you found that no longer fit, keep and adjust the ones that still do, and find new options where a part is left with fewer than 2 that fit. Leave everything else as it is.` }) })).json();
-    } catch { r = { error: 'Claude could not update the rest just now.' }; }
-    updating = null;
-    await load();
-    $('answer').innerHTML = `<div class="answer"><div class="q">After choosing ${esc(i.title)}</div>${r.error ? esc(t12(r.error)) : '✦ ' + esc(t12(r.reply))}
-      <div style="margin-top:6px"><button class="link quiet" id="ansx">Dismiss</button></div></div>`;
-    $('ansx').onclick = () => { $('answer').innerHTML = ''; };
+    askTrip(`The family just chose "${i.title}" [${i.id.slice(0, 8)}] for ${TOPIC[i.topic][1].toLowerCase()}.${i.topic === 'dates' ? ' Set the trip dates to match it with update_trip (travel days included).' : ''} Now make ${names.join(', ')} fit this choice: retire the options you found that no longer fit, keep and adjust the ones that still do, and find new options where a part is left with fewer than 2 that fit. Leave everything else as it is.`,
+      `Updating ${names.join(', ')} for “${i.title.replace(/^[A-Za-z ]+:\s*/, '')}”`);
   }
 
   // ---- who's going ----
@@ -1810,7 +1871,7 @@
   const soon = () => { clearTimeout(tick); tick = setTimeout(load, 300); };
   sb.channel('trips').on('postgres_changes', { event: '*', schema: 'public', table: 'trip_items' }, soon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, soon)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trip_asks' }, soon)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_asks' }, soon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_comments' }, soon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_polls' }, soon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_poll_votes' }, soon).subscribe();
