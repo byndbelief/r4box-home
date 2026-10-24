@@ -51,7 +51,7 @@
     @keyframes turn { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .waiting svg { animation: none; } }
     .picks .av { width: 34px; height: 34px; } .picks .av img { width: 30px; height: 30px; }
-    /* Pickups (124): minutes away, never a map */
+    /* Pickups (124): minutes away and the road there (126), never a map */
     .rpick { margin: 3px 0 2px; padding: 10px; border-radius: 14px; background: #0006; border: 1px solid #ffffff1c; min-width: min(250px, 66vw); }
     .rpick.live { border-color: #3DD6C666; background: #3DD6C612; }
     .rpick.asked { border-color: #F5C54266; }
@@ -67,6 +67,32 @@
     .rpick .pa button, .rpick .pa a { all: unset; cursor: pointer; font-size: 12.5px; font-weight: 700; padding: 6px 11px; border-radius: 99px; border: 1px solid #ffffff2a; }
     .rpick .pa .go { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
     .rpick .pa .on { background: #ffffff22; }
+    /* The drive as a road (126): start to finish, the turns, lights and landmarks on it, the car moving along */
+    .rpick .mins { flex: none; width: 50px; text-align: center; line-height: 1; } .rpick .mins b { display: block; font: 800 24px/1 var(--display); color: var(--ink); } .rpick .mins small { font-size: 10.5px; color: var(--muted); }
+    .road { display: flex; align-items: center; gap: 6px; margin: 12px 0 2px; }
+    .road .end { flex: none; display: grid; justify-items: center; font-size: 19px; line-height: 1; max-width: 58px; }
+    .road .end small { font-size: 9.5px; color: var(--muted); margin-top: 3px; max-width: 58px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .road .lane { position: relative; flex: 1; min-width: 0; height: 58px; }
+    .road .way, .road .gone { position: absolute; left: 0; top: 30px; height: 8px; margin-top: -4px; border-radius: 4px; }
+    .road .way { right: 0; background: #ffffff1f; background-image: linear-gradient(90deg, #ffffff55 50%, transparent 0); background-size: 12px 1.5px; background-repeat: repeat-x; background-position: 0 50%; }
+    .road .gone { background: #3DD6C655; transition: width 1.2s ease-out; }
+    .road .lane > * { pointer-events: none; }
+    .road .lt { position: absolute; top: 30px; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: #FF5A5A; box-shadow: 0 0 6px #FF5A5Acc; animation: lights 4.5s steps(1) infinite; animation-delay: var(--dl, 0s); }
+    .road .lt.past { animation: none; background: #3DD6C6; box-shadow: none; opacity: .55; }
+    .road .lt.nx { width: 10px; height: 10px; margin: -5px 0 0 -5px; }
+    @keyframes lights { 0% { background: #FF5A5A; box-shadow: 0 0 6px #FF5A5Acc; } 45% { background: #3DE07A; box-shadow: 0 0 6px #3DE07Acc; } 85% { background: #F5C542; box-shadow: 0 0 6px #F5C542cc; } }
+    .road .sp { position: absolute; top: 0; font-size: 15px; line-height: 1; transform: translateX(-50%); transition: opacity .6s, transform .6s; }
+    .road .sp::after { content: ''; position: absolute; left: 50%; top: 17px; height: 9px; border-left: 1px dotted #ffffff55; }
+    .road .sp.past { opacity: .4; transform: translateX(-50%) scale(.85); }
+    .road .tn, .road .rl { position: absolute; top: 40px; font-size: 11px; line-height: 1; color: var(--muted); transform: translateX(-50%); }
+    .road .tn.past, .road .rl.past { opacity: .35; }
+    .road .car { position: absolute; top: 30px; font-size: 22px; line-height: 1; transform: translate(-55%, -62%) scaleX(-1); transition: left 1.2s ease-out; z-index: 1; }
+    .road .car.at { animation: bounce 1.2s ease-in-out infinite; }
+    @keyframes bounce { 50% { transform: translate(-55%, -80%) scaleX(-1); } }
+    .road .end.b.at { animation: wave .8s ease-in-out infinite alternate; }
+    @keyframes wave { to { transform: rotate(-8deg) scale(1.12); } }
+    .road + .next { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 8px; } .road + .next span { flex: 1; min-width: 0; } .road + .next span + span { flex: none; } .road + .next b { color: var(--ink); font-weight: 700; }
+    @media (prefers-reduced-motion: reduce) { .road .lt, .road .car, .road .end.b { animation: none !important; } .road .car, .road .gone { transition: none; } }
     #pkbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin: 0 10px 6px; border-radius: 12px; background: #3DD6C61f; border: 1px solid #3DD6C666; font-size: 13px; }
     #pkbar span { flex: 1; min-width: 0; } #pkbar small { display: block; color: var(--muted); font-size: 11.5px; }
     #pkbar button { all: unset; cursor: pointer; font-weight: 800; font-size: 12.5px; padding: 6px 11px; border-radius: 99px; border: 1px solid #ffffff2a; }
@@ -223,7 +249,7 @@
   };
   $('tripno').onclick = () => $('tripdlg').close();
 
-  // ---- pickups (124): "On my way", minutes away and never a map ----
+  // ---- pickups (124): "On my way", minutes away and the road there (126), never a map ----
   // A parent sets off to pick up a kid: while this chat is open on their phone, it sends where they are to the
   // pickup function every 30 s, which keeps only the minutes; the kid's card counts down from those. The screen
   // stays on while it's going (the page can't update from the background). A kid can ask for a pickup first.
@@ -279,16 +305,66 @@
     if (over(p)) return `<div class="rpick"><div class="pt"><span class="ring em"><span>✓</span></span><span class="tt"><b>${esc(d)} picked up ${esc(k)}</b><small>${esc(p.place_name)}${p.ended_at ? ' · ' + clock(p.ended_at) : ''}</small></span></div></div>`;
     if (p.status === 'asked') return `<div class="rpick asked"><div class="pt"><span class="ring em"><span>🙋</span></span><span class="tt"><b>${kid ? `You asked ${esc(d)} for a pickup` : `${esc(k)} asks ${drv ? 'you' : esc(d)} for a pickup`}</b><small>${esc(p.place_name)} · ${esc(p.ask_when || 'now')}</small></span></div>
       <div class="pa">${role === 'parent' ? `<button class="go" data-pk="go" data-id="${p.id}">🚗 On my way</button>` : ''}${kid || role === 'parent' ? `<button data-pk="stop" data-id="${p.id}">${kid ? 'Never mind' : 'Can’t'}</button>` : ''}</div></div>`;
-    if (p.status === 'here') return `<div class="rpick live"><div class="pt"><span class="ring em" style="--p:1"><span>🚗</span></span><span class="tt"><b>${drv ? 'You’re here' : `${esc(d)} is here`}</b><small>${esc(p.place_name)}${kid ? ' · look for the car' : ''}</small></span></div>${note}${notes}
+    if (p.status === 'here') return `<div class="rpick live"><div class="pt">${p.route?.m ? '' : '<span class="ring em" style="--p:1"><span>🚗</span></span>'}<span class="tt"><b>${drv ? 'You’re here' : `${esc(d)} is here`}</b><small>${esc(p.place_name)}${kid ? ' · look for the car' : ''}</small></span></div>${roadHTML(p)}${note}${notes}
       ${drv || role === 'parent' ? `<div class="pa"><button data-pk="stop" data-id="${p.id}">✓ Picked up</button></div>` : ''}</div>`;
     const n = minsLeft(p), first = p.eta_first || n || 1, prog = Math.min(1, Math.max(0.03, 1 - n / first));
     const stale = Date.now() - Date.parse(p.updated_at) > 150_000;
-    return `<div class="rpick live"><div class="pt"><span class="ring" style="--p:${prog.toFixed(2)}"><span>${n ? `<span><b>${n}</b><small>min</small></span>` : '<b>🚗</b>'}</span></span><span class="tt">
+    const mins = p.route?.m ? `<span class="mins">${n ? `<b>${n}</b><small>min</small>` : '<b>🚗</b>'}</span>` : `<span class="ring" style="--p:${prog.toFixed(2)}"><span>${n ? `<span><b>${n}</b><small>min</small></span>` : '<b>🚗</b>'}</span></span>`;
+    return `<div class="rpick live"><div class="pt">${mins}<span class="tt">
       <b>${drv ? `You’re on the way to ${esc(k)}` : `${esc(d)} is on the way${kid ? '' : ' to ' + esc(k)}`}</b>
       <small>${esc(p.place_name)} · ${n ? `about ${clock(p.eta_at)}` : 'any moment now'}${p.late_min >= 5 ? ` · traffic, ${p.late_min} min later` : ''}</small>
-      ${stale ? `<small class="warn">Last update ${Math.round((Date.now() - Date.parse(p.updated_at)) / 60000)} min ago${drv ? ': keep this chat open on the way' : ''}</small>` : ''}</span></div>${note}${notes}
+      ${stale ? `<small class="warn">Last update ${Math.round((Date.now() - Date.parse(p.updated_at)) / 60000)} min ago${drv ? ': keep this chat open on the way' : ''}</small>` : ''}</span></div>${roadHTML(p)}${note}${notes}
       ${drv ? `<div class="pa"><button class="go" data-pk="here" data-id="${p.id}">I’m here</button><a href="https://www.google.com/maps/dir/?api=1&destination=${p.dest_lat},${p.dest_lng}&travelmode=driving" target="_blank" rel="noopener">Directions ↗</a><button data-pk="stop" data-id="${p.id}">Stop</button></div>` : ''}</div>`;
   }
+  // The drive as a road (126): start to finish with the turns, traffic lights, train tracks and landmarks on the
+  // route (the pickup function finds them), and the car moving along. It's where the last update put it, then
+  // carries on at the pace that update gave (road left vs minutes left) for up to 45 s, never quite to the end.
+  const carPct = new Map();   // where each card's car was last drawn, so a redraw doesn't send it back to the start
+  function roadAt(p) {
+    const r = p.route; if (!r?.m) return 0;
+    if (p.status === 'here' || over(p)) return r.m;
+    const done = p.done_m || 0, t0 = Date.parse(p.updated_at), left = Date.parse(p.eta_at) - t0;
+    const pace = left > 0 ? (r.m - done) / left : 0;
+    return Math.min(r.m * 0.98, done + Math.min(Math.max(0, Date.now() - t0), 45000) * pace);
+  }
+  const dist = (m) => m < 160 ? `${Math.max(50, Math.round(m * 3.28084 / 50) * 50)} ft` : `${(m / 1609.34).toFixed(m < 16000 ? 1 : 0)} mi`;
+  const sayMark = (x) => x.k === 'light' ? '🚦 a light' : x.k === 'rail' ? '🚂 train tracks' : `${x.e} ${esc((x.n || '').length > 26 ? x.n.slice(0, 24).trim() + '…' : x.n || '')}`;
+  function roadHTML(p) {
+    const r = p.route; if (!r?.m) return '';
+    const at = p.status === 'here', shown = carPct.get(p.id) ?? 0, pct = (d) => Math.max(0, Math.min(100, (d / r.m) * 100)).toFixed(2);
+    const place = places.find((x) => x.id === p.place);
+    const marks = (r.marks || []).map((x, i) => x.k === 'light' ? `<i class="lt" data-d="${x.d}" style="left:${pct(x.d)}%;--dl:-${((i * 1.7) % 4.5).toFixed(1)}s"></i>`
+      : x.k === 'spot' ? `<span class="sp" data-d="${x.d}" style="left:${pct(x.d)}%">${esc(x.e)}</span>`
+      : `<i class="${x.k === 'turn' ? 'tn' : 'rl'}" data-d="${x.d}" style="left:${pct(x.d)}%">${esc(x.e)}</i>`).join('');
+    return `<div class="road" data-road="${p.id}"><span class="end a">${esc(r.from?.e || '🟢')}<small>${esc(r.from?.n || 'Start')}</small></span>
+      <div class="lane"><i class="way"></i><i class="gone" style="width:${shown}%"></i>${marks}<span class="car${at ? ' at' : ''}" style="left:${shown}%">🚗</span></div>
+      <span class="end b${at ? ' at' : ''}">${esc(place?.emoji || '🏁')}<small>${esc(p.place_name)}</small></span></div><div class="next"></div>`;
+  }
+  function roadTick() {
+    document.querySelectorAll('[data-road]').forEach((el) => {
+      const p = pickups.get(el.dataset.road); if (!p?.route?.m) return;
+      const r = p.route, d = roadAt(p), pc = Math.max(0, Math.min(100, (d / r.m) * 100));
+      const had = carPct.has(p.id); carPct.set(p.id, pc);
+      const car = el.querySelector('.car');
+      if (!car.dataset.on) { car.dataset.on = 1; void car.offsetWidth; if (!had) car.style.transitionDuration = el.querySelector('.gone').style.transitionDuration = '2.5s'; }
+      car.style.left = el.querySelector('.gone').style.width = pc.toFixed(2) + '%';
+      let nx = false;
+      el.querySelectorAll('[data-d]').forEach((m) => {
+        const past = +m.dataset.d <= d + 15; m.classList.toggle('past', past);
+        m.classList.toggle('nx', !past && !nx && m.classList.contains('lt') && (nx = true));
+      });
+      const ahead = (r.marks || []).filter((x) => x.d > d + 15), lights = ahead.filter((x) => x.k === 'light').length;
+      const next = el.nextElementSibling; if (!next?.classList.contains('next')) return;
+      const h = p.status === 'here' ? `<span>🏁 <b>Made it</b> · ${dist(r.m)} and ${(r.marks || []).filter((x) => x.k === 'light').length} 🚦 on the way</span>`
+        : `<span>Next: ${ahead[0] ? `<b>${sayMark(ahead[0])}</b> in ${dist(ahead[0].d - d)}${ahead[1] ? ` · then ${sayMark(ahead[1])}` : ''}` : `<b>${esc(p.place_name)}</b>`}${r.ready ? '' : ' · finding the lights…'}</span>
+          <span>${dist(r.m - d)} to go${lights ? ` · ${lights} 🚦` : ''}</span>`;
+      if (next.dataset.h !== h) { next.dataset.h = h; next.innerHTML = h; }
+    });
+  }
+  setInterval(roadTick, 1000);
+  // A card drawn just now gets its car moving at once (the observer only wakes for new roads).
+  let tickSoon = 0;
+  new MutationObserver(() => { if (!tickSoon && document.querySelector('[data-road] + .next:not([data-h])')) tickSoon = requestAnimationFrame(() => { tickSoon = 0; roadTick(); }); }).observe(document.body, { childList: true, subtree: true });
   async function pickupAct(b) {
     const id = b.dataset.id, a = b.dataset.pk;
     try {
@@ -312,7 +388,7 @@
       const chip = (k, v, label, on) => `<button type="button" data-${k}="${esc(v)}" class="${on ? 'on' : ''}">${label}</button>`;
       const kidAsk = st.test && st.try === 'ask';   // practice: play a kid asking you
       $('pkdlg').innerHTML = `<b>${asked ? `🚗 On my way to ${esc(nameIn(asked.kid))}` : st.test ? '🧪 Practice pickup' : parent ? '🚗 On my way' : '🙋 Ask for a pickup'}</b>
-        <div class="note" style="margin-top:4px">${st.test ? 'Only you see it: nothing goes in the chat, and the alerts they’d get come to you, marked 🧪. You can switch to their view.' : parent ? `They see how many minutes away you are, not where you are. It ends when you get there.` : 'They’ll get a note, and you’ll see how many minutes away they are once they set off.'}</div>
+        <div class="note" style="margin-top:4px">${st.test ? 'Only you see it: nothing goes in the chat, and the alerts they’d get come to you, marked 🧪. You can switch to their view.' : parent ? `They see how many minutes away you are, and a road with the lights and landmarks you pass (never a map). It ends when you get there.` : 'They’ll get a note, and you’ll see how many minutes away they are once they set off.'}</div>
         ${parent && !asked ? `<div class="chips" style="margin-top:10px">${chip('test', '1', '🧪 Practice', st.test)}${st.test ? chip('try', 'go', '🚗 On my way', st.try === 'go') + chip('try', 'ask', '🙋 A kid asks me', st.try === 'ask') : ''}</div>` : ''}
         ${asked ? `<div class="note">${esc(asked.place_name)} · ${esc(asked.ask_when || 'now')}</div>` : `
         <h4>${kidAsk ? 'Who asks' : parent ? 'Picking up' : 'Ask'}</h4><div class="chips">${(parent ? kids : parents).map((f) => chip(parent ? 'kid' : 'to', f.id, esc(f.username), (parent ? st.kid : st.to) === f.id)).join('')}</div>
@@ -378,7 +454,7 @@
     const bar = $('pkbar'); bar.hidden = !p;
     if (p) {
       const n = minsLeft(p);
-      bar.innerHTML = `<span>${p.test ? '🧪' : '🚗'} <b>${esc(nameIn(p.kid))} ${p.test ? 'would see' : 'sees'} you’re ${n ? `~${n} min` : 'almost'} away</b><small>${p.test ? 'Practice: only you see it · ' : ''}Only the minutes, not where you are · keep this open on the way</small></span><button class="go" data-pkbar="here">Here</button><button data-pkbar="stop">Stop</button>`;
+      bar.innerHTML = `<span>${p.test ? '🧪' : '🚗'} <b>${esc(nameIn(p.kid))} ${p.test ? 'would see' : 'sees'} you’re ${n ? `~${n} min` : 'almost'} away</b><small>${p.test ? 'Practice: only you see it · ' : ''}They see the minutes and the road, not a map · keep this open on the way</small></span><button class="go" data-pkbar="here">Here</button><button data-pkbar="stop">Stop</button>`;
       bar.querySelectorAll('[data-pkbar]').forEach((b) => (b.onclick = async () => { try { await pk({ [b.dataset.pkbar]: p.id }); render(false); } catch (err) { toast(err.message); } }));
     }
   }
