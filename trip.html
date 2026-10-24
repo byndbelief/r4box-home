@@ -348,9 +348,9 @@
     .empty { color: var(--muted); padding: 10px 2px; }
     dialog { width: min(480px, calc(100% - 24px)); border: 1px solid var(--line); border-radius: 20px; background: var(--panel-2); color: var(--ink); padding: 20px; }
     dialog::backdrop { background: #000000bb; }
-    dialog form { display: grid; gap: 12px; }
+    dialog form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }   /* nothing inside (two date fields side by side) widens it past a phone */
     dialog label { display: grid; gap: 4px; font-weight: 700; font-size: 14px; }
-    dialog .row { display: flex; gap: 10px; } dialog .row > * { flex: 1; }
+    dialog .row { display: flex; gap: 10px; } dialog .row > * { flex: 1; min-width: 0; } dialog .row input { min-width: 0; }
     dialog .acts { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
     dialog h2 { margin: 0; font: 800 20px/1.2 var(--display); }
     /* The view (⚙ Settings on the home page, one for every app). Pilot: every instrument, packed
