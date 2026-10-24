@@ -582,12 +582,15 @@
 
   // ---------- play, phone test, share ----------
   function sheet(html, o) { const d = $('sheet'); if (d.parked) { d.parked = false; d.dispatchEvent(new Event('close')); }   // a panel set aside for Vibes gives way
-    d.classList.toggle('full', !!(o && o.full)); d.innerHTML = html; if (!d.open) d.showModal(); d.scrollTop = 0; d.onclick = (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); }; return d; }
-  function player(p) { sheet(`<div class="playh"><b>${esc(p.name)}</b><small>by ${esc(byId(p.owner).name)}</small><button data-close aria-label="Close">✕</button></div><iframe class="playf" sandbox="allow-scripts" title="${esc(p.name)}"></iframe>`).querySelector('iframe').srcdoc = PR.html(p); }
+    d.classList.toggle('full', !!(o && o.full)); d.classList.toggle('stage', !!(o && o.stage)); d.innerHTML = html; if (!d.open) d.showModal(); d.scrollTop = 0; d.onclick = (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); }; return d; }
+  // Playing a project (a family member's link, the chat card): the whole screen, a slim bar on top, no code
+  function player(p) { sheet(`<div class="playh"><b>${esc(p.name)}</b><small>by ${esc(byId(p.owner).name)}</small><button data-close aria-label="Close">✕</button></div><iframe class="stagef" sandbox="allow-scripts allow-modals" title="${esc(p.name)}"></iframe>`, { stage: true }).querySelector('iframe').srcdoc = PR.html(p); }
+  // 📱 Test on phone: the project the whole screen, as on a phone, with its link to copy in the bar
   function phoneTest(p) {
     const link = 'https://r4box.com/p/' + p.id;   // 404.html sends it on to projects.html?play=
-    const d = sheet(`<div class="playh"><b>📱 Test on phone</b><small>${esc(p.name)} · v${p.versions[p.cur].v}</small><button data-close aria-label="Close">✕</button></div><div class="phone"><iframe sandbox="allow-scripts" title="Phone preview"></iframe></div><div class="link"><code>${link}</code><button id="cl">Copy link</button></div><p class="note" style="margin:6px 0 0">Open the link on your phone to try it. Only the family can open it${p.published ? '' : ', once it’s published'}.</p>`);
-    d.querySelector('iframe').srcdoc = PR.html(p); d.querySelector('#cl').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(link).catch(() => {}); toast('Link copied.'); };
+    const d = sheet(`<div class="playh"><b>📱 ${esc(p.name)}</b><small>v${p.versions[p.cur].v}</small><button class="cl" id="cl">Copy link</button><button data-close aria-label="Close">✕</button></div><iframe class="stagef" sandbox="allow-scripts allow-modals" title="Phone preview"></iframe>`, { stage: true });
+    d.querySelector('iframe').srcdoc = PR.html(p);
+    d.querySelector('#cl').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(link).catch(() => {}); toast('Link copied. Only the family can open it' + (p.published ? '.' : ', once it’s published.')); };
   }
   function shareSheet(p) {
     const d = sheet(`<div class="playh"><b>↗ Share</b><small>${esc(p.name)}</small><button data-close aria-label="Close">✕</button></div>

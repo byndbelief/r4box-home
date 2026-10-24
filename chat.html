@@ -211,7 +211,7 @@
     }
     if (r.type === 'trip') { const n = replies(m.id).length;
       return `<button class="rcard rtrip" data-thread="${m.id}"><span class="ri">✈️</span><span><small>Trip${tripWhen(r) ? ' · ' + esc(tripWhen(r)) : ''}</small><b>${esc(r.name)}</b><em>${n ? `${n} message${n === 1 ? '' : 's'} · ` : ''}Talk about this trip ›</em></span></button>`; }
-    if (r.type === 'project') return `<a class="rcard" href="/projects.html?open=${encodeURIComponent(r.id)}"><span class="ri">${esc(r.emoji || '⚒')}</span><span><small>${esc(r.kind || 'Project')} · by ${esc(nameIn(r.owner))} · play ↗</small><b>${esc(r.name)}</b></span></a>`;
+    if (r.type === 'project') return `<a class="rcard" href="/projects.html?play=${encodeURIComponent(r.id)}"><span class="ri">${esc(r.emoji || '⚒')}</span><span><small>${esc(r.kind || 'Project')} · by ${esc(nameIn(r.owner))} · play ↗</small><b>${esc(r.name)}</b></span></a>`;
     if (r.type === 'story') {
       const u = worldUrl(r.who), tag = u ? 'a' : 'div';
       return `<${tag} class="rstory"${u ? ` href="${esc(u)}"` : ''}><span class="ri">🌳</span><span><small>${esc(nameIn(r.who))} shared ${r.kind === 'entry' ? 'a journal entry' : 'a story'}${u ? ' ↗' : ''}</small><b>${esc(r.title || 'Untitled')}</b>${r.text ? `<em>${esc(r.text)}</em>` : ''}</span></${tag}>`;
