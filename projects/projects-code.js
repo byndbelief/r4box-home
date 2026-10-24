@@ -607,16 +607,28 @@
     }
   }
   let asking = false;
-  async function claude(q, start) {
-    if (!q || asking) return; const chat = chatSoFar(); ask.push({ me: true, t: q }, { t: '…' }); asking = true; paint();
+  // A big ask is built in parts: Claude builds the first, says the plan, and the next parts are asked for
+  // here straight after, one at a time (each tried and saved like any change), up to four in all.
+  // auto: this ask is the next part of a plan, not something typed (it shows as Claude's, not yours)
+  let partsLeft = 0;
+  async function claude(q, start, auto) {
+    if (!q || asking) return; const chat = chatSoFar(); ask.push(auto ? { t: '▶ ' + q } : { me: true, t: q }, { t: '…' }); asking = true; paint();
+    if (!auto) partsLeft = 3;
+    let more = null;
     try {
       const r = await X.claude(p, q, dirty() ? draft : null, logs, null, chat, start);
       ask.pop(); if (Array.isArray(r.next) && r.next.length) sugs = r.next.slice(0, 3);
       if (r.name) p.name = r.name;
-      if (r.files) { ask.push({ t: r.say + ' Committed as v' + (r.saved ? head().v : head().v + 1) + ': open Commits to read the diff, or check out the one before if you don’t want it.', ok: true }); if (r.saved) { draft = null; X.save(); paint(); } else commit(r.note, r.files, X.viewer().id); run(); }
+      if (r.files) {
+        ask.push({ t: r.say + ' Committed as v' + (r.saved ? head().v : head().v + 1) + ': open Commits to read the diff, or check out the one before if you don’t want it.', ok: true });
+        if (r.saved) { draft = null; X.save(); paint(); } else commit(r.note, r.files, X.viewer().id); run();
+        if (Array.isArray(r.plan) && r.plan.length > 1 && !auto) { ask.push({ t: '🗺 The plan, built one part after another:\n' + r.plan.map((x, i) => (i + 1) + '. ' + x + (i === 0 ? ' ✓' : '')).join('\n') }); paint(); }
+        if (r.continue && partsLeft > 0 && X.left() !== 0) { partsLeft--; more = r.continue; }
+      }
       else { ask.push({ t: r.say, wall: r.wall, asked: q }); paint(); }
     } catch (e) { ask.pop(); ask.push({ t: e.message }); paint(); }
     asking = false;
+    if (more) setTimeout(() => claude(more, false, true), 400);
   }
   function create(tpl, ctx, from) {
     const v = ctx.viewer(), t = TEMPLATES[tpl], files = from ? { 'index.html': PR.html(from), 'style.css': '/* extra styles */\n', 'main.js': '// your code runs after the page\nconsole.log(' + JSON.stringify(from.name + ' as code') + ');\n' } : { ...t.files };
