@@ -305,7 +305,7 @@
     if (over(p)) return `<div class="rpick"><div class="pt"><span class="ring em"><span>✓</span></span><span class="tt"><b>${esc(d)} picked up ${esc(k)}</b><small>${esc(p.place_name)}${p.ended_at ? ' · ' + clock(p.ended_at) : ''}</small></span></div></div>`;
     if (p.status === 'asked') return `<div class="rpick asked"><div class="pt"><span class="ring em"><span>🙋</span></span><span class="tt"><b>${kid ? `You asked ${esc(d)} for a pickup` : `${esc(k)} asks ${drv ? 'you' : esc(d)} for a pickup`}</b><small>${esc(p.place_name)} · ${esc(p.ask_when || 'now')}</small></span></div>
       <div class="pa">${role === 'parent' ? `<button class="go" data-pk="go" data-id="${p.id}">🚗 On my way</button>` : ''}${kid || role === 'parent' ? `<button data-pk="stop" data-id="${p.id}">${kid ? 'Never mind' : 'Can’t'}</button>` : ''}</div></div>`;
-    if (p.status === 'here') return `<div class="rpick live"><div class="pt">${p.route?.m ? '' : '<span class="ring em" style="--p:1"><span>🚗</span></span>'}<span class="tt"><b>${drv ? 'You’re here' : `${esc(d)} is here`}</b><small>${esc(p.place_name)}${kid ? ' · look for the car' : ''}</small></span></div>${roadHTML(p)}${note}${notes}
+    if (p.status === 'here') return `<div class="rpick live"><div class="pt">${p.route?.m ? '' : '<span class="ring em" style="--p:1"><span>🚗</span></span>'}<span class="tt"><b>${drv ? 'You’re here' : `${esc(d)} is here`}</b><small>${esc(p.place_name)}${kid ? ' · look for the car' : ''}</small></span></div>${roadHTML(p, kid)}${note}${notes}
       ${drv || role === 'parent' ? `<div class="pa"><button data-pk="stop" data-id="${p.id}">✓ Picked up</button></div>` : ''}</div>`;
     const n = minsLeft(p), first = p.eta_first || n || 1, prog = Math.min(1, Math.max(0.03, 1 - n / first));
     const stale = Date.now() - Date.parse(p.updated_at) > 150_000;
@@ -313,7 +313,7 @@
     return `<div class="rpick live"><div class="pt">${mins}<span class="tt">
       <b>${drv ? `You’re on the way to ${esc(k)}` : `${esc(d)} is on the way${kid ? '' : ' to ' + esc(k)}`}</b>
       <small>${esc(p.place_name)} · ${n ? `about ${clock(p.eta_at)}` : 'any moment now'}${p.late_min >= 5 ? ` · traffic, ${p.late_min} min later` : ''}</small>
-      ${stale ? `<small class="warn">Last update ${Math.round((Date.now() - Date.parse(p.updated_at)) / 60000)} min ago${drv ? ': keep this chat open on the way' : ''}</small>` : ''}</span></div>${roadHTML(p)}${note}${notes}
+      ${stale ? `<small class="warn">Last update ${Math.round((Date.now() - Date.parse(p.updated_at)) / 60000)} min ago${drv ? ': keep this chat open on the way' : ''}</small>` : ''}</span></div>${roadHTML(p, kid)}${note}${notes}
       ${drv ? `<div class="pa"><button class="go" data-pk="here" data-id="${p.id}">I’m here</button><a href="https://www.google.com/maps/dir/?api=1&destination=${p.dest_lat},${p.dest_lng}&travelmode=driving" target="_blank" rel="noopener">Directions ↗</a><button data-pk="stop" data-id="${p.id}">Stop</button></div>` : ''}</div>`;
   }
   // The drive as a road (126): start to finish with the turns, traffic lights, train tracks and landmarks on the
@@ -329,14 +329,15 @@
   }
   const dist = (m) => m < 160 ? `${Math.max(50, Math.round(m * 3.28084 / 50) * 50)} ft` : `${(m / 1609.34).toFixed(m < 16000 ? 1 : 0)} mi`;
   const sayMark = (x) => x.k === 'light' ? '🚦 a light' : x.k === 'rail' ? '🚂 train tracks' : `${x.e} ${esc((x.n || '').length > 26 ? x.n.slice(0, 24).trim() + '…' : x.n || '')}`;
-  function roadHTML(p) {
+  // The kid's road (kid): no turn by turn, just the lights, train tracks and landmarks.
+  function roadHTML(p, kid) {
     const r = p.route; if (!r?.m) return '';
     const at = p.status === 'here', shown = carPct.get(p.id) ?? 0, pct = (d) => Math.max(0, Math.min(100, (d / r.m) * 100)).toFixed(2);
     const place = places.find((x) => x.id === p.place);
-    const marks = (r.marks || []).map((x, i) => x.k === 'light' ? `<i class="lt" data-d="${x.d}" style="left:${pct(x.d)}%;--dl:-${((i * 1.7) % 4.5).toFixed(1)}s"></i>`
+    const marks = (r.marks || []).filter((x) => !kid || x.k !== 'turn').map((x, i) => x.k === 'light' ? `<i class="lt" data-d="${x.d}" style="left:${pct(x.d)}%;--dl:-${((i * 1.7) % 4.5).toFixed(1)}s"></i>`
       : x.k === 'spot' ? `<span class="sp" data-d="${x.d}" style="left:${pct(x.d)}%">${esc(x.e)}</span>`
       : `<i class="${x.k === 'turn' ? 'tn' : 'rl'}" data-d="${x.d}" style="left:${pct(x.d)}%">${esc(x.e)}</i>`).join('');
-    return `<div class="road" data-road="${p.id}"><span class="end a">${esc(r.from?.e || '🟢')}<small>${esc(r.from?.n || 'Start')}</small></span>
+    return `<div class="road" data-road="${p.id}"${kid ? ' data-kid="1"' : ''}><span class="end a">${esc(r.from?.e || '🟢')}<small>${esc(r.from?.n || 'Start')}</small></span>
       <div class="lane"><i class="way"></i><i class="gone" style="width:${shown}%"></i>${marks}<span class="car${at ? ' at' : ''}" style="left:${shown}%">🚗</span></div>
       <span class="end b${at ? ' at' : ''}">${esc(place?.emoji || '🏁')}<small>${esc(p.place_name)}</small></span></div><div class="next"></div>`;
   }
@@ -353,7 +354,7 @@
         const past = +m.dataset.d <= d + 15; m.classList.toggle('past', past);
         m.classList.toggle('nx', !past && !nx && m.classList.contains('lt') && (nx = true));
       });
-      const ahead = (r.marks || []).filter((x) => x.d > d + 15), lights = ahead.filter((x) => x.k === 'light').length;
+      const ahead = (r.marks || []).filter((x) => x.d > d + 15 && !(el.dataset.kid && x.k === 'turn')), lights = ahead.filter((x) => x.k === 'light').length;
       const next = el.nextElementSibling; if (!next?.classList.contains('next')) return;
       const h = p.status === 'here' ? `<span>🏁 <b>Made it</b> · ${dist(r.m)} and ${(r.marks || []).filter((x) => x.k === 'light').length} 🚦 on the way</span>`
         : `<span>Next: ${ahead[0] ? `<b>${sayMark(ahead[0])}</b> in ${dist(ahead[0].d - d)}${ahead[1] ? ` · then ${sayMark(ahead[1])}` : ''}` : `<b>${esc(p.place_name)}</b>`}${r.ready ? '' : ' · finding the lights…'}</span>
