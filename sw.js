@@ -16,6 +16,7 @@ const BUZZ = {
   claude: [60, 50, 60, 50, 60],                // Claude answered you: a flutter
   call: [600, 300, 600, 300, 600, 300, 600],   // a call rings
   tutor: [300, 150, 300, 150, 300],            // the tutor flagged something
+  pickup: [250, 120, 250],                     // a pickup: on the way, nearly there, here
 };
 const TITLE = 'r4box';
 

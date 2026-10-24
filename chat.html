@@ -51,11 +51,42 @@
     @keyframes turn { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .waiting svg { animation: none; } }
     .picks .av { width: 34px; height: 34px; } .picks .av img { width: 30px; height: 30px; }
+    /* Pickups (124): minutes away, never a map */
+    .rpick { margin: 3px 0 2px; padding: 10px; border-radius: 14px; background: #0006; border: 1px solid #ffffff1c; min-width: min(250px, 66vw); }
+    .rpick.live { border-color: #3DD6C666; background: #3DD6C612; }
+    .rpick.asked { border-color: #F5C54266; }
+    .rpick .pt { display: flex; gap: 11px; align-items: center; }
+    .rpick .ring { flex: none; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--teal) calc(var(--p, 0) * 1turn), #ffffff1a 0); }
+    .rpick .ring span { width: 48px; height: 48px; border-radius: 50%; background: #0D0B1F; display: grid; place-items: center; text-align: center; line-height: 1; }
+    .rpick .ring b { font: 800 19px/1 var(--display); color: var(--ink); } .rpick .ring small { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .rpick .ring.em span { font-size: 24px; }
+    .rpick .tt { min-width: 0; } .rpick .tt b { display: block; font-size: 14.5px; line-height: 1.3; } .rpick .tt small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .rpick .tt small.warn { color: var(--gold); }
+    .rpick .kn { margin-top: 8px; font-size: 13px; padding: 5px 9px; border-radius: 10px; background: #ffffff10; }
+    .rpick .pa { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+    .rpick .pa button, .rpick .pa a { all: unset; cursor: pointer; font-size: 12.5px; font-weight: 700; padding: 6px 11px; border-radius: 99px; border: 1px solid #ffffff2a; }
+    .rpick .pa .go { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
+    .rpick .pa .on { background: #ffffff22; }
+    #pkbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin: 0 10px 6px; border-radius: 12px; background: #3DD6C61f; border: 1px solid #3DD6C666; font-size: 13px; }
+    #pkbar span { flex: 1; min-width: 0; } #pkbar small { display: block; color: var(--muted); font-size: 11.5px; }
+    #pkbar button { all: unset; cursor: pointer; font-weight: 800; font-size: 12.5px; padding: 6px 11px; border-radius: 99px; border: 1px solid #ffffff2a; }
+    #pkbar .go { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
+    #pkdlg { width: min(420px, calc(100vw - 32px)); }
+    #pkdlg h4 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    #pkdlg .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    #pkdlg .chips button { all: unset; cursor: pointer; padding: 7px 12px; border-radius: 99px; border: 1px solid var(--line); font-size: 14px; }
+    #pkdlg .chips button.on { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); font-weight: 700; }
+    #pkdlg .chips .x { padding: 7px 9px; color: var(--hot); }
+    #pkdlg input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0D0B1F; color: inherit; font: inherit; font-size: 16px; }
+    #pkdlg .newp { margin-top: 8px; padding: 10px; border-radius: 12px; background: #ffffff0a; }
+    #pkdlg .note { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+    #pkdlg .err { color: var(--hot); font-size: 13px; margin-top: 8px; }
   </style>
 </head>
 <body>
 <div id="app">
 <header><a class="back" href="/" aria-label="Home">‹</a><a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1>Family</h1><span class="grow"></span><button class="hbtn" id="srch" aria-label="Search the chat and everything attached">⌕</button><button class="hbtn" id="pinsbtn" aria-label="Pinned: trip and polls" aria-expanded="false">📌<i class="badge" id="pinsn" hidden></i></button><button class="hbtn" id="callbtn" aria-label="Start a video call">📹</button><button class="gear" id="gear" aria-label="Settings">⚙</button></header>
+<div id="pkbar" hidden></div>
 <div class="pins" id="pins"></div>
 <div class="devs" id="devs"></div>
 <button class="filt" id="gfilt" hidden></button>
@@ -64,11 +95,12 @@
 <div class="quick" id="quick"><button type="button">👍</button><button type="button">❤️</button><button type="button">😂</button><button type="button">🎉</button></div>
 <div class="preview" id="preview" hidden><img id="previewimg" alt="Photo to send"><button id="unphoto" type="button">Remove</button></div>
 <div class="row1"><button class="chipc" id="atclaude" type="button">✦ @claude</button><span class="left" id="left">Write @claude to ask Claude</span></div>
-<form id="send"><button class="ibtn" type="button" id="photo" aria-label="Add a photo">📷</button><button class="ibtn" type="button" id="tripbtn" aria-label="Talk about a trip">✈️</button><input type="file" id="file" accept="image/*" hidden><textarea id="text" rows="1" placeholder="Message the family…" maxlength="4000" aria-label="Message"></textarea><button class="ibtn send" id="go" aria-label="Send">↑</button></form>
+<form id="send"><button class="ibtn" type="button" id="photo" aria-label="Add a photo">📷</button><button class="ibtn" type="button" id="tripbtn" aria-label="Talk about a trip">✈️</button><button class="ibtn" type="button" id="pkbtn" aria-label="Pickup: on my way, or ask for a ride">🚗</button><input type="file" id="file" accept="image/*" hidden><textarea id="text" rows="1" placeholder="Message the family…" maxlength="4000" aria-label="Message"></textarea><button class="ibtn send" id="go" aria-label="Send">↑</button></form>
 </div>
 <dialog class="cdlg" id="pick"><b>📹 Call who?</b><div class="picks" id="picks"></div><div class="row"><button id="pickno">Cancel</button></div></dialog>
 <dialog class="cdlg" id="ring"><b id="ringwho">📹 Video call</b><div style="color:var(--muted);font-size:13px;margin-top:6px" id="ringnote">The family is on a call.</div><div class="row"><button id="ringno">Not now</button><button id="ringyes" style="background:var(--teal);color:var(--teal-ink);border-color:var(--teal)">Join</button></div></dialog>
 <dialog class="cdlg" id="tripdlg"><b>✈️ Talk about a trip</b><div style="color:var(--muted);font-size:13px;margin-top:6px">The chat turns into that trip’s conversation. @claude knows its plan there.</div><div class="picks" id="trippicks"></div><div class="row"><button id="tripno">Cancel</button></div></dialog>
+<dialog class="cdlg" id="pkdlg" aria-label="Pickup"></dialog>
 <dialog class="cdlg" id="del"><b>Delete this message?</b><div style="color:var(--muted);font-size:13px;margin-top:6px">It goes for everyone, with its replies.</div><div class="row"><button id="delno">Cancel</button><button class="bad" id="delyes">Delete</button></div></dialog>
 <div id="viewer" hidden><img id="viewimg" alt=""></div>
 </div>
@@ -129,7 +161,7 @@
       sb.from('chat_messages').select('*').order('id', { ascending: false }).limit(400),
     ]);
     family = f || []; msgs = (m || []).reverse();
-    await Promise.all([sign(msgs.map((x) => x.image)), loadPolls(), loadReacts(), loadTrip()]);
+    await Promise.all([sign(msgs.map((x) => x.image)), loadPolls(), loadReacts(), loadTrip(), loadPickups()]);
     render(true); seen(true);
   }
   async function loadReacts() {
@@ -184,6 +216,144 @@
   };
   $('tripno').onclick = () => $('tripdlg').close();
 
+  // ---- pickups (124): "On my way", minutes away and never a map ----
+  // A parent sets off to pick up a kid: while this chat is open on their phone, it sends where they are to the
+  // pickup function every 30 s, which keeps only the minutes; the kid's card counts down from those. The screen
+  // stays on while it's going (the page can't update from the background). A kid can ask for a pickup first.
+  const PK = FN.replace(/family-chat$/, 'pickup');
+  const pickups = new Map(), PK_NOTES = ['👍 Ready', '⏳ 5 more min', '🚪 Side door', '🏫 Front'];
+  let places = [];
+  async function loadPickups() {
+    const ids = [...new Set(msgs.filter((x) => x.ref?.type === 'pickup').map((x) => x.ref.id))];
+    const [{ data: p }, { data: pl }] = await Promise.all([
+      ids.length ? sb.from('pickups').select('*').in('id', ids) : { data: [] },
+      sb.from('family_places').select('*').order('created_at')]);
+    for (const x of p || []) pickups.set(x.id, x);
+    places = pl || [];
+    syncDrive();
+  }
+  function setPickup(p) { pickups.set(p.id, p); syncDrive(); }
+  async function pk(payload) {
+    const { data: { session: s } } = await sb.auth.getSession();
+    const r = await fetch(PK, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "That didn't work. Try again.");
+    if (j.pickup) setPickup(j.pickup);
+    return j;
+  }
+  const over = (p) => p.status === 'ended' || Date.now() - Date.parse(p.started_at) > 3600e3;
+  const minsLeft = (p) => Math.max(0, Math.ceil((Date.parse(p.eta_at) - Date.now()) / 60000));
+  const clock = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  function pickupHTML(id) {
+    const p = pickups.get(id);
+    if (!p) return '<div class="rpick"><div class="pt"><span class="ring em"><span>🚗</span></span><span class="tt"><b>Pickup</b></span></div></div>';
+    const drv = p.driver === ME.id, kid = p.kid === ME.id, d = nameIn(p.driver), k = nameIn(p.kid);
+    const note = p.kid_note ? `<div class="kn">${kid ? 'You' : esc(k)}: ${esc(p.kid_note)}</div>` : '';
+    const notes = kid ? `<div class="pa">${PK_NOTES.map((n) => `<button data-pk="note" data-id="${p.id}" data-t="${esc(n)}" class="${p.kid_note === n ? 'on' : ''}">${esc(n)}</button>`).join('')}<button data-pk="note" data-id="${p.id}" data-t="">✏️</button></div>` : '';
+    if (over(p)) return `<div class="rpick"><div class="pt"><span class="ring em"><span>✓</span></span><span class="tt"><b>${esc(d)} picked up ${esc(k)}</b><small>${esc(p.place_name)}${p.ended_at ? ' · ' + clock(p.ended_at) : ''}</small></span></div></div>`;
+    if (p.status === 'asked') return `<div class="rpick asked"><div class="pt"><span class="ring em"><span>🙋</span></span><span class="tt"><b>${kid ? `You asked ${esc(d)} for a pickup` : `${esc(k)} asks ${drv ? 'you' : esc(d)} for a pickup`}</b><small>${esc(p.place_name)} · ${esc(p.ask_when || 'now')}</small></span></div>
+      <div class="pa">${ME.role === 'parent' ? `<button class="go" data-pk="go" data-id="${p.id}">🚗 On my way</button>` : ''}${kid || ME.role === 'parent' ? `<button data-pk="stop" data-id="${p.id}">${kid ? 'Never mind' : 'Can’t'}</button>` : ''}</div></div>`;
+    if (p.status === 'here') return `<div class="rpick live"><div class="pt"><span class="ring em" style="--p:1"><span>🚗</span></span><span class="tt"><b>${drv ? 'You’re here' : `${esc(d)} is here`}</b><small>${esc(p.place_name)}${kid ? ' · look for the car' : ''}</small></span></div>${note}${notes}
+      ${drv || ME.role === 'parent' ? `<div class="pa"><button data-pk="stop" data-id="${p.id}">✓ Picked up</button></div>` : ''}</div>`;
+    const n = minsLeft(p), first = p.eta_first || n || 1, prog = Math.min(1, Math.max(0.03, 1 - n / first));
+    const stale = Date.now() - Date.parse(p.updated_at) > 150_000;
+    return `<div class="rpick live"><div class="pt"><span class="ring" style="--p:${prog.toFixed(2)}"><span>${n ? `<span><b>${n}</b><small>min</small></span>` : '<b>🚗</b>'}</span></span><span class="tt">
+      <b>${drv ? `You’re on the way to ${esc(k)}` : `${esc(d)} is on the way${kid ? '' : ' to ' + esc(k)}`}</b>
+      <small>${esc(p.place_name)} · ${n ? `about ${clock(p.eta_at)}` : 'any moment now'}${p.late_min >= 5 ? ` · traffic, ${p.late_min} min later` : ''}</small>
+      ${stale ? `<small class="warn">Last update ${Math.round((Date.now() - Date.parse(p.updated_at)) / 60000)} min ago${drv ? ': keep this chat open on the way' : ''}</small>` : ''}</span></div>${note}${notes}
+      ${drv ? `<div class="pa"><button class="go" data-pk="here" data-id="${p.id}">I’m here</button><a href="https://www.google.com/maps/dir/?api=1&destination=${p.dest_lat},${p.dest_lng}&travelmode=driving" target="_blank" rel="noopener">Directions ↗</a><button data-pk="stop" data-id="${p.id}">Stop</button></div>` : ''}</div>`;
+  }
+  async function pickupAct(b) {
+    const id = b.dataset.id, a = b.dataset.pk;
+    try {
+      if (a === 'go') return openPickup(id);
+      if (a === 'note') { const t = b.dataset.t || (prompt('Where will you be, or what should they know?') || '').trim(); if (t) await pk({ note: id, text: t }); }
+      if (a === 'here') await pk({ here: id });
+      if (a === 'stop') await pk({ stop: id });
+      render(false);
+    } catch (err) { toast(err.message); }
+  }
+  const where = () => new Promise((ok, no) => navigator.geolocation ? navigator.geolocation.getCurrentPosition((g) => ok({ lat: g.coords.latitude, lng: g.coords.longitude }),
+    () => no(new Error('Location is off for r4box: allow it so the minutes can be worked out.')), { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }) : no(new Error('This phone can’t say where it is.')));
+  // The 🚗 dialog. A parent: who, where, Go (ask: answering a kid's ask). A kid: ask a parent, where, when.
+  function openPickup(ask) {
+    const parent = ME.role === 'parent', st = { kid: null, to: null, place: null, when: 'now', edit: false, adding: false, err: '' };
+    const kids = family.filter((f) => f.role === 'kid'), parents = family.filter((f) => f.role === 'parent');
+    if (kids.length === 1) st.kid = kids[0].id; if (parents.length === 1) st.to = parents[0].id;
+    if (places.length === 1) st.place = places[0].id;
+    const asked = ask ? pickups.get(ask) : null;
+    const paint = () => {
+      const chip = (k, v, label, on) => `<button type="button" data-${k}="${esc(v)}" class="${on ? 'on' : ''}">${label}</button>`;
+      $('pkdlg').innerHTML = `<b>${asked ? `🚗 On my way to ${esc(nameIn(asked.kid))}` : parent ? '🚗 On my way' : '🙋 Ask for a pickup'}</b>
+        <div class="note" style="margin-top:4px">${parent ? `They see how many minutes away you are, not where you are. It ends when you get there.` : 'They’ll get a note, and you’ll see how many minutes away they are once they set off.'}</div>
+        ${asked ? `<div class="note">${esc(asked.place_name)} · ${esc(asked.ask_when || 'now')}</div>` : `
+        <h4>${parent ? 'Picking up' : 'Ask'}</h4><div class="chips">${(parent ? kids : parents).map((f) => chip(parent ? 'kid' : 'to', f.id, esc(f.username), (parent ? st.kid : st.to) === f.id)).join('')}</div>
+        <h4>Where</h4><div class="chips">${places.map((p) => chip('place', p.id, `${esc(p.emoji || '📍')} ${esc(p.name)}`, st.place === p.id) + (st.edit ? `<button type="button" class="x" data-delp="${p.id}" aria-label="Remove ${esc(p.name)}">✕</button>` : '')).join('')}
+          ${parent ? `<button type="button" data-addp="1">＋ Place</button>${places.length ? `<button type="button" data-editp="1">${st.edit ? 'Done' : 'Edit'}</button>` : ''}` : ''}</div>
+        ${!places.length && !parent ? '<div class="note">No pickup places yet: ask a parent to add them (School, Practice…).</div>' : ''}
+        ${st.adding ? `<div class="newp"><input id="pkname" placeholder="Name it: School, Soccer field…" maxlength="40"><input id="pkaddr" placeholder="Address" maxlength="200">
+          <div class="chips" style="margin-top:8px"><button type="button" data-savep="addr">Save</button><button type="button" data-savep="here">📍 Save where I am now</button></div></div>` : ''}
+        ${parent ? '' : `<h4>When</h4><div class="chips">${['now', 'in 15 min', 'in 30 min'].map((w) => chip('when', w, w[0].toUpperCase() + w.slice(1), st.when === w)).join('')}<button type="button" data-when="time" class="${/^at /.test(st.when) ? 'on' : ''}">${/^at /.test(st.when) ? esc(st.when) : 'At…'}</button></div>`}`}
+        ${st.err ? `<div class="err">${esc(st.err)}</div>` : ''}
+        ${parent ? '<div class="note">Keep this chat open on the way (in a phone holder): the minutes update while it’s on screen.</div>' : ''}
+        <div class="row"><button type="button" data-cancel>Cancel</button><button type="button" data-ok style="background:var(--teal);color:var(--teal-ink);border-color:var(--teal)">${parent ? '🚗 Go' : 'Ask'}</button></div>`;
+    };
+    $('pkdlg').onclick = async (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      const d = b.dataset; st.err = '';
+      if (d.kid) st.kid = d.kid; if (d.to) st.to = d.to; if (d.place) st.place = d.place;
+      if (d.when) { if (d.when === 'time') { const t = prompt('What time? (e.g. 3:30)'); if (t?.trim()) st.when = 'at ' + t.trim().slice(0, 12); } else st.when = d.when; }
+      if (d.addp) st.adding = !st.adding;
+      if (d.editp) st.edit = !st.edit;
+      if (d.delp) { const { error } = await sb.from('family_places').delete().eq('id', d.delp); if (error) st.err = 'Couldn’t remove it.'; else { places = places.filter((p) => p.id !== d.delp); if (st.place === d.delp) st.place = null; } }
+      if (d.savep) {
+        const nm = $('pkname').value.trim(), addr = $('pkaddr').value.trim();
+        if (!nm) { st.err = 'Give the place a name.'; return paint(); }
+        try { b.disabled = true; const j = await pk({ place: d.savep === 'here' ? { name: nm, at: await where() } : { name: nm, address: addr } }); places.push(j.place); st.place = j.place.id; st.adding = false; }
+        catch (err) { st.err = err.message; }
+      }
+      if (d.cancel != null) { $('pkdlg').close(); return; }
+      if (d.ok != null) {
+        try {
+          b.disabled = true; b.textContent = parent ? 'Working out the drive…' : 'Asking…';
+          if (parent) { if (!asked && (!st.kid || !st.place)) throw new Error('Pick who and where.'); await pk({ start: { kid: st.kid, place: st.place, from: await where() }, ...(asked ? { ask: asked.id } : {}) }); }
+          else { if (!st.to || !st.place) throw new Error('Pick who and where.'); await pk({ ask: { to: st.to, place: st.place, when: st.when } }); }
+          $('pkdlg').close(); await load(); return;
+        } catch (err) { st.err = err.message; }
+      }
+      paint();
+    };
+    paint(); $('pkdlg').showModal();
+  }
+  $('pkbtn').onclick = () => openPickup();
+  // The driver's side: while a pickup of theirs is on, this page sends its position (every 30 s at most) and keeps the screen on.
+  let watchId = null, lastPos = null, lastSent = 0, lock = null;
+  const driving = () => [...pickups.values()].find((p) => p.driver === ME.id && p.status === 'on_way' && !over(p));
+  async function keepAwake(on) {
+    try { if (on && !lock && !document.hidden && navigator.wakeLock) { lock = await navigator.wakeLock.request('screen'); lock.addEventListener('release', () => { lock = null; }); } if (!on && lock) { await lock.release(); lock = null; } } catch {}
+  }
+  async function sendPos(force) {
+    const p = driving(); if (!p || !lastPos || (!force && Date.now() - lastSent < 30000)) return;
+    lastSent = Date.now();
+    try { await pk({ update: p.id, from: lastPos }); render(false); } catch {}
+  }
+  function syncDrive() {
+    const p = driving();
+    if (p && watchId == null && navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition((g) => { lastPos = { lat: g.coords.latitude, lng: g.coords.longitude }; sendPos(false); }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
+      keepAwake(true);
+    }
+    if (!p && watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; lastPos = null; keepAwake(false); }
+    const bar = $('pkbar'); bar.hidden = !p;
+    if (p) {
+      const n = minsLeft(p);
+      bar.innerHTML = `<span>🚗 <b>${esc(nameIn(p.kid))} sees you’re ${n ? `~${n} min` : 'almost'} away</b><small>Only the minutes, not where you are · keep this open on the way</small></span><button class="go" data-pkbar="here">Here</button><button data-pkbar="stop">Stop</button>`;
+      bar.querySelectorAll('[data-pkbar]').forEach((b) => (b.onclick = async () => { try { await pk({ [b.dataset.pkbar]: p.id }); render(false); } catch (err) { toast(err.message); } }));
+    }
+  }
+  setInterval(() => { sendPos(false); if ([...pickups.values()].some((p) => !over(p) && p.status === 'on_way')) { render(false); syncDrive(); } }, 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && driving()) { keepAwake(true); sendPos(true); } });
+
   // Where a card goes: the item itself (a shared item, a poll on an item, what Claude added), else the trip's Ideas or Chat.
   const tripUrl = (r) => {
     const item = r.type === 'item' ? r.id : r.type === 'poll' ? r.item : r.type === 'added' ? r.ids?.[0] : null;
@@ -197,6 +367,7 @@
   const callIsLive = (m) => m && m.id === lastCallId() && callLive().length > 0;
 
   function refHTML(r, m) {
+    if (r.type === 'pickup') return pickupHTML(r.id);
     if (r.type === 'call') {
       const live = callLive(), on = callIsLive(m);
       return `<div class="rcall${on ? ' live' : ''}"><span class="ri">📹</span><span><b>${r.to ? `Called ${esc(nameIn(r.to))}` : 'Video call'}</b><small>${on ? `Live now · ${esc(live.map((x) => nameIn(x.user)).filter((v, k, a) => a.indexOf(v) === k).join(', '))}` : 'Ended'}</small></span>${on && !inCallNow() ? '<button data-join>Join</button>' : ''}</div>`;
@@ -224,11 +395,11 @@
     return `<${tag} class="flower"${u ? ` href="${esc(u)}" title="Open the world"` : ''}><i>✿</i>${r.grew === 'new' ? 'A flower sprouted' : 'Its flower grew ' + esc(r.grew || 'a petal')} in ${esc(nameIn(r.who))}’s world · ${esc(r.title)}</${tag}>`; };
 
   // ---- attachments: a big preview the first time you see one, then a thumbnail ----
-  const MEDIA = ['poll', 'item', 'call', 'story', 'added', 'project', 'trip'];
+  const MEDIA = ['poll', 'item', 'call', 'story', 'added', 'project', 'trip', 'pickup'];
   const isMedia = (m) => !!(m.image || (m.ref && MEDIA.includes(m.ref.type)));
   const kindOf = (m) => (m.image ? 'photo' : ['item', 'added'].includes(m.ref.type) ? 'place' : m.ref.type);
   // The words the server writes for a card ("📍 Taco stand", "🌳 Shared a story: …") aren't words someone said.
-  const auto = (m) => !!m.ref && (m.ref.type === 'call' || m.ref.type === 'story' || (['item', 'poll', 'project', 'trip'].includes(m.ref.type) && /^(📍|📊|⚒|✈️) /.test(m.body || '')));
+  const auto = (m) => !!m.ref && (m.ref.type === 'call' || m.ref.type === 'story' || m.ref.type === 'pickup' || (['item', 'poll', 'project', 'trip'].includes(m.ref.type) && /^(📍|📊|⚒|✈️) /.test(m.body || '')));
   const words = (m) => (auto(m) ? '' : m.body || '');
   const seenKey = 'r4.chat.seen.' + ME.id;
   let seenSet = new Set(); try { seenSet = new Set(JSON.parse(localStorage.getItem(seenKey) || '[]')); } catch {}
@@ -237,7 +408,7 @@
   function thumb(m) {
     const r = m.ref || {};
     if (m.image) return urls.get(m.image) ? `<img src="${esc(urls.get(m.image))}" alt="">` : '📷';
-    return { poll: '📊', item: '📍', added: '✦', call: '📹', story: '🌳', trip: '✈️', project: esc(r.emoji || '⚒') }[r.type] || '◇';
+    return { poll: '📊', item: '📍', added: '✦', call: '📹', story: '🌳', trip: '✈️', pickup: '🚗', project: esc(r.emoji || '⚒') }[r.type] || '◇';
   }
   function label(m) {
     const r = m.ref || {};
@@ -248,6 +419,7 @@
     if (r.type === 'project') return [r.name, (r.kind || 'Project') + ' · by ' + nameIn(r.owner)];
     if (r.type === 'trip') return [r.name, 'Trip · ' + tripWhen(r)];
     if (r.type === 'call') return [r.to ? 'Called ' + nameIn(r.to) : 'Video call', callIsLive(m) ? 'Live now' : 'Ended'];
+    if (r.type === 'pickup') { const p = pickups.get(r.id); return [p ? `Pickup · ${p.place_name}` : 'Pickup', p && p.status !== 'ended' ? 'On now' : 'Done']; }
     if (r.type === 'poll') {
       const q = pollOf(r.id); if (!q) return [r.question, 'Poll · ' + (r.trip_name || '')];
       const vs = votesOf(q.id), c = q.options.map((_, k) => vs.filter((v) => v.choice === k).length), top = Math.max(0, ...c);
@@ -261,7 +433,7 @@
     return refHTML(m.ref, m);
   }
   // Big: the first time, when opened, and a live call (its Join button).
-  const big = (m) => opened.has(m.id) || bigNow.has(m.id) || !seenSet.has(m.id) || callIsLive(m) || m.ref?.type === 'trip';   // a trip's card stays a door into its conversation
+  const big = (m) => opened.has(m.id) || bigNow.has(m.id) || !seenSet.has(m.id) || callIsLive(m) || m.ref?.type === 'trip' || (m.ref?.type === 'pickup' && pickups.get(m.ref.id)?.status !== 'ended');   // a trip's card stays a door into its conversation
   const io = new IntersectionObserver((es) => es.forEach((e) => { const id = +e.target.dataset.big; if (e.isIntersecting) e.target._t = setTimeout(() => { markSeen(id); io.unobserve(e.target); }, 900); else clearTimeout(e.target._t); }), { threshold: 0.6 });
   const watchBig = (root) => root.querySelectorAll('[data-big]').forEach((el) => { if (!seenSet.has(+el.dataset.big)) io.observe(el); });
 
@@ -379,6 +551,7 @@
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_reactions' }, ({ old }) => { if (old.emoji) { dropReact(old); render(false); } else loadReacts().then(() => render(false)); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_poll_votes' }, () => loadPolls().then(() => render(false)))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_polls' }, () => loadPolls().then(() => render(false)))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, ({ new: p }) => { if (p?.id) { setPickup(p); render(false); } })
     .subscribe((st) => { if (st === 'SUBSCRIBED' && family.length) load(); });   // caught up after a reconnect
 
   // Read marker and "looking at it now" (so nobody is pushed for a chat they are reading).
@@ -578,7 +751,8 @@
     const o = t.closest('[data-open]'); if (o) { e.stopPropagation(); const id = +o.dataset.open; opened.has(id) ? opened.delete(id) : opened.add(id); render(false); return; }
     const sh = t.closest('[data-shrink]'); if (sh) { e.stopPropagation(); const id = +sh.dataset.shrink; opened.delete(id); bigNow.delete(id); markSeen(id); bigNow.delete(id); render(false); return; }
     const ph = t.closest('img.phimg'); if (ph) { e.stopPropagation(); $('viewimg').src = ph.src; $('viewer').hidden = false; return; }
-    if (t.closest('a, .rpoll, .rcall')) return;
+    const pk = t.closest('[data-pk]'); if (pk) { e.stopPropagation(); pickupAct(pk); return; }
+    if (t.closest('a, .rpoll, .rcall, .rpick')) return;
     const av = t.closest('.av'); if (av && !t.closest('.thread')) { e.stopPropagation(); const m = msgs.find((x) => x.id === +av.closest('.msg').dataset.id); if (m && !m.is_claude) { filter = filter === m.author ? null : m.author; render(true); } return; }
     const b = t.closest('[data-b]'); if (b) { e.stopPropagation(); openActs(+b.dataset.b, b); }
   }
