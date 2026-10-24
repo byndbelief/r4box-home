@@ -538,6 +538,9 @@
   // ---- dates ----
   const D = (s) => new Date(s + 'T12:00:00');
   const iso = (d) => d.toISOString().slice(0, 10);
+  // A trip is over once its last day has passed here (the family's own date, not UTC's), or once its starter or a parent ends it (122).
+  const today = () => { const d = new Date(); return iso(new Date(d.getTime() - d.getTimezoneOffset() * 60000)); };
+  const over = (t) => !!t?.ended_at || (!!t?.ends && t.ends < today());
   const nice = (s, o = { weekday: 'short', month: 'short', day: 'numeric' }) => D(s).toLocaleDateString([], o);
   function days() {
     const out = [];
@@ -552,8 +555,7 @@
     const [{ data: t }, { data: f }] = await Promise.all([sb.from('trips').select('*').order('starts', { ascending: true, nullsFirst: false }), family.length ? { data: family } : sb.rpc('r4_family')]);
     trips = t || []; family = f || [];
     const want = new URLSearchParams(location.search).get('t');
-    const today = iso(new Date());
-    trip = trips.find((x) => x.id === want) || trips.find((x) => !x.ends || x.ends >= today) || trips[trips.length - 1] || null;
+    trip = trips.find((x) => x.id === want) || trips.find((x) => !over(x)) || trips[trips.length - 1] || null;
     if (trip) {
       const { data: it } = await sb.from('trip_items').select('*').eq('trip', trip.id).order('created_at');
       items = it || [];
@@ -595,7 +597,9 @@
 
   function render() {
     $('none').hidden = !!trip; $('trip').hidden = !trip;
-    $('trips').innerHTML = trips.length > 1 ? `<select id="pick" aria-label="Trip">${trips.map((x) => `<option value="${x.id}" ${x.id === trip?.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>` : '';
+    // The picker: trips still to come, then the ones that are over (newest first) under Past trips.
+    const opt = (x) => `<option value="${x.id}" ${x.id === trip?.id ? 'selected' : ''}>${esc(x.name)}</option>`, past = trips.filter(over).reverse();
+    $('trips').innerHTML = trips.length > 1 ? `<select id="pick" aria-label="Trip">${trips.filter((x) => !over(x)).map(opt).join('')}${past.length ? `<optgroup label="Past trips">${past.map(opt).join('')}</optgroup>` : ''}</select>` : '';
     if ($('pick')) $('pick').onchange = () => { history.replaceState(null, '', '?t=' + $('pick').value + location.hash); load(); };
     if (!trip) {
       $('nonetext').textContent = 'Start one and the family can plan it with you.';
@@ -610,7 +614,7 @@
     $('where').textContent = (trip.origin && trip.place ? trip.origin + ' → ' : '') + (trip.place || '');
     $('when').textContent = !trip.starts ? '' : !trip.ends || trip.ends === trip.starts ? nice(trip.starts) : nice(trip.starts, { month: 'short', day: 'numeric' }) + (trip.ends && trip.ends !== trip.starts ? ' – ' + nice(trip.ends, { month: 'short', day: 'numeric', year: 'numeric' }) : '');
     const n = trip.starts ? Math.round((D(trip.starts) - D(iso(new Date()))) / 86400000) : null;
-    $('countdown').textContent = n == null ? '' : n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow!' : n === 0 ? 'today!' : trip.ends && trip.ends >= iso(new Date()) ? 'happening now' : '';
+    $('countdown').textContent = over(trip) ? '✓ Trip over' : n == null ? '' : n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow!' : n === 0 ? 'today!' : trip.ends && trip.ends >= iso(new Date()) ? 'happening now' : '';
     // Anyone starts a trip; its starter or a parent edits it (092).
     $('goingn').hidden = true;
     $('edittrip').hidden = !(PARENT || trip.created_by === ME.id); $('newtrip2').hidden = false;
@@ -1745,7 +1749,7 @@
       <label id="dcur">Currency<input name="currency" maxlength="3" value="${esc(t.currency || 'USD')}"></label>
       <p class="note" id="dnote"></p>
       <p class="note" id="derr"></p>
-      <div class="acts"><button type="button" class="btn" id="dcancel">Cancel</button><button class="btn p">Save</button></div>`;
+      <div class="acts">${t.id ? `${t.ended_at ? '<button type="button" class="btn" id="dreopen">Reopen trip</button>' : over(t) ? '' : '<button type="button" class="btn" id="dend">End trip</button>'}${PARENT ? '<button type="button" class="btn bad" id="dtripdel">Delete trip</button>' : ''}<span style="flex:1"></span>` : ''}<button type="button" class="btn" id="dcancel">Cancel</button><button class="btn p">Save</button></div>`;
     const f = $('dform');
     const ty = () => f.elements.type.value || 'away';
     // The form follows the type: one date for a day out or a night in, no "travelling from" at home.
@@ -1761,6 +1765,20 @@
     f.querySelectorAll('input[name=type]').forEach((r) => r.onchange = shape);
     shape();
     $('dcancel').onclick = () => $('dlg').close();
+    // End a trip early (it moves to Past trips and stops being the pinned one), or bring it back.
+    const ending = async (at) => {
+      const { error } = await sb.from('trips').update({ ended_at: at }).eq('id', t.id);
+      if (error) { $('derr').textContent = 'Could not save: ' + error.message; return; }
+      $('dlg').close(); load();
+    };
+    if ($('dend')) $('dend').onclick = () => { if (confirm(`End “${t.name}”? It moves to Past trips; everything in it stays.`)) ending(new Date().toISOString()); };
+    if ($('dreopen')) $('dreopen').onclick = () => ending(null);
+    if ($('dtripdel')) $('dtripdel').onclick = async () => {
+      if (!confirm(`Delete “${t.name}”? Its plan, ideas, bookings, packing lists and polls go too. This can't be undone.`)) return;
+      const { error } = await sb.from('trips').delete().eq('id', t.id);
+      if (error) { $('derr').textContent = 'Could not delete: ' + error.message; return; }
+      $('dlg').close(); history.replaceState(null, '', location.pathname + (location.hash || '#plan')); load();
+    };
     f.onsubmit = async (e) => {
       e.preventDefault();
       const x = TYPES[ty()];

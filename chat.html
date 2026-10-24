@@ -150,11 +150,13 @@
     const { data: v } = polls.length ? await sb.from('trip_poll_votes').select('poll, voter, choice').in('poll', polls.map((x) => x.id)) : { data: [] };
     votes = v || [];
   }
-  // The pinned trip: the next one that hasn't ended.
+  // The pinned trip: the next one that isn't over (its last day not yet passed here, and not ended early, 122).
   let trip = null;
+  const localDay = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+  const tripOver = (t) => !!t.ended_at || (!!t.ends && t.ends < localDay());
   async function loadTrip() {
-    const { data } = await sb.from('trips').select('id, name, place, starts, ends').or(`ends.gte.${new Date().toISOString().slice(0, 10)},ends.is.null`).order('starts', { ascending: true, nullsFirst: false }).limit(1);
-    trip = data?.[0] || null;
+    const { data } = await sb.from('trips').select('*').or(`ends.gte.${localDay()},ends.is.null`).order('starts', { ascending: true, nullsFirst: false });
+    trip = (data || []).find((t) => !tripOver(t)) || null;
   }
 
   // A trip's dates, short: "Dec 3 – 7 · in 44 days"
@@ -174,9 +176,9 @@
     if (card) openThread(card.id);
   }
   $('tripbtn').onclick = async () => {
-    const { data } = await sb.from('trips').select('id, name, place, starts, ends').order('starts', { ascending: false, nullsFirst: false });
-    const today = new Date().toISOString().slice(0, 10), list = (data || []).sort((a, b) => ((a.ends && a.ends < today) - (b.ends && b.ends < today)) || String(a.starts || '').localeCompare(String(b.starts || '')));
-    $('trippicks').innerHTML = list.length ? list.map((t) => `<button data-trip="${esc(t.id)}">✈️ ${esc(t.name)}<small style="display:block;color:var(--muted);font-weight:400">${esc(tripWhen(t))}</small></button>`).join('') : '<p style="color:var(--muted)">No trips yet. Start one on the trip page.</p>';
+    const { data } = await sb.from('trips').select('*').order('starts', { ascending: false, nullsFirst: false });
+    const list = (data || []).sort((a, b) => (tripOver(a) - tripOver(b)) || String(a.starts || '').localeCompare(String(b.starts || '')));   // the ones still to come first
+    $('trippicks').innerHTML = list.length ? list.map((t) => `<button data-trip="${esc(t.id)}">✈️ ${esc(t.name)}<small style="display:block;color:var(--muted);font-weight:400">${esc(tripWhen(t))}${tripOver(t) ? ' · over' : ''}</small></button>`).join('') : '<p style="color:var(--muted)">No trips yet. Start one on the trip page.</p>';
     $('trippicks').querySelectorAll('[data-trip]').forEach((b) => (b.onclick = () => { $('tripdlg').close(); talkTrip(b.dataset.trip); }));
     $('tripdlg').showModal();
   };

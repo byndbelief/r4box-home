@@ -545,6 +545,7 @@
       { id: 'dev', name: 'Developer', em: '⌘', blurb: 'Pilot, plus the details', parent: true },
     ];
     const iso = (d) => d.toISOString().slice(0, 10);
+    const localDay = () => { const d = new Date(); return iso(new Date(d.getTime() - d.getTimezoneOffset() * 60000)); };   // today here, not in UTC
     const dn = (d) => Math.round(Date.parse(String(d).slice(0, 10) + 'T00:00:00Z') / 864e5);
     function streak(days) {
       const set = new Set(days.map(dn)); if (!set.size) return { now: 0, sinceLast: null };
@@ -657,7 +658,7 @@
       const st = streak(me.world.events.map((e) => e.day));
       const grew = st.now ? `${st.now}-day streak` : st.sinceLast != null ? `last grew ${st.sinceLast}d ago` : 'nothing yet';
       const B = (k) => H.box[k], boxLine = (k) => { const b = B(k); return !b ? 'no word from the box' : Date.now() - new Date(b.at) > 15 * 60e3 ? 'box quiet ' + agoOf(b.at) : b.line; };
-      const turns = H.home.turns, next = H.home.trips.find((t) => t.ends && t.ends >= iso(new Date()));
+      const turns = H.home.turns, next = H.home.trips.find((t) => !t.ended_at && t.ends && t.ends >= localDay());   // the next trip that isn't over (122)
       const daysTo = next?.starts ? dn(next.starts) - dn(iso(new Date())) : null;
       const tripLine = next ? (daysTo > 0 ? `${next.name} · in ${daysTo} day${daysTo === 1 ? '' : 's'}` : `${next.name} · now`) : 'plan a trip';
       const turnLine = turns.length ? `your turn · ${KIND[turns[0].kind]?.[1] || ''}` : 'no turns waiting';
@@ -841,7 +842,7 @@
         ...Object.entries(H.off.has('games') ? {} : KIND).map(([k, [g, t]]) => ({ g, c: '#3DD6C6', t, s: 'game room', href: gameUrl(k) })),
         ...fam().filter((p) => worldLink(p)).map((p) => ({ g: '◍', c: p.dot, t: p.id === ME.id ? 'My world' : p.name + '’s world', s: 'family', href: worldLink(p) })),
         ...(person(ME.id)?.world.topics || []).filter((t) => t.title && t.source === 'tutor').map((t) => ({ g: ME.role === 'parent' ? '✎' : '🌳', c: '#B9A6FF', t: t.title, s: ME.role === 'parent' ? 'diary idea' : 'in your world', href: '/diary.html' })),
-        ...(H.off.has('trip') ? [] : H.home.trips).map((t) => ({ g: '✈️', c: '#F5C542', t: t.name, s: 'trip', href: '/trip.html?t=' + encodeURIComponent(t.id) })),
+        ...(H.off.has('trip') ? [] : H.home.trips).map((t) => ({ g: '✈️', c: '#F5C542', t: t.name, s: t.ended_at || (t.ends && t.ends < localDay()) ? 'past trip' : 'trip', href: '/trip.html?t=' + encodeURIComponent(t.id) })),
       ];
       q.oninput = () => {
         const v = q.value.trim().toLowerCase(), box = $('hits');
