@@ -281,6 +281,9 @@
     .est li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 7px 0; border-top: 1px solid #ffffff0c; font-size: 14px; }
     .est li:first-child { border-top: 0; }
     .est li small { grid-column: 1; color: var(--faint); font-size: 12px; } .est li .amt { grid-row: span 2; align-self: center; text-align: right; font-weight: 800; }
+    .est .gas { display: flex; flex-wrap: wrap; align-items: end; gap: 6px 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #ffffff0c; }
+    .est .gas b { flex-basis: 100%; font-size: 13px; } .est .gas label { display: grid; gap: 2px; flex: 1 1 70px; min-width: 0; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+    .est .gas input { padding: 5px 8px; font-size: 14px; border-radius: 8px; min-width: 0; }
     .est li .amt em { display: block; font-style: normal; font-size: 11px; font-weight: 700; color: var(--gold); }
     /* the flight builder */
     .legrow { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
@@ -379,6 +382,7 @@
     .dens-pilot .est .big { justify-content: flex-end; gap: 8px; } .dens-pilot .est .big b { font-size: 18px; } .dens-pilot .est .big small { font-size: 11.5px; }
     .dens-pilot .est .bar { height: 4px; margin: 6px 0 3px; } .dens-pilot .est .legend { font-size: 11px; margin-bottom: 4px; }
     .dens-pilot .est ul { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
+    .dens-pilot .est .gas { margin-top: 4px; padding-top: 6px; gap: 4px 6px; } .dens-pilot .est .gas b { font-size: 12px; } .dens-pilot .est .gas label { font-size: 10.5px; } .dens-pilot .est .gas input { padding: 3px 7px; font-size: 13px; }
     .dens-pilot .est li { padding: 4px 0; font-size: 12.5px; gap: 0 6px; } .dens-pilot .est li small { font-size: 11px; } .dens-pilot .est li em { font-size: 10px; }
     .dens-pilot .est > .note, .dens-pilot .choices > p { display: none; }
     .dens-pilot .choices > h2 { font-size: 14px; }
@@ -1323,6 +1327,7 @@
     const btn = (k, inner) => `<button type="button" class="obtn${overPane === k ? ' on' : ''}" data-over="${k}" aria-expanded="${overPane === k}">${inner}<i aria-hidden="true">⌄</i></button>`;
     $('over').innerHTML = `<div class="orow">${btn('go', `👥 <b>${travellers()} going</b><span>${esc(names.join(', '))}</span>`)}${x.rows.length ? btn('est', `💰 <b>${money(all)}</b><span>est. · ${money(all / x.n)} pp</span><em class="mbar"><i style="width:${all ? (x.d / all) * 100 : 0}%"></i></em>`) : ''}</div>
       ${overPane === 'go' ? goingHTML() : overPane === 'est' && x.rows.length ? estimateHTML() : ''}`;
+    if (overPane === 'est') wireGas();
     $('over').querySelectorAll('[data-over]').forEach((b) => b.onclick = () => { overPane = overPane === b.dataset.over ? null : b.dataset.over; overview(); });
     if (overPane === 'go') wireGoing();
   }
@@ -1365,8 +1370,55 @@
     const plans = items.filter((i) => i.kind === 'plan' && i.cost), other = items.filter((i) => i.kind === 'booking' && !(['flights', ...PARTS].includes(i.topic) && TOPIC[i.topic]) && i.cost);
     if (plans.length) rows.push({ t: 'plan', label: '🗓 Planned activities', d: plans.reduce((s2, i) => s2 + +i.cost, 0), e: 0, note: `${plans.length} on the plan` });
     if (other.length) rows.push({ t: 'other', label: '🧾 Other bookings', d: other.reduce((s2, i) => s2 + +i.cost, 0), e: 0, note: `${other.length} booked` });
+    const g = gasOf();
+    if (g.miles && g.mpg && g.price) rows.push({ t: 'gas', label: '⛽ Gas', d: 0, e: (g.miles / g.mpg) * g.price, note: `${Math.round(g.miles).toLocaleString()} mi${g.from ? ' (' + g.from + ')' : ''} ÷ ${g.mpg} mpg × ${money(g.price)}/gal` });
     const d = rows.reduce((s2, r) => s2 + r.d, 0), e = rows.reduce((s2, r) => s2 + r.e, 0);
     return { rows, d, e, n };
+  }
+  // ---- gas: the drive's miles ÷ the car's mpg × the price of a gallon (trips.plans.gas: { mpg, price, miles }) ----
+  // A road trip's miles come from its chosen route (else the leading one): a "round trip" figure in its notes, or its one-way miles doubled.
+  // Any trip can set its own miles (a day out in the car); a set figure wins over the route's.
+  const GAS = { mpg: 25, price: 4.5 };
+  const num = (x) => +String(x).replace(/,/g, '');
+  function routeMiles() {
+    const opts = items.filter((i) => i.topic === 'route' && i.kind !== 'pack'), r = opts.find((i) => i.kind === 'booking') || opts.find((i) => i.chosen) || opts.find((i) => i.kind === 'idea');
+    if (!r) return null;
+    const t = `${r.title} ${r.notes || ''}`, from = r.chosen || r.kind === 'booking' ? 'the route' : 'the leading route';
+    // the mpg and gas price Claude assumed for its fuel figure, as the starting point
+    const mpg = num((t.match(/(\d+(?:\.\d+)?)\s*mpg/i) || [])[1] || 0) || null, price = num((t.match(/(\d+(?:\.\d+)?)\s*\/\s*gal/i) || [])[1] || 0) || null;
+    const miles = (() => {
+    const rt = t.match(/([\d,]+(?:\.\d+)?)\s*mi(?:les)?\.?\s*(?:\(|,)?\s*round[\s-]?trip/i) || t.match(/round[\s-]?trip[^.\d]{0,20}([\d,]+(?:\.\d+)?)\s*mi/i);
+    if (rt) return { miles: num(rt[1]), from };
+    if (r.details?.distance_km) return { miles: r.details.distance_km * 0.621371 * 2, from };
+    const ow = t.match(/([\d,]+(?:\.\d+)?)\s*mi(?:les)?\b/i);
+    return ow && num(ow[1]) > 0 ? { miles: num(ow[1]) * 2, from: from + ', there and back' } : null;
+    })();
+    return { miles: miles?.miles || 0, from: miles?.from || '', mpg, price };
+  }
+  function gasOf() {
+    const set = trip?.plans?.gas || {}, rm = TOPIC.route ? routeMiles() : null;
+    const miles = set.miles > 0 ? set.miles : rm?.miles || 0, dmpg = rm?.mpg || GAS.mpg, dprice = rm?.price || GAS.price;
+    return { on: !!TOPIC.route || set.miles > 0, mpg: set.mpg > 0 ? set.mpg : dmpg, price: set.price > 0 ? set.price : dprice, dmpg, dprice, miles, from: set.miles > 0 ? '' : rm?.from || '', routeMiles: rm?.miles || null, set };
+  }
+  // The car's mpg, the price of gas and the miles, under the estimate: the trip's starter or a parent sets them (092).
+  function gasHTML() {
+    const g = gasOf(), mine = PARENT || trip.created_by === ME.id;
+    if (!mine) return '';
+    if (!g.on && !gasOpen) return '<button type="button" class="add" id="gasadd">⛽ Add gas for a drive</button>';
+    const f = (k, label, v, ph, step) => `<label>${label}<input type="number" inputmode="decimal" min="0" step="${step}" data-gas="${k}" value="${v ?? ''}" placeholder="${ph}"></label>`;
+    return `<div class="gas"><b>⛽ Your car and gas</b>${f('mpg', 'MPG', g.set.mpg, g.dmpg, '1')}${f('price', `${trip.currency || 'USD'}/gal`, g.set.price, g.dprice.toFixed(2), '0.01')}${f('miles', 'Miles', g.set.miles, g.routeMiles ? Math.round(g.routeMiles) : 'round trip', '1')}</div>`;
+  }
+  let gasOpen = false;
+  function wireGas() {
+    if ($('gasadd')) $('gasadd').onclick = () => { gasOpen = true; overview(); $('over').querySelector('[data-gas="miles"]')?.focus(); };
+    $('over').querySelectorAll('[data-gas]').forEach((inp) => inp.onchange = async () => {
+      const gas = { ...(trip.plans?.gas || {}) }, v = parseFloat(inp.value);
+      if (v > 0) gas[inp.dataset.gas] = Math.round(v * 100) / 100; else delete gas[inp.dataset.gas];
+      const plans = { ...(trip.plans || {}), gas };
+      const { error } = await sb.from('trips').update({ plans }).eq('id', trip.id);
+      if (error) { alert('Could not save: ' + error.message); return; }
+      trip.plans = plans; overview();
+    });
   }
   function estimateHTML() {
     const x = estimate(); if (!x.rows.length) return '';
@@ -1376,6 +1428,7 @@
       <div class="bar" aria-hidden="true"><i class="d" style="width:${all ? (x.d / all) * 100 : 0}%"></i><i class="e" style="width:${all ? (x.e / all) * 100 : 0}%"></i></div>
       <div class="legend"><span style="--c:var(--teal)">Decided ${money(x.d)}</span>${x.e ? `<span style="--c:var(--gold)">Estimated ${money(x.e)}</span>` : ''}</div>
       <ul>${x.rows.map((r) => `<li><span>${r.label || TOPIC[r.t].join(' ')}</span><span class="amt">${money(r.d + r.e)}${r.e ? `<em>${r.d ? 'part ' : ''}est.</em>` : ''}</span><small>${esc(r.note)}</small></li>`).join('')}</ul>
+      ${gasHTML()}
       <p class="note" style="margin:8px 0 0">Estimates use the cheapest option where nothing is picked yet. Prices are typical, not quotes.</p></div>`;
   }
 
