@@ -71,6 +71,12 @@
     #pkbar span { flex: 1; min-width: 0; } #pkbar small { display: block; color: var(--muted); font-size: 11.5px; }
     #pkbar button { all: unset; cursor: pointer; font-weight: 800; font-size: 12.5px; padding: 6px 11px; border-radius: 99px; border: 1px solid #ffffff2a; }
     #pkbar .go { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
+    #pktest { margin: 0 10px 6px; padding: 10px; border-radius: 14px; border: 1px dashed #F5C54288; background: #F5C54210; }
+    #pktest .pth { display: flex; align-items: center; gap: 8px; font-size: 13px; } #pktest .pth b { flex: 1; color: var(--gold); }
+    #pktest .pth small { display: block; color: var(--muted); font-weight: 400; font-size: 11.5px; }
+    #pktest .vw { display: flex; gap: 6px; margin: 8px 0 2px; }
+    #pktest .vw button, #pktest .pth button { all: unset; cursor: pointer; font-size: 12.5px; font-weight: 700; padding: 5px 11px; border-radius: 99px; border: 1px solid #ffffff2a; }
+    #pktest .vw button.on { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
     #pkdlg { width: min(420px, calc(100vw - 32px)); }
     #pkdlg h4 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
     #pkdlg .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -87,6 +93,7 @@
 <div id="app">
 <header><a class="back" href="/" aria-label="Home">‹</a><a class="mark" href="/"><i aria-hidden="true"></i>r4box</a><span class="sep">/</span><h1>Family</h1><span class="grow"></span><button class="hbtn" id="srch" aria-label="Search the chat and everything attached">⌕</button><button class="hbtn" id="pinsbtn" aria-label="Pinned: trip and polls" aria-expanded="false">📌<i class="badge" id="pinsn" hidden></i></button><button class="hbtn" id="callbtn" aria-label="Start a video call">📹</button><button class="gear" id="gear" aria-label="Settings">⚙</button></header>
 <div id="pkbar" hidden></div>
+<div id="pktest" hidden></div>
 <div class="pins" id="pins"></div>
 <div class="devs" id="devs"></div>
 <button class="filt" id="gfilt" hidden></button>
@@ -225,14 +232,32 @@
   let places = [];
   async function loadPickups() {
     const ids = [...new Set(msgs.filter((x) => x.ref?.type === 'pickup').map((x) => x.ref.id))];
-    const [{ data: p }, { data: pl }] = await Promise.all([
+    const [{ data: p }, { data: pl }, { data: t }] = await Promise.all([
       ids.length ? sb.from('pickups').select('*').in('id', ids) : { data: [] },
-      sb.from('family_places').select('*').order('created_at')]);
-    for (const x of p || []) pickups.set(x.id, x);
+      sb.from('family_places').select('*').order('created_at'),
+      ME.role === 'parent' ? sb.from('pickups').select('*').eq('test', true).eq('driver', ME.id).gte('started_at', new Date(Date.now() - 3600e3).toISOString()) : { data: [] }]);
+    for (const x of [...(p || []), ...(t || [])]) pickups.set(x.id, x);
     places = pl || [];
     syncDrive();
   }
   function setPickup(p) { pickups.set(p.id, p); syncDrive(); }
+  // A practice pickup (125): only you see it, in this panel, as you or as the kid; their alerts come to you, marked 🧪.
+  let pkAs = 'me';
+  const practice = () => [...pickups.values()].filter((p) => p.test && p.driver === ME.id && (p.status !== 'ended' || Date.now() - Date.parse(p.ended_at || p.updated_at) < 120_000))
+    .sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at))[0];
+  function drawPractice() {
+    const p = practice(), box = $('pktest'); box.hidden = !p;
+    if (!p) return;
+    box.innerHTML = `<div class="pth"><b>🧪 Practice pickup<small>Only you see this; ${esc(nameIn(p.kid))}’s alerts come to you</small></b>${p.status !== 'ended' ? '<button data-pkend>End</button>' : '<button data-pkend>Close</button>'}</div>
+      <div class="vw"><button data-as="me" class="${pkAs === 'me' ? 'on' : ''}">Your view</button><button data-as="kid" class="${pkAs === 'kid' ? 'on' : ''}">${esc(nameIn(p.kid))}’s view</button></div>${pickupHTML(p.id, pkAs === 'kid' ? 'kid' : undefined)}`;
+  }
+  $('pktest').addEventListener('click', async (e) => {
+    const b = e.target.closest('button, a'); if (!b) return;
+    if (b.dataset.as) { pkAs = b.dataset.as; return drawPractice(); }
+    const p = practice();
+    if (b.dataset.pkend != null) { if (p.status !== 'ended') { try { await pk({ stop: p.id }); } catch (err) { toast(err.message); } } else { pickups.delete(p.id); } return drawPractice(); }
+    if (b.dataset.pk) { e.preventDefault(); await pickupAct(b); drawPractice(); }
+  });
   async function pk(payload) {
     const { data: { session: s } } = await sb.auth.getSession();
     const r = await fetch(PK, { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -244,17 +269,18 @@
   const over = (p) => p.status === 'ended' || Date.now() - Date.parse(p.started_at) > 3600e3;
   const minsLeft = (p) => Math.max(0, Math.ceil((Date.parse(p.eta_at) - Date.now()) / 60000));
   const clock = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  function pickupHTML(id) {
+  // as 'kid': the card as the kid sees it (a practice pickup's Kid's view).
+  function pickupHTML(id, as) {
     const p = pickups.get(id);
     if (!p) return '<div class="rpick"><div class="pt"><span class="ring em"><span>🚗</span></span><span class="tt"><b>Pickup</b></span></div></div>';
-    const drv = p.driver === ME.id, kid = p.kid === ME.id, d = nameIn(p.driver), k = nameIn(p.kid);
+    const kv = as === 'kid', role = kv ? 'kid' : ME.role, drv = !kv && p.driver === ME.id, kid = kv || p.kid === ME.id, d = nameIn(p.driver), k = nameIn(p.kid);
     const note = p.kid_note ? `<div class="kn">${kid ? 'You' : esc(k)}: ${esc(p.kid_note)}</div>` : '';
     const notes = kid ? `<div class="pa">${PK_NOTES.map((n) => `<button data-pk="note" data-id="${p.id}" data-t="${esc(n)}" class="${p.kid_note === n ? 'on' : ''}">${esc(n)}</button>`).join('')}<button data-pk="note" data-id="${p.id}" data-t="">✏️</button></div>` : '';
     if (over(p)) return `<div class="rpick"><div class="pt"><span class="ring em"><span>✓</span></span><span class="tt"><b>${esc(d)} picked up ${esc(k)}</b><small>${esc(p.place_name)}${p.ended_at ? ' · ' + clock(p.ended_at) : ''}</small></span></div></div>`;
     if (p.status === 'asked') return `<div class="rpick asked"><div class="pt"><span class="ring em"><span>🙋</span></span><span class="tt"><b>${kid ? `You asked ${esc(d)} for a pickup` : `${esc(k)} asks ${drv ? 'you' : esc(d)} for a pickup`}</b><small>${esc(p.place_name)} · ${esc(p.ask_when || 'now')}</small></span></div>
-      <div class="pa">${ME.role === 'parent' ? `<button class="go" data-pk="go" data-id="${p.id}">🚗 On my way</button>` : ''}${kid || ME.role === 'parent' ? `<button data-pk="stop" data-id="${p.id}">${kid ? 'Never mind' : 'Can’t'}</button>` : ''}</div></div>`;
+      <div class="pa">${role === 'parent' ? `<button class="go" data-pk="go" data-id="${p.id}">🚗 On my way</button>` : ''}${kid || role === 'parent' ? `<button data-pk="stop" data-id="${p.id}">${kid ? 'Never mind' : 'Can’t'}</button>` : ''}</div></div>`;
     if (p.status === 'here') return `<div class="rpick live"><div class="pt"><span class="ring em" style="--p:1"><span>🚗</span></span><span class="tt"><b>${drv ? 'You’re here' : `${esc(d)} is here`}</b><small>${esc(p.place_name)}${kid ? ' · look for the car' : ''}</small></span></div>${note}${notes}
-      ${drv || ME.role === 'parent' ? `<div class="pa"><button data-pk="stop" data-id="${p.id}">✓ Picked up</button></div>` : ''}</div>`;
+      ${drv || role === 'parent' ? `<div class="pa"><button data-pk="stop" data-id="${p.id}">✓ Picked up</button></div>` : ''}</div>`;
     const n = minsLeft(p), first = p.eta_first || n || 1, prog = Math.min(1, Math.max(0.03, 1 - n / first));
     const stale = Date.now() - Date.parse(p.updated_at) > 150_000;
     return `<div class="rpick live"><div class="pt"><span class="ring" style="--p:${prog.toFixed(2)}"><span>${n ? `<span><b>${n}</b><small>min</small></span>` : '<b>🚗</b>'}</span></span><span class="tt">
@@ -277,31 +303,34 @@
     () => no(new Error('Location is off for r4box: allow it so the minutes can be worked out.')), { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }) : no(new Error('This phone can’t say where it is.')));
   // The 🚗 dialog. A parent: who, where, Go (ask: answering a kid's ask). A kid: ask a parent, where, when.
   function openPickup(ask) {
-    const parent = ME.role === 'parent', st = { kid: null, to: null, place: null, when: 'now', edit: false, adding: false, err: '' };
+    const parent = ME.role === 'parent', st = { kid: null, to: null, place: null, when: 'now', edit: false, adding: false, err: '', test: false, try: 'go' };
     const kids = family.filter((f) => f.role === 'kid'), parents = family.filter((f) => f.role === 'parent');
     if (kids.length === 1) st.kid = kids[0].id; if (parents.length === 1) st.to = parents[0].id;
     if (places.length === 1) st.place = places[0].id;
     const asked = ask ? pickups.get(ask) : null;
     const paint = () => {
       const chip = (k, v, label, on) => `<button type="button" data-${k}="${esc(v)}" class="${on ? 'on' : ''}">${label}</button>`;
-      $('pkdlg').innerHTML = `<b>${asked ? `🚗 On my way to ${esc(nameIn(asked.kid))}` : parent ? '🚗 On my way' : '🙋 Ask for a pickup'}</b>
-        <div class="note" style="margin-top:4px">${parent ? `They see how many minutes away you are, not where you are. It ends when you get there.` : 'They’ll get a note, and you’ll see how many minutes away they are once they set off.'}</div>
+      const kidAsk = st.test && st.try === 'ask';   // practice: play a kid asking you
+      $('pkdlg').innerHTML = `<b>${asked ? `🚗 On my way to ${esc(nameIn(asked.kid))}` : st.test ? '🧪 Practice pickup' : parent ? '🚗 On my way' : '🙋 Ask for a pickup'}</b>
+        <div class="note" style="margin-top:4px">${st.test ? 'Only you see it: nothing goes in the chat, and the alerts they’d get come to you, marked 🧪. You can switch to their view.' : parent ? `They see how many minutes away you are, not where you are. It ends when you get there.` : 'They’ll get a note, and you’ll see how many minutes away they are once they set off.'}</div>
+        ${parent && !asked ? `<div class="chips" style="margin-top:10px">${chip('test', '1', '🧪 Practice', st.test)}${st.test ? chip('try', 'go', '🚗 On my way', st.try === 'go') + chip('try', 'ask', '🙋 A kid asks me', st.try === 'ask') : ''}</div>` : ''}
         ${asked ? `<div class="note">${esc(asked.place_name)} · ${esc(asked.ask_when || 'now')}</div>` : `
-        <h4>${parent ? 'Picking up' : 'Ask'}</h4><div class="chips">${(parent ? kids : parents).map((f) => chip(parent ? 'kid' : 'to', f.id, esc(f.username), (parent ? st.kid : st.to) === f.id)).join('')}</div>
+        <h4>${kidAsk ? 'Who asks' : parent ? 'Picking up' : 'Ask'}</h4><div class="chips">${(parent ? kids : parents).map((f) => chip(parent ? 'kid' : 'to', f.id, esc(f.username), (parent ? st.kid : st.to) === f.id)).join('')}</div>
         <h4>Where</h4><div class="chips">${places.map((p) => chip('place', p.id, `${esc(p.emoji || '📍')} ${esc(p.name)}`, st.place === p.id) + (st.edit ? `<button type="button" class="x" data-delp="${p.id}" aria-label="Remove ${esc(p.name)}">✕</button>` : '')).join('')}
           ${parent ? `<button type="button" data-addp="1">＋ Place</button>${places.length ? `<button type="button" data-editp="1">${st.edit ? 'Done' : 'Edit'}</button>` : ''}` : ''}</div>
         ${!places.length && !parent ? '<div class="note">No pickup places yet: ask a parent to add them (School, Practice…).</div>' : ''}
         ${st.adding ? `<div class="newp"><input id="pkname" placeholder="Name it: School, Soccer field…" maxlength="40"><input id="pkaddr" placeholder="Address" maxlength="200">
           <div class="chips" style="margin-top:8px"><button type="button" data-savep="addr">Save</button><button type="button" data-savep="here">📍 Save where I am now</button></div></div>` : ''}
-        ${parent ? '' : `<h4>When</h4><div class="chips">${['now', 'in 15 min', 'in 30 min'].map((w) => chip('when', w, w[0].toUpperCase() + w.slice(1), st.when === w)).join('')}<button type="button" data-when="time" class="${/^at /.test(st.when) ? 'on' : ''}">${/^at /.test(st.when) ? esc(st.when) : 'At…'}</button></div>`}`}
+        ${parent && !kidAsk ? '' : `<h4>When</h4><div class="chips">${['now', 'in 15 min', 'in 30 min'].map((w) => chip('when', w, w[0].toUpperCase() + w.slice(1), st.when === w)).join('')}<button type="button" data-when="time" class="${/^at /.test(st.when) ? 'on' : ''}">${/^at /.test(st.when) ? esc(st.when) : 'At…'}</button></div>`}`}
         ${st.err ? `<div class="err">${esc(st.err)}</div>` : ''}
-        ${parent ? '<div class="note">Keep this chat open on the way (in a phone holder): the minutes update while it’s on screen.</div>' : ''}
-        <div class="row"><button type="button" data-cancel>Cancel</button><button type="button" data-ok style="background:var(--teal);color:var(--teal-ink);border-color:var(--teal)">${parent ? '🚗 Go' : 'Ask'}</button></div>`;
+        ${parent && !kidAsk ? '<div class="note">Keep this chat open on the way (in a phone holder): the minutes update while it’s on screen.</div>' : ''}
+        <div class="row"><button type="button" data-cancel>Cancel</button><button type="button" data-ok style="background:var(--teal);color:var(--teal-ink);border-color:var(--teal)">${kidAsk ? '🙋 Ask me' : parent ? '🚗 Go' : 'Ask'}</button></div>`;
     };
     $('pkdlg').onclick = async (e) => {
       const b = e.target.closest('button'); if (!b) return;
       const d = b.dataset; st.err = '';
       if (d.kid) st.kid = d.kid; if (d.to) st.to = d.to; if (d.place) st.place = d.place;
+      if (d.test) st.test = !st.test; if (d.try) st.try = d.try;
       if (d.when) { if (d.when === 'time') { const t = prompt('What time? (e.g. 3:30)'); if (t?.trim()) st.when = 'at ' + t.trim().slice(0, 12); } else st.when = d.when; }
       if (d.addp) st.adding = !st.adding;
       if (d.editp) st.edit = !st.edit;
@@ -315,8 +344,10 @@
       if (d.cancel != null) { $('pkdlg').close(); return; }
       if (d.ok != null) {
         try {
-          b.disabled = true; b.textContent = parent ? 'Working out the drive…' : 'Asking…';
-          if (parent) { if (!asked && (!st.kid || !st.place)) throw new Error('Pick who and where.'); await pk({ start: { kid: st.kid, place: st.place, from: await where() }, ...(asked ? { ask: asked.id } : {}) }); }
+          const kidAsk = st.test && st.try === 'ask';
+          b.disabled = true; b.textContent = parent && !kidAsk ? 'Working out the drive…' : 'Asking…';
+          if (kidAsk) { if (!st.kid || !st.place) throw new Error('Pick who and where.'); await pk({ ask: { test: true, kid: st.kid, place: st.place, when: st.when } }); pkAs = 'me'; }
+          else if (parent) { if (!asked && (!st.kid || !st.place)) throw new Error('Pick who and where.'); await pk({ start: { kid: st.kid, place: st.place, from: await where(), test: st.test }, ...(asked ? { ask: asked.id } : {}) }); }
           else { if (!st.to || !st.place) throw new Error('Pick who and where.'); await pk({ ask: { to: st.to, place: st.place, when: st.when } }); }
           $('pkdlg').close(); await load(); return;
         } catch (err) { st.err = err.message; }
@@ -347,7 +378,7 @@
     const bar = $('pkbar'); bar.hidden = !p;
     if (p) {
       const n = minsLeft(p);
-      bar.innerHTML = `<span>🚗 <b>${esc(nameIn(p.kid))} sees you’re ${n ? `~${n} min` : 'almost'} away</b><small>Only the minutes, not where you are · keep this open on the way</small></span><button class="go" data-pkbar="here">Here</button><button data-pkbar="stop">Stop</button>`;
+      bar.innerHTML = `<span>${p.test ? '🧪' : '🚗'} <b>${esc(nameIn(p.kid))} ${p.test ? 'would see' : 'sees'} you’re ${n ? `~${n} min` : 'almost'} away</b><small>${p.test ? 'Practice: only you see it · ' : ''}Only the minutes, not where you are · keep this open on the way</small></span><button class="go" data-pkbar="here">Here</button><button data-pkbar="stop">Stop</button>`;
       bar.querySelectorAll('[data-pkbar]').forEach((b) => (b.onclick = async () => { try { await pk({ [b.dataset.pkbar]: p.id }); render(false); } catch (err) { toast(err.message); } }));
     }
   }
@@ -479,7 +510,7 @@
     $('msgs').innerHTML = list.length ? listHTML(list, {}) + (thinking && !thinking.thread ? '<div class="think">✦ Claude is thinking…</div>' : '')
       : msgs.length ? '<div class="empty">Nothing from them yet.</div>' : `<div class="empty"><b>Say hi 👋</b>Everyone in the family sees this chat.<br>Write @claude to bring Claude in.</div>`;
     $('gfilt').hidden = !filter; if (filter) $('gfilt').innerHTML = `Only <b>${esc(nameIn(filter))}</b> · show everyone ✕`;
-    pins(); devStrip(); watchBig($('msgs'));
+    pins(); devStrip(); drawPractice(); watchBig($('msgs'));
     if (atEnd) { log.scrollTop = log.scrollHeight; requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; }); }
     if (sub?.root) renderThread();
   }
